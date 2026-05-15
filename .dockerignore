@@ -1,0 +1,13 @@
+.git
+.gitignore
+docs
+README.md
+**/README.md
+**/HELP.md
+**/node_modules
+**/dist
+**/target
+**/.mvn
+**/mvnw
+**/mvnw.cmd
+npm-debug.log

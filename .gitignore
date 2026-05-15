@@ -1,0 +1,59 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Frontend dependencies and build output
+node_modules/
+**/node_modules/
+dist/
+dist-ssr/
+coverage/
+
+# Backend build output
+target/
+**/target/
+build/
+**/build/
+
+# Java / Maven
+*.class
+*.jar
+*.war
+*.ear
+
+# IDEs and editors
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Spring tooling
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+
+# Docker local overrides
+docker-compose.override.yml
