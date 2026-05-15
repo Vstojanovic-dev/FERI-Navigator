@@ -55,5 +55,7 @@ build/
 .springBeans
 .sts4-cache/
 
-# Docker local overrides
+# Docker local overrides and database runtime files
 docker-compose.override.yml
+postgres_data/
+pgdata/
