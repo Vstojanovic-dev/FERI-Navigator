@@ -1,70 +1,28 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
+import { demoSpaces, getBuildingName, type Space } from "../data/demoData";
 
-type Space = {
-  id: number;
-  name: string;
-  type: string;
-  building: string;
-  floor: string;
-  description: string;
-  imageUrl: string;
+type MainPageProps = {
+  introDone: boolean;
+  introVisible: boolean;
+  onOpenSpace: (space: Space) => void;
+  onOpenObjekti: () => void;
+  onMenuNavigacija: () => void;
+  onMenuOFeri: () => void;
+  onFindClassroom: (space: Space) => void;
 };
 
-type Screen = "home" | "spaceDetails";
-
-const demoSpaces: Space[] = [
-  {
-    id: 1,
-    name: "Alfa",
-    type: "Učilnica",
-    building: "Objekt G2",
-    floor: "1. nadstropje",
-    description: "Večja učilnica za predavanja in vaje. Prostor je namenjen študentom, predavanjem in predstavitvam.",
-    imageUrl: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900",
-  },
-  {
-    id: 2,
-    name: "Beta",
-    type: "Učilnica",
-    building: "Objekt G2",
-    floor: "2. nadstropje",
-    description: "Učilnica za manjše skupine, seminarske vaje in delo v skupinah.",
-    imageUrl: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900",
-  },
-  {
-    id: 3,
-    name: "Laboratorij L1",
-    type: "Laboratorij",
-    building: "Objekt G3",
-    floor: "Pritličje",
-    description: "Laboratorij za praktično delo, računalniške vaje in tehnične predmete.",
-    imageUrl: "https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=900",
-  },
-];
-
-function MainPage() {
-  const [screen, setScreen] = useState<Screen>("home");
+function MainPage({
+  introDone,
+  introVisible,
+  onOpenSpace,
+  onOpenObjekti,
+  onMenuNavigacija,
+  onMenuOFeri,
+  onFindClassroom,
+}: MainPageProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
-  const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
-  const [introDone, setIntroDone] = useState(false);
-  const [introVisible, setIntroVisible] = useState(false);
-
-  useEffect(() => {
-    const showTimer = window.setTimeout(() => {
-      setIntroVisible(true);
-    }, 120);
-
-    const moveTimer = window.setTimeout(() => {
-      setIntroDone(true);
-    }, 1700);
-
-    return () => {
-      window.clearTimeout(showTimer);
-      window.clearTimeout(moveTimer);
-    };
-  }, []);
 
   const filteredSpaces = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -77,62 +35,13 @@ function MainPage() {
       return (
         space.name.toLowerCase().includes(query) ||
         space.type.toLowerCase().includes(query) ||
-        space.building.toLowerCase().includes(query) ||
+        getBuildingName(space.buildingId).toLowerCase().includes(query) ||
         space.floor.toLowerCase().includes(query)
       );
     });
   }, [searchText]);
 
-  const openSpaceDetails = (space: Space) => {
-    setSelectedSpace(space);
-    setScreen("spaceDetails");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleMenuClick = (pageName: string) => {
-    setIsMenuOpen(false);
-    alert(`Stran "${pageName}" bo dodana kasneje.`);
-  };
-
-  const handleFindClassroom = (space: Space) => {
-    alert(`Odprla bi se Navigacija. Cilj bi bil že nastavljen na: ${space.name}`);
-  };
-
-  if (screen === "spaceDetails" && selectedSpace) {
-    return (
-      <main style={styles.pageShell}>
-        <section style={styles.phoneCanvas}>
-          <div style={styles.detailsTopImageWrap}>
-            <img src={selectedSpace.imageUrl} alt={selectedSpace.name} style={styles.detailsTopImage} />
-            <button type="button" style={styles.floatingBackButton} onClick={() => setScreen("home")}>
-              ← Nazaj
-            </button>
-          </div>
-
-          <section style={styles.detailsSheet}>
-            <p style={styles.detailsType}>{selectedSpace.type}</p>
-            <h1 style={styles.detailsName}>{selectedSpace.name}</h1>
-            <p style={styles.detailsDescription}>{selectedSpace.description}</p>
-
-            <div style={styles.detailsInfoRow}>
-              <div style={styles.detailsInfoItem}>
-                <span style={styles.infoSmallLabel}>Objekt</span>
-                <strong style={styles.infoStrong}>{selectedSpace.building}</strong>
-              </div>
-              <div style={styles.detailsInfoItem}>
-                <span style={styles.infoSmallLabel}>Nadstropje</span>
-                <strong style={styles.infoStrong}>{selectedSpace.floor}</strong>
-              </div>
-            </div>
-
-            <button type="button" style={styles.largeNavigationButton} onClick={() => handleFindClassroom(selectedSpace)}>
-              Poišči učilnico
-            </button>
-          </section>
-        </section>
-      </main>
-    );
-  }
+  const closeMenu = () => setIsMenuOpen(false);
 
   return (
     <main style={styles.pageShell}>
@@ -143,6 +52,8 @@ function MainPage() {
               type="button"
               style={introDone ? styles.roundButton : styles.roundButtonHidden}
               onClick={() => setIsMenuOpen((value) => !value)}
+              aria-expanded={isMenuOpen}
+              aria-label="Odpri meni"
             >
               ☰
             </button>
@@ -169,20 +80,6 @@ function MainPage() {
               🗺️
             </button>
           </div>
-
-          {isMenuOpen && (
-            <nav style={styles.overlayMenu} aria-label="Glavni meni">
-              <button type="button" style={styles.overlayMenuItem} onClick={() => handleMenuClick("Vsi objekti")}>
-                Vsi objekti
-              </button>
-              <button type="button" style={styles.overlayMenuItem} onClick={() => handleMenuClick("Navigacija")}>
-                Navigacija
-              </button>
-              <button type="button" style={styles.overlayMenuItem} onClick={() => handleMenuClick("O FERI")}>
-                O FERI
-              </button>
-            </nav>
-          )}
         </header>
 
         <section style={introDone ? styles.bottomPanelVisible : styles.bottomPanelHidden}>
@@ -213,7 +110,7 @@ function MainPage() {
           ) : (
             <div style={styles.compactCardsList}>
               {filteredSpaces.map((space) => (
-                <article key={space.id} style={styles.compactCard} onClick={() => openSpaceDetails(space)}>
+                <article key={space.id} style={styles.compactCard} onClick={() => onOpenSpace(space)}>
                   <img src={space.imageUrl} alt={space.name} style={styles.compactCardImage} />
 
                   <div style={styles.compactCardContent}>
@@ -223,7 +120,7 @@ function MainPage() {
                         <span style={styles.typeChip}>{space.type}</span>
                       </div>
                       <p style={styles.compactCardMeta}>
-                        {space.building} · {space.floor}
+                        {getBuildingName(space.buildingId)} · {space.floor}
                       </p>
                     </div>
 
@@ -232,7 +129,7 @@ function MainPage() {
                       style={styles.inlineFindButton}
                       onClick={(event) => {
                         event.stopPropagation();
-                        handleFindClassroom(space);
+                        onFindClassroom(space);
                       }}
                     >
                       Poišči učilnico
@@ -244,6 +141,47 @@ function MainPage() {
           )}
         </section>
       </section>
+
+      {isMenuOpen && (
+        <div style={styles.menuOverlay} onClick={closeMenu} role="presentation">
+          <nav
+            style={styles.menuPanel}
+            aria-label="Glavni meni"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                closeMenu();
+                onOpenObjekti();
+              }}
+            >
+              Vsi objekti
+            </button>
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                closeMenu();
+                onMenuNavigacija();
+              }}
+            >
+              Navigacija
+            </button>
+            <button
+              type="button"
+              style={styles.menuItem}
+              onClick={() => {
+                closeMenu();
+                onMenuOFeri();
+              }}
+            >
+              O FERI
+            </button>
+          </nav>
+        </div>
+      )}
 
       {isMapPopupOpen && (
         <div style={styles.popupOverlay} role="dialog" aria-modal="true" aria-label="Zemljevid FERI">
@@ -421,27 +359,35 @@ const styles: Record<string, CSSProperties> = {
     margin: "3px 0 0",
     transition: "font-size 1300ms ease, letter-spacing 1300ms ease",
   },
-  overlayMenu: {
-    background: "#ffffff",
-    borderRadius: 18,
-    boxShadow: "0 18px 35px rgba(0, 0, 0, 0.25)",
-    display: "grid",
-    left: 18,
-    overflow: "hidden",
-    position: "absolute",
-    right: 18,
-    top: 76,
-    zIndex: 20,
+  menuOverlay: {
+    alignItems: "flex-start",
+    background: "rgba(8, 13, 24, 0.55)",
+    display: "flex",
+    inset: 0,
+    justifyContent: "center",
+    padding: "88px 18px 18px",
+    position: "fixed",
+    zIndex: 1000,
   },
-  overlayMenuItem: {
+  menuPanel: {
     background: "#ffffff",
+    borderRadius: 24,
+    boxShadow: "0 20px 50px rgba(15, 23, 42, 0.22)",
+    display: "grid",
+    gap: 8,
+    maxWidth: 520,
+    padding: 10,
+    width: "100%",
+  },
+  menuItem: {
+    background: "#f6f2ea",
     border: 0,
-    borderBottom: "1px solid #edf0f5",
+    borderRadius: 18,
     color: "#172033",
     cursor: "pointer",
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 900,
-    padding: "14px 16px",
+    padding: "16px 18px",
     textAlign: "left",
   },
   bottomPanelHidden: {
