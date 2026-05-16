@@ -9,6 +9,7 @@ import MainPage from "./pages/MainPage.tsx";
 import ObjektiPage from "./pages/ObjektiPage.tsx";
 import PodrobnostiObjektaPage from "./pages/PodrobnostiObjektaPage.tsx";
 import OFeriPage from "./pages/OFeriPage.tsx";
+import NavigacijaPage from "./pages/NavigacijaPage.tsx";
 import UcilnicaPage from "./pages/UcilnicaPage.tsx";
 import type { Screen } from "./types/navigation";
 
@@ -19,6 +20,8 @@ function App() {
   const [ucilnicaReturnScreen, setUcilnicaReturnScreen] = useState<Screen>("home");
   const [introDone, setIntroDone] = useState(false);
   const [introVisible, setIntroVisible] = useState(false);
+  const [navigationTarget, setNavigationTarget] = useState("");
+  const [navigacijaReturnScreen, setNavigacijaReturnScreen] = useState<Screen>("home");
 
   useEffect(() => {
     if (introDone) {
@@ -43,8 +46,15 @@ function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const openNavigacija = (options?: { target?: string; returnTo?: Screen }) => {
+    setNavigationTarget(options?.target ?? "");
+    setNavigacijaReturnScreen(options?.returnTo ?? screen);
+    setScreen("navigacija");
+    scrollToTop();
+  };
+
   const handleFindClassroom = (space: Space) => {
-    alert(`Odprla bi se Navigacija. Cilj bi bil že nastavljen na: ${space.name}`);
+    openNavigacija({ target: space.name, returnTo: screen });
   };
 
   const openUcilnica = (space: Space, returnTo: Screen) => {
@@ -84,6 +94,15 @@ function App() {
     return <OFeriPage onBack={() => setScreen("home")} />;
   }
 
+  if (screen === "navigacija") {
+    return (
+      <NavigacijaPage
+        initialTarget={navigationTarget}
+        onBack={() => setScreen(navigacijaReturnScreen)}
+      />
+    );
+  }
+
   if (screen === "podrobnostiObjekta" && selectedBuilding) {
     return (
       <PodrobnostiObjektaPage
@@ -105,7 +124,7 @@ function App() {
         setScreen("objekti");
         scrollToTop();
       }}
-      onMenuNavigacija={() => alert('Stran "Navigacija" bo dodana kasneje.')}
+      onMenuNavigacija={() => openNavigacija({ returnTo: "home" })}
       onMenuOFeri={() => {
         setScreen("oFeri");
         scrollToTop();

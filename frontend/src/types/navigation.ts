@@ -1,1 +1,7 @@
-export type Screen = "home" | "ucilnica" | "objekti" | "podrobnostiObjekta" | "oFeri";
+export type Screen =
+  | "home"
+  | "ucilnica"
+  | "objekti"
+  | "podrobnostiObjekta"
+  | "oFeri"
+  | "navigacija";
