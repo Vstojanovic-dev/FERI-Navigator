@@ -13,28 +13,28 @@ import org.locationtech.jts.geom.Point;
 @Builder
 public class NavNode {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(name = "floor_id", nullable = false)
-    private Integer floorId;
+  @Column(name = "floor_id", nullable = false)
+  private Integer floorId;
 
-    @Column(name = "label")
-    private String label;
+  @Column(name = "label")
+  private String label;
 
-    @Column(name = "is_waypoint", nullable = false)
-    private Boolean isWaypoint = false;
+  @Column(name = "is_waypoint", nullable = false)
+  private Boolean isWaypoint = false;
 
-    @Column(name = "node_type", length = 30)
-    private String nodeType;
+  @Column(name = "node_type", length = 30)
+  private String nodeType;
 
-    @Column(name = "room_id")
-    private Long roomId;
+  @Column(name = "room_id")
+  private Long roomId;
 
-    @Column(name = "geom", columnDefinition = "geometry(Point,3857)", nullable = false)
-    private Point geom;
+  @Column(name = "geom", columnDefinition = "geometry(Point,3857)", nullable = false)
+  private Point geom;
 
-    @Column(name = "external_id", unique = true)
-    private String externalId;
+  @Column(name = "external_id", unique = true)
+  private String externalId;
 }

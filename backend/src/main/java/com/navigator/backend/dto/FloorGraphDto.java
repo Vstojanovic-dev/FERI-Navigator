@@ -7,54 +7,54 @@ import lombok.*;
 
 public class FloorGraphDto {
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ImportRequest {
-        @NotNull private Integer floor;
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class ImportRequest {
+    @NotNull private Integer floor;
 
-        @NotEmpty @Valid private List<NodeDto> nodes;
+    @NotEmpty @Valid private List<NodeDto> nodes;
 
-        @NotEmpty @Valid private List<EdgeDto> edges;
-    }
+    @NotEmpty @Valid private List<EdgeDto> edges;
+  }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class NodeDto {
-        @NotBlank private String id;
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class NodeDto {
+    @NotBlank private String id;
 
-        private String label;
+    private String label;
 
-        @NotNull private Double x;
+    @NotNull private Double x;
 
-        @NotNull private Double y;
+    @NotNull private Double y;
 
-        private String nodeType;
+    private String nodeType;
 
-        private Long roomId;
-    }
+    private Long roomId;
+  }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class EdgeDto {
-        @NotBlank private String from;
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class EdgeDto {
+    @NotBlank private String from;
 
-        @NotBlank private String to;
+    @NotBlank private String to;
 
-        private String edgeType;
+    private String edgeType;
 
-        private Boolean crossFloor;
-    }
+    private Boolean crossFloor;
+  }
 
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ImportResult {
-        private int nodesInserted;
-        private int edgesInserted;
-        private int floor;
-        private String message;
-    }
+  @Data
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class ImportResult {
+    private int nodesInserted;
+    private int edgesInserted;
+    private int floor;
+    private String message;
+  }
 }

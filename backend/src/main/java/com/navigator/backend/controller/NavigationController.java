@@ -1,6 +1,5 @@
 package com.navigator.backend.controller;
 
-
 import com.navigator.backend.dto.PathResponseDto;
 import com.navigator.backend.service.AStarService;
 import lombok.RequiredArgsConstructor;
@@ -13,42 +12,39 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*") // Za razvoj — ograniči u produkciji
 public class NavigationController {
 
-    private final AStarService aStarService;
+  private final AStarService aStarService;
 
-    /**
-     * Traži najkraći put između dva čvora.
-     *
-     * GET /api/navigation/path?from=referat&to=amper_lab
-     *
-     * Parametri:
-     *   from — label ili externalId početnog čvora (npr. "referat", "0_referat")
-     *   to   — label ili externalId ciljnog čvora
-     *
-     * Odgovor:
-     *   200 OK  — PathResponseDto sa putem i ukupnom cijenom
-     *   400 Bad Request — ako from ili to nisu navedeni
-     */
-    @GetMapping("/path")
-    public ResponseEntity<PathResponseDto> getPath(
-            @RequestParam String from,
-            @RequestParam String to) {
+  /**
+   * Traži najkraći put između dva čvora.
+   *
+   * <p>GET /api/navigation/path?from=referat&to=amper_lab
+   *
+   * <p>Parametri: from — label ili externalId početnog čvora (npr. "referat", "0_referat") to —
+   * label ili externalId ciljnog čvora
+   *
+   * <p>Odgovor: 200 OK — PathResponseDto sa putem i ukupnom cijenom 400 Bad Request — ako from ili
+   * to nisu navedeni
+   */
+  @GetMapping("/path")
+  public ResponseEntity<PathResponseDto> getPath(
+      @RequestParam String from, @RequestParam String to) {
 
-        if (from == null || from.isBlank()) {
-            return ResponseEntity.badRequest().body(
-                    PathResponseDto.builder().message("Parametar 'from' je obavezan.").build());
-        }
-        if (to == null || to.isBlank()) {
-            return ResponseEntity.badRequest().body(
-                    PathResponseDto.builder().message("Parametar 'to' je obavezan.").build());
-        }
-
-        PathResponseDto result = aStarService.findPath(from.trim(), to.trim());
-
-        // Ako put nije pronađen, vrati 404 umjesto 200
-        if (result.getPath() == null || result.getPath().isEmpty()) {
-            return ResponseEntity.status(404).body(result);
-        }
-
-        return ResponseEntity.ok(result);
+    if (from == null || from.isBlank()) {
+      return ResponseEntity.badRequest()
+          .body(PathResponseDto.builder().message("Parametar 'from' je obavezan.").build());
     }
+    if (to == null || to.isBlank()) {
+      return ResponseEntity.badRequest()
+          .body(PathResponseDto.builder().message("Parametar 'to' je obavezan.").build());
+    }
+
+    PathResponseDto result = aStarService.findPath(from.trim(), to.trim());
+
+    // Ako put nije pronađen, vrati 404 umjesto 200
+    if (result.getPath() == null || result.getPath().isEmpty()) {
+      return ResponseEntity.status(404).body(result);
+    }
+
+    return ResponseEntity.ok(result);
+  }
 }

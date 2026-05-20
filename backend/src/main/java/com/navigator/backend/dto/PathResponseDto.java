@@ -12,26 +12,26 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PathResponseDto {
 
-    /** Ukupna cijena puta (suma weighta svih veza) */
-    private double totalCost;
+  /** Ukupna cijena puta (suma weighta svih veza) */
+  private double totalCost;
 
-    /** Uredan niz čvorova od starta do cilja */
-    private List<PathNode> path;
+  /** Uredan niz čvorova od starta do cilja */
+  private List<PathNode> path;
 
-    /** Poruka ako put nije pronađen */
-    private String message;
+  /** Poruka ako put nije pronađen */
+  private String message;
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class PathNode {
-        private Long id;
-        private String externalId;
-        private String label;
-        private String nodeType;
-        private Integer floorId;
-        private double x;
-        private double y;
-    }
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class PathNode {
+    private Long id;
+    private String externalId;
+    private String label;
+    private String nodeType;
+    private Integer floorId;
+    private double x;
+    private double y;
+  }
 }

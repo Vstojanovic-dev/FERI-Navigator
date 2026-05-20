@@ -13,27 +13,27 @@ import org.locationtech.jts.geom.LineString;
 @Builder
 public class NavEdge {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "from_node", nullable = false)
-    private NavNode fromNode;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "from_node", nullable = false)
+  private NavNode fromNode;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "to_node", nullable = false)
-    private NavNode toNode;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "to_node", nullable = false)
+  private NavNode toNode;
 
-    @Column(name = "weight")
-    private Double weight;
+  @Column(name = "weight")
+  private Double weight;
 
-    @Column(name = "edge_type", length = 20)
-    private String edgeType;
+  @Column(name = "edge_type", length = 20)
+  private String edgeType;
 
-    @Column(name = "is_cross_floor")
-    private Boolean isCrossFloor = false;
+  @Column(name = "is_cross_floor")
+  private Boolean isCrossFloor = false;
 
-    @Column(name = "geom", columnDefinition = "geometry(LineString,3857)")
-    private LineString geom;
+  @Column(name = "geom", columnDefinition = "geometry(LineString,3857)")
+  private LineString geom;
 }
