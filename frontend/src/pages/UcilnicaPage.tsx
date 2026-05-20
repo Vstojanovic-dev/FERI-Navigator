@@ -1,5 +1,5 @@
-import type { Space } from "../data/demoData";
-import { sharedStyles as styles } from "../styles/sharedStyles";
+import type { Space } from '../data/demoData';
+import { sharedStyles as styles } from '../styles/sharedStyles';
 
 type UcilnicaPageProps = {
   space: Space;

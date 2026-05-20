@@ -1,14 +1,14 @@
-import type { CSSProperties } from "react";
-import { sharedStyles as styles } from "../styles/sharedStyles";
+import type { CSSProperties } from 'react';
+import { sharedStyles as styles } from '../styles/sharedStyles';
 
 type OFeriPageProps = {
   onBack: () => void;
 };
 
 const infoCards = [
-  "Fakulteta za elektrotehniko, računalništvo in informatiko",
-  "Univerza v Mariboru",
-  "Študijski prostori, laboratoriji in predavalnice",
+  'Fakulteta za elektrotehniko, računalništvo in informatiko',
+  'Univerza v Mariboru',
+  'Študijski prostori, laboratoriji in predavalnice',
 ];
 
 function OFeriPage({ onBack }: OFeriPageProps) {
@@ -57,50 +57,50 @@ function OFeriPage({ onBack }: OFeriPageProps) {
 
 const pageStyles: Record<string, CSSProperties> = {
   content: {
-    display: "grid",
+    display: 'grid',
     gap: 16,
-    padding: "16px 16px 28px",
+    padding: '16px 16px 28px',
   },
   heroCard: {
-    background: "#ffffff",
-    border: "1px solid #eadfce",
+    background: '#ffffff',
+    border: '1px solid #eadfce',
     borderRadius: 24,
-    boxShadow: "0 14px 28px rgba(54, 42, 27, 0.09)",
-    overflow: "hidden",
+    boxShadow: '0 14px 28px rgba(54, 42, 27, 0.09)',
+    overflow: 'hidden',
   },
   heroImage: {
-    display: "block",
+    display: 'block',
     height: 190,
-    objectFit: "cover",
-    width: "100%",
+    objectFit: 'cover',
+    width: '100%',
   },
   lead: {
-    color: "#5f5548",
+    color: '#5f5548',
     fontSize: 16,
     lineHeight: 1.55,
     margin: 0,
   },
   infoCardsList: {
-    display: "grid",
+    display: 'grid',
     gap: 10,
   },
   infoCard: {
-    background: "#ffffff",
-    border: "1px solid #eadfce",
+    background: '#ffffff',
+    border: '1px solid #eadfce',
     borderRadius: 20,
-    padding: "14px 16px",
+    padding: '14px 16px',
   },
   infoCardText: {
-    color: "#172033",
+    color: '#172033',
     fontSize: 15,
     fontWeight: 800,
     lineHeight: 1.4,
   },
   footerText: {
-    color: "#736959",
+    color: '#736959',
     fontSize: 14,
     lineHeight: 1.5,
-    margin: "4px 0 0",
+    margin: '4px 0 0',
   },
 };
 

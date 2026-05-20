@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
-import { demoBuildings, getSpaceCountForBuilding, type Building } from "../data/demoData";
-import { sharedStyles as styles } from "../styles/sharedStyles";
+import { useMemo, useState } from 'react';
+import { demoBuildings, getSpaceCountForBuilding, type Building } from '../data/demoData';
+import { sharedStyles as styles } from '../styles/sharedStyles';
 
 type ObjektiPageProps = {
   onBack: () => void;
@@ -8,7 +8,7 @@ type ObjektiPageProps = {
 };
 
 function ObjektiPage({ onBack, onOpenBuilding }: ObjektiPageProps) {
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState('');
 
   const filteredBuildings = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -71,7 +71,7 @@ function ObjektiPage({ onBack, onOpenBuilding }: ObjektiPageProps) {
 
 function BuildingCard({ building, onOpen }: { building: Building; onOpen: () => void }) {
   const spaceCount = getSpaceCountForBuilding(building.id);
-  const spaceLabel = spaceCount === 1 ? "1 prostor" : `${spaceCount} prostorov`;
+  const spaceLabel = spaceCount === 1 ? '1 prostor' : `${spaceCount} prostorov`;
 
   return (
     <article style={styles.card} onClick={onOpen}>

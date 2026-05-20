@@ -1,27 +1,22 @@
-import { useEffect, useState } from "react";
-import {
-  getBuildingName,
-  getSpacesForBuilding,
-  type Building,
-  type Space,
-} from "./data/demoData";
-import MainPage from "./pages/MainPage.tsx";
-import ObjektiPage from "./pages/ObjektiPage.tsx";
-import PodrobnostiObjektaPage from "./pages/PodrobnostiObjektaPage.tsx";
-import OFeriPage from "./pages/OFeriPage.tsx";
-import NavigacijaPage from "./pages/NavigacijaPage.tsx";
-import UcilnicaPage from "./pages/UcilnicaPage.tsx";
-import type { Screen } from "./types/navigation";
+import { useEffect, useState } from 'react';
+import { getBuildingName, getSpacesForBuilding, type Building, type Space } from './data/demoData';
+import MainPage from './pages/MainPage.tsx';
+import ObjektiPage from './pages/ObjektiPage.tsx';
+import PodrobnostiObjektaPage from './pages/PodrobnostiObjektaPage.tsx';
+import OFeriPage from './pages/OFeriPage.tsx';
+import NavigacijaPage from './pages/NavigacijaPage.tsx';
+import UcilnicaPage from './pages/UcilnicaPage.tsx';
+import type { Screen } from './types/navigation';
 
 function App() {
-  const [screen, setScreen] = useState<Screen>("home");
+  const [screen, setScreen] = useState<Screen>('home');
   const [selectedSpace, setSelectedSpace] = useState<Space | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
-  const [ucilnicaReturnScreen, setUcilnicaReturnScreen] = useState<Screen>("home");
+  const [ucilnicaReturnScreen, setUcilnicaReturnScreen] = useState<Screen>('home');
   const [introDone, setIntroDone] = useState(false);
   const [introVisible, setIntroVisible] = useState(false);
-  const [navigationTarget, setNavigationTarget] = useState("");
-  const [navigacijaReturnScreen, setNavigacijaReturnScreen] = useState<Screen>("home");
+  const [navigationTarget, setNavigationTarget] = useState('');
+  const [navigacijaReturnScreen, setNavigacijaReturnScreen] = useState<Screen>('home');
 
   useEffect(() => {
     if (introDone) {
@@ -43,13 +38,13 @@ function App() {
   }, [introDone]);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openNavigacija = (options?: { target?: string; returnTo?: Screen }) => {
-    setNavigationTarget(options?.target ?? "");
+    setNavigationTarget(options?.target ?? '');
     setNavigacijaReturnScreen(options?.returnTo ?? screen);
-    setScreen("navigacija");
+    setScreen('navigacija');
     scrollToTop();
   };
 
@@ -60,17 +55,17 @@ function App() {
   const openUcilnica = (space: Space, returnTo: Screen) => {
     setSelectedSpace(space);
     setUcilnicaReturnScreen(returnTo);
-    setScreen("ucilnica");
+    setScreen('ucilnica');
     scrollToTop();
   };
 
   const openPodrobnostiObjekta = (building: Building) => {
     setSelectedBuilding(building);
-    setScreen("podrobnostiObjekta");
+    setScreen('podrobnostiObjekta');
     scrollToTop();
   };
 
-  if (screen === "ucilnica" && selectedSpace) {
+  if (screen === 'ucilnica' && selectedSpace) {
     return (
       <UcilnicaPage
         space={selectedSpace}
@@ -81,20 +76,15 @@ function App() {
     );
   }
 
-  if (screen === "objekti") {
-    return (
-      <ObjektiPage
-        onBack={() => setScreen("home")}
-        onOpenBuilding={openPodrobnostiObjekta}
-      />
-    );
+  if (screen === 'objekti') {
+    return <ObjektiPage onBack={() => setScreen('home')} onOpenBuilding={openPodrobnostiObjekta} />;
   }
 
-  if (screen === "oFeri") {
-    return <OFeriPage onBack={() => setScreen("home")} />;
+  if (screen === 'oFeri') {
+    return <OFeriPage onBack={() => setScreen('home')} />;
   }
 
-  if (screen === "navigacija") {
+  if (screen === 'navigacija') {
     return (
       <NavigacijaPage
         initialTarget={navigationTarget}
@@ -103,13 +93,13 @@ function App() {
     );
   }
 
-  if (screen === "podrobnostiObjekta" && selectedBuilding) {
+  if (screen === 'podrobnostiObjekta' && selectedBuilding) {
     return (
       <PodrobnostiObjektaPage
         building={selectedBuilding}
         spaces={getSpacesForBuilding(selectedBuilding.id)}
-        onBack={() => setScreen("objekti")}
-        onOpenSpace={(space) => openUcilnica(space, "podrobnostiObjekta")}
+        onBack={() => setScreen('objekti')}
+        onOpenSpace={(space) => openUcilnica(space, 'podrobnostiObjekta')}
         onFindClassroom={handleFindClassroom}
       />
     );
@@ -119,14 +109,14 @@ function App() {
     <MainPage
       introDone={introDone}
       introVisible={introVisible}
-      onOpenSpace={(space) => openUcilnica(space, "home")}
+      onOpenSpace={(space) => openUcilnica(space, 'home')}
       onOpenObjekti={() => {
-        setScreen("objekti");
+        setScreen('objekti');
         scrollToTop();
       }}
-      onMenuNavigacija={() => openNavigacija({ returnTo: "home" })}
+      onMenuNavigacija={() => openNavigacija({ returnTo: 'home' })}
       onMenuOFeri={() => {
-        setScreen("oFeri");
+        setScreen('oFeri');
         scrollToTop();
       }}
       onFindClassroom={handleFindClassroom}

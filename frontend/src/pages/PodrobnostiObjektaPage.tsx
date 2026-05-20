@@ -1,5 +1,5 @@
-import type { Building, Space } from "../data/demoData";
-import { sharedStyles as styles } from "../styles/sharedStyles";
+import type { Building, Space } from '../data/demoData';
+import { sharedStyles as styles } from '../styles/sharedStyles';
 
 type PodrobnostiObjektaPageProps = {
   building: Building;
@@ -52,8 +52,12 @@ function PodrobnostiObjektaPage({
                       {space.type} · {space.floor}
                     </p>
                   </div>
-                  <div style={{ display: "grid", gap: 8 }}>
-                    <button type="button" style={styles.secondaryButton} onClick={() => onOpenSpace(space)}>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <button
+                      type="button"
+                      style={styles.secondaryButton}
+                      onClick={() => onOpenSpace(space)}
+                    >
                       Podrobnosti
                     </button>
                     <button

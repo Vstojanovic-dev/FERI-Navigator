@@ -1,5 +1,5 @@
-import { useState, type CSSProperties } from "react";
-import { sharedStyles as styles } from "../styles/sharedStyles";
+import { useState, type CSSProperties } from 'react';
+import { sharedStyles as styles } from '../styles/sharedStyles';
 
 type NavigacijaPageProps = {
   initialTarget: string;
@@ -7,35 +7,35 @@ type NavigacijaPageProps = {
 };
 
 const demoSteps = [
-  "Pot je pripravljena.",
-  "1. Pojdi naravnost do glavnega hodnika.",
-  "2. Zavij desno pri stopnišču.",
-  "3. Nadaljuj do izbrane učilnice.",
+  'Pot je pripravljena.',
+  '1. Pojdi naravnost do glavnega hodnika.',
+  '2. Zavij desno pri stopnišču.',
+  '3. Nadaljuj do izbrane učilnice.',
 ];
 
 function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
-  const [startLocation, setStartLocation] = useState("");
+  const [startLocation, setStartLocation] = useState('');
   const [targetLocation, setTargetLocation] = useState(initialTarget);
   const [routeVisible, setRouteVisible] = useState(false);
-  const [formError, setFormError] = useState("");
+  const [formError, setFormError] = useState('');
 
   const handleShowRoute = () => {
     const start = startLocation.trim();
     const target = targetLocation.trim();
 
     if (!start) {
-      setFormError("Vnesi začetno lokacijo.");
+      setFormError('Vnesi začetno lokacijo.');
       setRouteVisible(false);
       return;
     }
 
     if (!target) {
-      setFormError("Vnesi cilj.");
+      setFormError('Vnesi cilj.');
       setRouteVisible(false);
       return;
     }
 
-    setFormError("");
+    setFormError('');
     setRouteVisible(true);
   };
 
@@ -115,8 +115,24 @@ function MapDemo({ routeVisible }: { routeVisible: boolean }) {
       <rect x="112" y="34" width="88" height="152" rx="8" fill="#eef3fb" stroke="#c5d3e8" />
       <rect x="216" y="34" width="80" height="152" rx="8" fill="#e8eef6" stroke="#c5d3e8" />
 
-      <line x1="96" y1="110" x2="112" y2="110" stroke="#94a3b8" strokeWidth="6" strokeLinecap="round" />
-      <line x1="200" y1="110" x2="216" y2="110" stroke="#94a3b8" strokeWidth="6" strokeLinecap="round" />
+      <line
+        x1="96"
+        y1="110"
+        x2="112"
+        y2="110"
+        stroke="#94a3b8"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
+      <line
+        x1="200"
+        y1="110"
+        x2="216"
+        y2="110"
+        stroke="#94a3b8"
+        strokeWidth="6"
+        strokeLinecap="round"
+      />
 
       {routeVisible && (
         <path
@@ -147,77 +163,77 @@ function MapDemo({ routeVisible }: { routeVisible: boolean }) {
 
 const pageStyles: Record<string, CSSProperties> = {
   content: {
-    display: "grid",
+    display: 'grid',
     gap: 10,
-    padding: "16px 16px 28px",
+    padding: '16px 16px 28px',
   },
   label: {
-    color: "#172033",
+    color: '#172033',
     fontSize: 14,
     fontWeight: 900,
     marginTop: 4,
   },
   input: {
-    background: "#ffffff",
-    border: "1px solid #eadfce",
+    background: '#ffffff',
+    border: '1px solid #eadfce',
     borderRadius: 18,
-    boxSizing: "border-box",
-    color: "#172033",
+    boxSizing: 'border-box',
+    color: '#172033',
     fontSize: 15,
-    outline: "none",
-    padding: "14px 16px",
-    width: "100%",
+    outline: 'none',
+    padding: '14px 16px',
+    width: '100%',
   },
   primaryButton: {
-    background: "#172033",
+    background: '#172033',
     border: 0,
     borderRadius: 18,
-    color: "#ffffff",
-    cursor: "pointer",
+    color: '#ffffff',
+    cursor: 'pointer',
     fontSize: 15,
     fontWeight: 900,
     marginTop: 6,
-    padding: "14px 16px",
-    width: "100%",
+    padding: '14px 16px',
+    width: '100%',
   },
   errorText: {
-    color: "#b45309",
+    color: '#b45309',
     fontSize: 13,
     fontWeight: 800,
-    margin: "2px 0 0",
+    margin: '2px 0 0',
   },
   mapPlaceholder: {
-    background: "#ffffff",
-    border: "1px solid #eadfce",
+    background: '#ffffff',
+    border: '1px solid #eadfce',
     borderRadius: 24,
-    boxShadow: "0 14px 28px rgba(54, 42, 27, 0.09)",
+    boxShadow: '0 14px 28px rgba(54, 42, 27, 0.09)',
     marginTop: 10,
-    overflow: "hidden",
-    padding: "12px 12px 10px",
+    overflow: 'hidden',
+    padding: '12px 12px 10px',
   },
   mapLabel: {
-    color: "#64748b",
+    color: '#64748b',
     fontSize: 12,
     fontWeight: 800,
-    margin: "0 0 8px",
-    textAlign: "center",
+    margin: '0 0 8px',
+    textAlign: 'center',
   },
   mapSvg: {
-    display: "block",
-    height: "auto",
-    width: "100%",
+    display: 'block',
+    height: 'auto',
+    width: '100%',
   },
   stepsBox: {
-    background: "#ffffff",
-    border: "1px solid #eadfce",
+    background: '#ffffff',
+    border: '1px solid #eadfce',
     borderRadius: 20,
-    display: "grid",
+    display: 'grid',
     gap: 8,
     marginTop: 4,
-    padding: "14px 16px",
+    padding: '14px 16px',
   },
   stepText: {
-    color: "#172033",
+    color: '#172033',
     fontSize: 14,
     fontWeight: 700,
     lineHeight: 1.45,
