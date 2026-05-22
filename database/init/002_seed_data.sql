@@ -1,50 +1,79 @@
-INSERT INTO buildings (name, code)
-VALUES ('FERI', 'FERI')
+-- Baseline lookup data and G2 map metadata.
+
+INSERT INTO space_types (code, name, description) VALUES
+    ('classroom', 'Classroom', 'Lecture room or classroom.'),
+    ('laboratory', 'Laboratory', 'Laboratory or practical work room.'),
+    ('office', 'Office', 'Office or administration room.'),
+    ('wc', 'WC', 'Toilet location.'),
+    ('service', 'Service', 'Service or support area.'),
+    ('public_area', 'Public area', 'Public student or visitor area.')
 ON CONFLICT (code) DO NOTHING;
 
-INSERT INTO floors (building_id, level_number, name, model_url)
-SELECT id, 0, 'Ground floor', '/models/feri-ground-floor.glb'
-FROM buildings
-WHERE code = 'FERI'
-ON CONFLICT (building_id, level_number) DO NOTHING;
+INSERT INTO node_types (code, name, description) VALUES
+    ('room', 'Room', 'Navigable point for a room or destination.'),
+    ('entrance', 'Entrance', 'Building entrance.'),
+    ('exit', 'Exit', 'Building or floor exit.'),
+    ('elevator', 'Elevator', 'Elevator point.'),
+    ('stairs', 'Stairs', 'Staircase point.'),
+    ('corridor', 'Corridor', 'Corridor or hallway point.'),
+    ('waypoint', 'Waypoint', 'Technical routing point without user-facing meaning.'),
+    ('wc', 'WC', 'Toilet point.'),
+    ('building_transfer', 'Building transfer', 'Transfer point between buildings.')
+ON CONFLICT (code) DO NOTHING;
 
-INSERT INTO rooms (floor_id, name, code, position)
-SELECT floors.id, seed.name, seed.code, ST_SetSRID(ST_MakePoint(seed.x, seed.y), 3857)
-FROM floors
-JOIN buildings ON buildings.id = floors.building_id
+INSERT INTO edge_types (code, name, description) VALUES
+    ('corridor', 'Corridor', 'Regular hallway or walkable connection.'),
+    ('stairs', 'Stairs', 'Vertical movement via stairs.'),
+    ('elevator', 'Elevator', 'Vertical movement via elevator.'),
+    ('entrance', 'Entrance', 'Entrance or exit connection.'),
+    ('building_transfer', 'Building transfer', 'Connection between buildings.'),
+    ('virtual', 'Virtual', 'Technical connection used to attach a room to the graph.')
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO buildings (code, name, description, image_url)
+VALUES
+    ('G2', 'Objekt G2', 'FERI G2 building with classrooms, laboratories and public areas.', NULL)
+ON CONFLICT (code) DO UPDATE
+SET name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    image_url = EXCLUDED.image_url,
+    updated_at = NOW();
+
+INSERT INTO floors (
+    building_id,
+    code,
+    label,
+    level_number,
+    z,
+    map_image_url,
+    coordinate_width,
+    coordinate_height
+)
+SELECT
+    b.id,
+    f.code,
+    f.label,
+    f.level_number,
+    f.z,
+    f.map_image_url,
+    1190.55,
+    841.89
+FROM buildings b
 JOIN (
     VALUES
-        ('Entrance', 'ENTRANCE', 0, 0),
-        ('Lecture room A', 'A-001', 12, 0),
-        ('Lecture room B', 'B-001', 24, 0)
-) AS seed(name, code, x, y) ON TRUE
-WHERE buildings.code = 'FERI' AND floors.level_number = 0
-ON CONFLICT (floor_id, code) DO NOTHING;
-
-INSERT INTO navigation_nodes (floor_id, label, node_type, position)
-SELECT floors.id, seed.label, seed.node_type, ST_SetSRID(ST_MakePoint(seed.x, seed.y), 3857)
-FROM floors
-JOIN buildings ON buildings.id = floors.building_id
-JOIN (
-    VALUES
-        ('Entrance node', 'entrance', 0, 0),
-        ('Hallway node 1', 'walkway', 12, 0),
-        ('Hallway node 2', 'walkway', 24, 0)
-) AS seed(label, node_type, x, y) ON TRUE
-WHERE buildings.code = 'FERI' AND floors.level_number = 0;
-
-INSERT INTO navigation_edges (from_node_id, to_node_id, distance_meters)
-SELECT from_node.id, to_node.id, 12.00
-FROM navigation_nodes from_node
-JOIN navigation_nodes to_node ON to_node.label = 'Hallway node 1'
-JOIN floors ON floors.id = from_node.floor_id AND floors.id = to_node.floor_id
-JOIN buildings ON buildings.id = floors.building_id
-WHERE buildings.code = 'FERI' AND from_node.label = 'Entrance node';
-
-INSERT INTO navigation_edges (from_node_id, to_node_id, distance_meters)
-SELECT from_node.id, to_node.id, 12.00
-FROM navigation_nodes from_node
-JOIN navigation_nodes to_node ON to_node.label = 'Hallway node 2'
-JOIN floors ON floors.id = from_node.floor_id AND floors.id = to_node.floor_id
-JOIN buildings ON buildings.id = floors.building_id
-WHERE buildings.code = 'FERI' AND from_node.label = 'Hallway node 1';
+        ('pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/1_pritlicje.png'),
+        ('1_nadstropje', '1. nadstropje', 1.00, 1.000, '/maps/2_nadstropje1.png'),
+        ('medetaza', 'Medetaza', 1.50, 1.500, '/maps/3_medetaza.png'),
+        ('2_nadstropje', '2. nadstropje', 2.00, 2.000, '/maps/4_nadstropje2.png'),
+        ('3_nadstropje', '3. nadstropje', 3.00, 3.000, '/maps/5_nadstropje3.png'),
+        ('4_nadstropje', '4. nadstropje', 4.00, 4.000, '/maps/6_nadstropje4.png')
+) AS f(code, label, level_number, z, map_image_url) ON TRUE
+WHERE b.code = 'G2'
+ON CONFLICT (building_id, code) DO UPDATE
+SET label = EXCLUDED.label,
+    level_number = EXCLUDED.level_number,
+    z = EXCLUDED.z,
+    map_image_url = EXCLUDED.map_image_url,
+    coordinate_width = EXCLUDED.coordinate_width,
+    coordinate_height = EXCLUDED.coordinate_height,
+    updated_at = NOW();

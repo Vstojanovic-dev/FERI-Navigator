@@ -1,4 +1,22 @@
 services:
+  postgres:
+    image: postgis/postgis:17-3.5
+    container_name: feri-navigator-postgres
+    environment:
+      POSTGRES_DB: feri_navigator
+      POSTGRES_USER: feri
+      POSTGRES_PASSWORD: feri
+    ports:
+      - "5432:5432"
+    volumes:
+      - feri-db-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U feri -d feri_navigator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -11,6 +29,9 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: validate
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -21,9 +42,6 @@ services:
       - "5173:80"
     depends_on:
       - backend
-
-volumes:
-  postgres_data:
 
 volumes:
   feri-db-data:
