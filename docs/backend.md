@@ -1,412 +1,816 @@
-# Backend specifikacija
+# Backend dokumentacija
 
-Ovaj dokument opisuje koje funkcionalnosti backend FERI Navigatora treba da ima, kako treba da rade i koji su dogovoreni API/data-flow principi. Backend mora biti izvor navigacione logike; frontend treba da salje stabilne ID-jeve i prikazuje rezultat koji backend vrati.
+Ovaj dokument je praktican handover za backend FERI Navigator projekta. Cilj nije samo da opise sta postoji, nego i da ostavi dovoljno konteksta da covek ili AI kasnije mogu bezbedno da menjaju sistem bez lomljenja navigacije, baze ili frontend ugovora.
 
-## Glavna uloga backenda
+Dokument je pisan prema trenutnom kodu u `backend/`, SQL semama u `database/init/` i frontend kontraktu u `frontend/src/types/navigation.ts`.
 
-Backend treba da:
+## 1. Sta backend radi
 
-- cita navigacione podatke iz PostgreSQL/PostGIS baze,
-- izlozi API za dropdown lokacije,
-- izracuna rutu izmedju dve izabrane lokacije,
-- segmentira rutu po objektu i spratu,
-- vrati mapu, koordinate rute i tekstualne korake za svaki segment,
-- podrzi buduce opcije kao `allowElevator=false`, najblizi WC, prelaze izmedju objekata i 3D `z` koordinatu.
+Backend je Spring Boot aplikacija za:
 
-Backend ne treba da zavisi od toga da frontend salje tekstualne nazive lokacija. Tekst se koristi samo za pretragu/dropdown; navigacioni request mora koristiti ID-jeve iz baze.
+- citanje navigacionih podataka iz PostgreSQL/PostGIS baze,
+- pretragu korisnickih lokacija za dropdown,
+- racunanje najkrace rute kroz navigacioni graf,
+- vracanje rute segmentirane po spratu,
+- serviranje mapa iz `database/maps` preko HTTP-a,
+- razvojni import grafa za pojedinacne spratove i cross-floor veze.
 
-## Tehnoloska osnova
+Uloga backend-a je da bude izvor istine za navigaciju. Frontend ne sme sam da odlucuje kako izgleda graf, koje su validne lokacije, ni kada se menja sprat. Frontend samo bira lokacije i crta ono sto backend vrati.
 
-- Framework: Spring Boot.
-- Baza: PostgreSQL + PostGIS.
-- Schema source of truth: SQL fajlovi u `database/init`.
-- Koordinate: originalni PDF/map coordinate system.
-- PostGIS SRID: `0`, jer koordinate nisu GPS.
-- `x`, `y`, `z` ostaju obicne kolone zbog frontend overlay-a i buduce 3D navigacije.
+## 2. Tehnologije i runtime
 
-Trenutni Java kod treba uskladiti sa novom bazom. Stare tabele/entiteti `nav_nodes` i `nav_edges` vise nisu ciljni model; ciljni model koristi `navigation_nodes` i `navigation_edges`.
+- Java 21
+- Spring Boot 3.3
+- Spring Web
+- Spring Data JPA
+- PostgreSQL
+- PostGIS
+- Hibernate Spatial
+- Lombok
 
-## Domen i entiteti
+Glavni entrypoint je:
 
-Backend treba da modeluje sledece domenske celine.
+- [backend/src/main/java/com/navigator/backend/FeriNavigatorApplication.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/FeriNavigatorApplication.java)
 
-### Buildings
+Konfiguracija aplikacije je u:
 
-Objekti fakulteta, npr. `G2`, kasnije `G3`.
+- [backend/src/main/resources/application.properties](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/resources/application.properties)
 
-Koristi se za:
+Bitne stvari iz konfiguracije:
 
-- grupisanje spratova,
-- segmentaciju rute,
-- prikaz konteksta u dropdown-u.
+- `server.port=8080`
+- `spring.jpa.hibernate.ddl-auto=validate` po default-u
+- baza se povezuje preko env promenljivih `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD`
 
-### Floors
+`ddl-auto=validate` je bitan: Hibernate ne treba da menja semu, samo da proveri da li Java modeli odgovaraju SQL-u. SQL fajlovi u `database/init/` su source of truth.
 
-Sprat unutar objekta.
+## 3. Arhitektura po slojevima
+
+### Kontroleri
+
+#### `NavigationController`
+
+Fajl:
+
+- [backend/src/main/java/com/navigator/backend/controller/NavigationController.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/controller/NavigationController.java)
+
+Izlaze:
+
+- `GET /api/navigation/locations`
+- `GET /api/navigation/route`
+- `GET /api/navigation/path`
+
+Napomena:
+
+- `/locations` i `/route` su novi API za frontend.
+- `/path` je legacy/tehnicki endpoint koji radi po label/externalId stringovima i vraca sirov path bez segmentacije. Ne treba ga koristiti kao glavni frontend API.
+
+#### `NavGraphController`
+
+Fajl:
+
+- [backend/src/main/java/com/navigator/backend/controller/NavGraphController.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/controller/NavGraphController.java)
+
+Izlaze:
+
+- `POST /api/graph/import`
+- `POST /api/graph/cross-floor`
+
+Ovo su razvojni/admin endpointi za import grafa. Produkcioni sistem ne treba da zavisi od njih kao od jedinog nacina punjenja podataka. Seed SQL ostaje primarni izvor podataka.
+
+### Servisi
+
+#### `NavigationRouteService`
+
+Fajl:
+
+- [backend/src/main/java/com/navigator/backend/service/NavigationRouteService.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/service/NavigationRouteService.java)
+
+Ovo je glavni aplikativni servis za frontend navigaciju. Njegove odgovornosti:
+
+- pretraga dropdown lokacija,
+- validacija `fromLocationId` i `toLocationId`,
+- proveravanje da li lokacije imaju povezani node,
+- pozivanje A* algoritma,
+- prevod rezultata u `RouteResponseDto`,
+- segmentacija po spratu,
+- generisanje tekstualnih koraka,
+- pretvaranje gresaka u kontrolisane poslovne greske preko `NavigationRouteException`.
+
+#### `AStarService`
+
+Fajl:
+
+- [backend/src/main/java/com/navigator/backend/service/AStarService.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/service/AStarService.java)
+
+Ovo je engine za pretragu puta kroz graf.
+
+Radi dve stvari:
+
+- legacy `findPath(String fromLabel, String toLabel)`
+- glavni `findPath(NavNode start, NavNode goal, boolean allowElevator)`
+
+Algoritam:
+
+- koristi `gScore`, `fScore`, `cameFrom`, `cameFromEdge`, `closedSet`
+- susede cita iz `navigation_edges` preko `NavEdgeRepository.findByFromNodeId`
+- heuristika je euklidska udaljenost u `x/y`
+- ukupni cost je suma `edge.weight`
+- ako je `allowElevator=false`, preskacu se edge-ovi tipa `elevator`
+
+Vazno:
+
+- algoritam tretira graf kao usmeren
+- zato seed/import mora obezbediti oba smera ako je kretanje dvosmerno
+- servis trenutno ne koristi `z` u heuristici
+
+#### `NavGraphService`
+
+Fajl:
+
+- [backend/src/main/java/com/navigator/backend/service/NavGraphService.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/service/NavGraphService.java)
+
+Odgovornosti:
+
+- import node-ova i edge-eva za jedan sprat,
+- brisanje starih node-ova/edge-eva za taj sprat pre reimport-a,
+- pravljenje `Point` i `LineString` geometrija,
+- automatsko dupliranje edge-eva u oba smera,
+- import cross-floor edge-eva.
+
+Ovo je razvojni alat. Ako ga menjas, vodi racuna da moze da obrise podatke jednog sprata.
+
+### Repo sloj
+
+Glavni repozitorijumi:
+
+- [backend/src/main/java/com/navigator/backend/repository/NavigationLocationRepository.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/repository/NavigationLocationRepository.java)
+- [backend/src/main/java/com/navigator/backend/repository/NavNodeRepository.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/repository/NavNodeRepository.java)
+- [backend/src/main/java/com/navigator/backend/repository/NavEdgeRepository.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/repository/NavEdgeRepository.java)
+- [backend/src/main/java/com/navigator/backend/repository/NodeTypeRepository.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/repository/NodeTypeRepository.java)
+- [backend/src/main/java/com/navigator/backend/repository/EdgeTypeRepository.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/repository/EdgeTypeRepository.java)
+
+Prakticne napomene:
+
+- `NavigationLocationRepository` koristi `@EntityGraph` da odmah ucita `building`, `floor`, `node`
+- `searchEnabled` vraca samo `is_enabled = true`
+- `NavEdgeRepository.findByFromNodeId` radi `JOIN FETCH e.toNode`, sto je bitno da A* ne pravi previse dodatnih upita za susede
+- `NavNodeRepository.findNearestOnFloor(...)` postoji za buduce map-click ili nearest-node scenarije, ali trenutno nije pozvan iz glavnog ruta toka
+
+### DTO sloj
+
+Glavni DTO fajlovi:
+
+- [backend/src/main/java/com/navigator/backend/dto/NavigationLocationDto.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/NavigationLocationDto.java)
+- [backend/src/main/java/com/navigator/backend/dto/RouteResponseDto.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/RouteResponseDto.java)
+- [backend/src/main/java/com/navigator/backend/dto/NavigationErrorDto.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/NavigationErrorDto.java)
+- [backend/src/main/java/com/navigator/backend/dto/PathResponseDto.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/PathResponseDto.java)
+- [backend/src/main/java/com/navigator/backend/dto/FloorGraphDto.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/FloorGraphDto.java)
+- [backend/src/main/java/com/navigator/backend/dto/RouteSearchResult.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/dto/RouteSearchResult.java)
+
+## 4. Domen i baza
+
+Source of truth seme je:
+
+- [database/init/001_schema.sql](/D:/Feri%20Navigator/FERI-Navigator/database/init/001_schema.sql)
+
+Seed i inicijalni import:
+
+- [database/init/002_seed_data.sql](/D:/Feri%20Navigator/FERI-Navigator/database/init/002_seed_data.sql)
+- [database/init/003_g2_staging_nodes.sql](/D:/Feri%20Navigator/FERI-Navigator/database/init/003_g2_staging_nodes.sql)
+- [database/init/004_load_g2_navigation_nodes.sql](/D:/Feri%20Navigator/FERI-Navigator/database/init/004_load_g2_navigation_nodes.sql)
+- [database/init/005_mvp_navigation_edges.sql](/D:/Feri%20Navigator/FERI-Navigator/database/init/005_mvp_navigation_edges.sql)
+
+### Glavne tabele
+
+#### `buildings`
+
+Predstavlja objekte fakulteta, npr. `G2`.
 
 Bitna polja:
 
-- `building_id`,
-- `code`,
-- `label`,
-- `level_number`,
-- `z`,
-- `map_image_url`,
-- `coordinate_width`,
-- `coordinate_height`.
+- `code`
+- `name`
+- `description`
+- `image_url`
 
-Backend mora koristiti `coordinate_width` i `coordinate_height` u route response-u da frontend moze tacno da nacrta SVG overlay.
+#### `floors`
 
-### Spaces
+Predstavlja sprat unutar objekta.
 
-Prostorije i javne lokacije koje korisnik razume: ucionice, laboratorije, WC, referat, kancelarije, prostor za ucenje.
+Bitna polja:
 
-`spaces` su katalog lokacija. One nisu dovoljne za racunanje puta; svaka navigabilna prostorija mora biti povezana sa `navigation_nodes.primary_node_id`/`space_id` vezom.
+- `building_id`
+- `code`
+- `label`
+- `level_number`
+- `z`
+- `map_image_url`
+- `coordinate_width`
+- `coordinate_height`
 
-### Navigation Nodes
+Ovo je kljucno za frontend overlay. Backend vraca iste koordinate kao u bazi, a frontend koristi `viewBox` dimenzije da iscrta putanju.
 
-Tehnicke tacke grafa.
+#### `spaces`
+
+Ovo je katalog realnih prostora razumljivih korisniku.
 
 Primeri:
 
-- waypoint,
-- lift,
-- stepenice,
-- hodnik,
-- ulaz,
-- izlaz,
-- WC,
-- tacka ispred prostorije.
+- ucionica
+- laboratorija
+- kancelarija
+- WC
+- prostor za ucenje
 
-Svaki node ima:
+`spaces.primary_node_id` povezuje realan prostor sa navigacionim grafom.
 
-- `external_id`,
-- tip,
-- `x`, `y`, `z`,
-- PostGIS `geom Point`,
-- pripadnost spratu.
+#### `navigation_nodes`
 
-### Navigation Edges
+Tehnicke tacke grafa.
+
+Bitna polja:
+
+- `floor_id`
+- `node_type_id`
+- `space_id`
+- `external_id`
+- `label`
+- `x`
+- `y`
+- `z`
+- `geom`
+- `is_waypoint`
+- `is_public`
+
+Java model:
+
+- [backend/src/main/java/com/navigator/backend/model/NavNode.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/model/NavNode.java)
+
+`external_id` mora ostati stabilan jer se koristi u seed/import procesu i u legacy putanji.
+
+#### `navigation_edges`
 
 Veze izmedju node-ova.
 
-Edge oznacava da korisnik moze da se krece iz jedne tacke u drugu. Bez edge-eva ne postoji ruta.
+Bitna polja:
 
-Svaki edge ima:
+- `from_node_id`
+- `to_node_id`
+- `edge_type_id`
+- `weight`
+- `geom`
+- `is_bidirectional`
+- `is_cross_floor`
+- `is_cross_building`
+- `instruction_forward`
+- `instruction_backward`
+- `landmark`
+
+Java model:
+
+- [backend/src/main/java/com/navigator/backend/model/NavEdge.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/model/NavEdge.java)
+
+Iako baza ima `is_bidirectional`, trenutni A* i repo sloj koriste eksplicitne usmerene zapise. U praksi to znaci da moraju postojati obe vrste reda ako je prolaz dvosmeran. Seed `005_mvp_navigation_edges.sql` to radi automatski preko `UNION ALL`.
 
-- `from_node_id`,
-- `to_node_id`,
-- tip edge-a,
-- `weight`,
-- PostGIS `geom LineString`,
-- flags: `is_cross_floor`, `is_cross_building`,
-- opcione instrukcije: `instruction_forward`, `instruction_backward`,
-- opcioni `landmark`.
+#### `navigation_locations`
 
-Backend treba da tretira edge-eve kao usmerene zapise. Ako je prolaz dvosmeran, u bazi treba da postoje oba smera ili import/seed treba da ih generise.
+Ovo je lista lokacija koje frontend nudi korisniku.
 
-### Navigation Locations
+Bitna polja:
 
-Dropdown stavke koje korisnik sme da izabere.
+- `display_name`
+- `searchable_name`
+- `location_type`
+- `building_id`
+- `floor_id`
+- `node_id`
+- `space_id`
+- `is_enabled`
 
-Ovo nije isto sto i `spaces`, jer dropdown moze sadrzati i:
+Java model:
 
-- ulaz,
-- lift,
-- stepenice,
-- WC,
-- prostoriju.
+- [backend/src/main/java/com/navigator/backend/model/NavigationLocation.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/model/NavigationLocation.java)
 
-Route endpoint ne prima tekst, nego `navigation_locations.id`.
+`navigation_locations` je vazna apstrakcija: frontend bira lokacije iz ove tabele, ne iz `spaces`, ne iz `navigation_nodes`, i ne po slobodnom tekstu.
 
-## API funkcionalnosti
+### Tipovi koji postoje u seed-u
 
-### Health
+`node_types`:
 
-Endpoint:
+- `room`
+- `entrance`
+- `exit`
+- `elevator`
+- `stairs`
+- `corridor`
+- `waypoint`
+- `wc`
+- `building_transfer`
 
-```http
-GET /api/health
-```
-
-Svrha:
-
-- brza provera da backend radi,
-- opcionalno proveriti konekciju sa bazom.
-
-Minimalan odgovor:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Dropdown lokacije
-
-Endpoint:
+`edge_types`:
 
-```http
-GET /api/navigation/locations?query=...&limit=20
-```
+- `corridor`
+- `stairs`
+- `elevator`
+- `entrance`
+- `building_transfer`
+- `virtual`
 
-Svrha:
+`space_types`:
 
-- frontend koristi ovaj endpoint dok korisnik kuca pocetnu ili ciljnu lokaciju,
-- vraca samo lokacije koje korisnik sme da izabere.
+- `classroom`
+- `laboratory`
+- `office`
+- `wc`
+- `service`
+- `public_area`
 
-Pravila:
+## 5. Tok podataka
 
-- `query` moze biti prazan; tada vratiti najkorisnije/abecedno prve lokacije do limita.
-- `limit` ima default `20` i maksimalnu vrednost, npr. `50`.
-- Rezultat ne sme ukljuciti `waypoint` i tehnicke `corridor` tacke.
-- Rezultat mora imati dovoljno konteksta da korisnik razlikuje duplirane nazive.
+### 5.1 Pretraga lokacija
 
-Primer odgovora:
+Tok:
 
-```json
-[
-  {
-    "id": 123,
-    "displayName": "Lift - G2, 2. nadstropje",
-    "locationType": "elevator",
-    "buildingCode": "G2",
-    "buildingName": "Objekt G2",
-    "floorCode": "2_nadstropje",
-    "floorLabel": "2. nadstropje"
-  }
-]
-```
+1. Frontend salje `GET /api/navigation/locations?query=...&limit=20`
+2. `NavigationController` prosledjuje zahtev u `NavigationRouteService.searchLocations`
+3. Servis normalizuje `limit` na opseg `1..50`
+4. `NavigationLocationRepository.searchEnabled` vraca samo enabled lokacije
+5. Rezultat se mapira u `NavigationLocationDto`
+6. Frontend prikazuje `displayName` i meta podatke o objektu/spratu
 
-### Ruta izmedju dve lokacije
+Bitno:
 
-Endpoint:
+- pretraga ide preko `searchable_name` i `display_name`
+- query moze biti prazan string
+- backend trenutno ne namece eksplicitni `ORDER BY`, pa redosled zavisi od baze i pageable implementacije; ako ti treba deterministicko sortiranje, uvedi ga u repo upitu
 
-```http
-GET /api/navigation/route?fromLocationId=123&toLocationId=456&allowElevator=true
-```
+### 5.2 Racunanje rute
 
-Svrha:
+Tok:
 
-- izracuna najbolju rutu izmedju dve dropdown lokacije,
-- vrati rezultat spreman za frontend prikaz.
+1. Frontend bira dve stavke iz dropdown-a
+2. Salje `GET /api/navigation/route?fromLocationId=...&toLocationId=...&allowElevator=true`
+3. `NavigationRouteService.route(...)` ucita obe lokacije
+4. Ako lokacija ne postoji ili je disabled, baca se `NavigationRouteException`
+5. Servis proverava da li lokacije imaju `node`
+6. Poziva `AStarService.findPath(startNode, goalNode, allowElevator)`
+7. `AStarService` vraca `RouteSearchResult` sa:
+   - listom node-ova
+   - listom edge-eva
+   - ukupnim cost-om
+8. `NavigationRouteService`:
+   - segmentira rezultat po spratu
+   - generise `steps`
+   - pravi `RouteResponseDto`
+9. Kontroler vraca:
+   - `200` sa rutom
+   - ili status iz `NavigationRouteException` sa `NavigationErrorDto`
 
-Pravila:
+### 5.3 Frontend prikaz
 
-- `fromLocationId` je obavezan.
-- `toLocationId` je obavezan.
-- `allowElevator` ima default `true`.
-- Backend prvo ucita `navigation_locations`, zatim njihove `node_id` vrednosti.
-- Backend ne sme traziti node samo po labelu.
-- Ako su start i cilj isti, vratiti validan route response sa jednim segmentom i porukom.
-- Ako lokacija ne postoji, vratiti `404`.
-- Ako lokacija nema node, vratiti `422`.
-- Ako ruta ne postoji, vratiti `404` sa jasnom porukom.
+Frontend kontrakt je definisan u:
 
-Primer odgovora:
+- [frontend/src/types/navigation.ts](/D:/Feri%20Navigator/FERI-Navigator/frontend/src/types/navigation.ts)
 
-```json
-{
-  "totalCost": 325.4,
-  "message": null,
-  "segments": [
-    {
-      "index": 0,
-      "buildingCode": "G2",
-      "buildingName": "Objekt G2",
-      "floorCode": "pritlicje",
-      "floorLabel": "Pritlicje",
-      "mapImageUrl": "/maps/1_pritlicje.png",
-      "coordinateWidth": 1190.55,
-      "coordinateHeight": 841.89,
-      "z": 0,
-      "usesElevator": true,
-      "usesStairs": false,
-      "path": [
-        { "nodeId": 1, "x": 253.9, "y": 385.8, "z": 0 },
-        { "nodeId": 2, "x": 220.9, "y": 451.8, "z": 0 }
-      ],
-      "steps": [
-        "Pojdi od lifta proti hodniku.",
-        "Nadaljuj po hodniku."
-      ]
-    }
-  ]
-}
-```
+Frontend navigacija koristi:
 
-### Najblizi WC
+- [frontend/src/pages/NavigacijaPage.tsx](/D:/Feri%20Navigator/FERI-Navigator/frontend/src/pages/NavigacijaPage.tsx)
 
-Endpoint za buducu fazu:
+Frontend ocekuje:
 
-```http
-GET /api/navigation/nearest?fromLocationId=123&type=wc&allowElevator=true
-```
+- `segments[]`
+- svaki segment mora imati `mapImageUrl`
+- svaki segment mora imati `coordinateWidth` i `coordinateHeight`
+- `path` je lista tacaka u istom koordinatnom sistemu kao mapa
+- `steps` imaju `fromNodeId` i `toNodeId` da frontend moze da highlight-uje aktivni deo putanje
 
-Svrha:
+Ako promenis shape ovih DTO-a, moras menjati i frontend tipove i map rendering.
 
-- pronadje najblizu lokaciju od zadatog tipa,
-- za sada primarni tip je `wc`.
+## 6. API ugovor
 
-Pravila:
+### `GET /api/navigation/locations`
 
-- backend ucitava sve enabled lokacije tipa `wc`,
-- racuna rutu do svake dostupne WC lokacije,
-- bira rutu sa najmanjim ukupnim cost-om,
-- vraca isti response format kao `/route`.
+Parametri:
 
-Ovo nije obavezno za MVP, ali route servis mora biti projektovan tako da se moze pozvati vise puta za vise kandidata.
+- `query` default `""`
+- `limit` default `20`
 
-### Admin/import endpointi
+Odgovor:
 
-Postojeci import graf endpoint moze ostati samo kao razvojni/admin alat.
+- lista `NavigationLocationDto`
 
-Produkcioni tok ne sme zavisiti od toga da neko rucno salje body sa node/edge podacima. Baza i seed/migration fajlovi su izvor istine.
+Polja DTO-a:
 
-Ako admin import ostane, mora biti jasno oznacen i ne sme brisati produkcione podatke bez eksplicitne namere.
+- `id`
+- `displayName`
+- `locationType`
+- `buildingId`
+- `buildingCode`
+- `buildingName`
+- `floorId`
+- `floorCode`
+- `floorLabel`
+- `nodeId`
+- `hasNode`
 
-## Route algoritam
+### `GET /api/navigation/route`
 
-Backend koristi A* ili Dijkstra varijantu nad `navigation_edges`.
+Parametri:
 
-Za MVP je prihvatljivo:
+- `fromLocationId` obavezno
+- `toLocationId` obavezno
+- `allowElevator` default `true`
 
-- A* sa euklidskom heuristikom preko `x`, `y`, `z`,
-- ili Dijkstra ako heuristika komplikuje cross-floor/cross-building slucajeve.
+Odgovor:
 
-Bitnije od naziva algoritma je da servis:
+- `RouteResponseDto`
 
-- koristi edge `weight`,
-- postuje `allowElevator`,
-- moze kasnije da filtrira accessibility opcije,
-- vrati kompletan niz node-ova i edge-eva.
+Top-level polja:
 
-### `allowElevator=false`
+- `routeId`
+- `from`
+- `to`
+- `totalCost`
+- `segments`
 
-Ako je `allowElevator=false`, algoritam mora izbaciti:
+`RouteSegmentDto` polja:
 
-- edge-eve tipa `elevator`,
-- node-ove tipa `elevator`, osim ako su start ili cilj direktno lift lokacija i proizvodna odluka to dozvoli kasnije.
+- `index`
+- `buildingId`
+- `buildingCode`
+- `buildingName`
+- `floorId`
+- `floorCode`
+- `floorLabel`
+- `mapImageUrl`
+- `coordinateWidth`
+- `coordinateHeight`
+- `z`
+- `usesElevator`
+- `usesStairs`
+- `path`
+- `steps`
 
-Za MVP je dovoljno da ruta sa `allowElevator=false` ne koristi lift edge-eve.
+### `GET /api/navigation/path`
 
-### Weight
+Legacy endpoint.
 
-`weight` dolazi iz baze.
+Parametri:
 
-Seed moze racunati osnovni weight kroz PostGIS:
+- `from`
+- `to`
 
-```sql
-ST_Distance(from_node.geom, to_node.geom)
-```
+Trazi node po:
 
-Za prelaze izmedju spratova ili objekata dodaje se penalty. Algoritam ne treba ponovo da izracunava weight ako ga baza vec cuva.
+1. `external_id`
+2. pa fallback `label` case-insensitive
 
-## Segmentacija rute
+Vraca `PathResponseDto` bez segmentacije. Koristan je za debug, ali nije dobar ugovor za ozbiljan frontend.
 
-Nakon sto algoritam nadje put, backend mora podeliti rezultat u segmente.
+### `POST /api/graph/import`
 
-Novi segment pocinje kada se promeni:
+Request DTO: `FloorGraphDto.ImportRequest`
 
-- `building_id`,
-- `floor_id`,
-- mapa,
-- ili kada edge ima `is_cross_floor=true` ili `is_cross_building=true`.
+Koristi se za:
 
-Svaki segment mora sadrzati:
+- reimport cvorova i edge-eva jednog sprata
 
-- objekat,
-- sprat,
-- map image URL,
-- coordinate width/height,
-- `z`,
-- path tacke za taj segment,
-- tekstualne korake za taj segment,
-- flags `usesElevator`, `usesStairs`.
+Efekat:
 
-Frontend ne treba sam da zakljucuje kada se menja slika. To mora biti jasno iz segmenta.
+- brise stare node-ove i edge-eve za sprat
+- upisuje nove
+- generise geometrije
+- upisuje edge u oba smera
 
-## Generisanje koraka
+### `POST /api/graph/cross-floor`
 
-Koraci su hibridni:
+Koristi se za ručni unos cross-floor edge-eva.
 
-- ako edge ima `instruction_forward`, koristi se taj tekst,
-- ako nema rucne instrukcije, backend generise fallback.
+Takodje generise oba smera.
 
-Fallback moze koristiti:
+## 7. Kako radi rutiranje
 
-- tip trenutnog node-a,
-- tip sledeceg node-a,
-- `label`,
-- `landmark`,
-- ugao skretanja ako su dostupna tri uzastopna node-a.
+### A* pravila
 
-Minimalni fallback:
+Trenutna implementacija:
 
-```text
-Nadaljuj do {nextNode.label}.
-```
+- start i cilj su `NavNode`
+- ako su isti `id`, vraca se ruta sa jednim node-om i cost `0`
+- susedi se citaju iz `navigation_edges` gde je `from_node_id = current`
+- `tentativeG = trenutni cost + edge.weight`
+- `f = tentativeG + heuristic(neighbor, goal)`
 
-Za waypoint bez labela treba preskociti nepotrebne tehnicke korake i grupisati vise edge-eva u jedan citljiv korak kada je moguce.
+Heuristika:
 
-## Error handling
+- koristi samo `x` i `y`
+- formula je euklidska udaljenost
 
-Backend treba da vraca strukturisane greske:
+Posledice:
 
-```json
-{
-  "message": "Put nije pronadjen za izabrane opcije."
-}
-```
+- radi dobro za lokalni graf
+- nije savrseno svesna promene sprata
+- ali posto je `weight` iz baze izvor istine, i cross-floor edge-evi imaju penalty, ruta ipak ostaje upotrebljiva
 
-Ocekivani statusi:
+Ako budes menjao algoritam:
 
-- `400`: nedostaje obavezan parametar ili je parametar nevalidan.
-- `404`: lokacija ili ruta nije pronadjena.
-- `422`: lokacija postoji, ali nije povezana sa navigacionim node-om.
-- `500`: neocekivana greska.
+- ne pomeraj odgovornost za tezine sa baze na frontend
+- ne koristi `displayName` za nalazenje cvorova
+- zadrzi `allowElevator` kao filtrirajuci kriterijum u grafu
 
-Ne sme se vracati stack trace frontend-u.
+### `allowElevator`
 
-## MVP backend obim
+Trenutno:
 
-Za prvi radni MVP backend treba da ima:
+- ako je `false`, `AStarService` skipuje samo edge-eve tipa `elevator`
 
-1. Entitete/repozitorijume uskladjene sa novom bazom.
-2. `GET /api/navigation/locations`.
-3. `GET /api/navigation/route`.
-4. Route servis koji koristi postojece `navigation_edges`.
-5. Segmentisani response po spratu/objektu.
-6. Korake iz `instruction_forward` uz fallback.
-7. `allowElevator` parametar, makar samo kao edge filter.
+To znaci:
 
-Nije MVP:
+- elevator node i dalje mogu postojati u path-u ako do njih vodi drugi tip veze
+- trenutno je to prihvatljivo za MVP
 
-- kompletna G2 mreza,
-- G3 podaci,
-- najblizi WC endpoint,
-- admin UI za unos grafa,
-- 3D route response osim cuvanja i vracanja `z`.
+Ako budes uvodio accessibility pravila:
 
-## Test scenariji
+- filtriranje podigni na nivo "koji skup edge-eva ulazi u pretragu"
+- nemoj hardkodovati posebna pravila po labelama node-ova
+- oslanjaj se na `edge_type` i `node_type`
 
-Backend testovi treba da pokriju:
+## 8. Kako radi segmentacija
 
-- dropdown vraca enabled lokacije i ne vraca waypoint/corridor,
-- dropdown prikazuje kontekst za duplirane nazive,
-- route radi izmedju dve lokacije u istom spratu,
-- route radi preko cross-floor edge-a,
-- `allowElevator=false` ne koristi elevator edge,
-- ista pocetna i ciljna lokacija vraca validan response,
-- nepostojeca lokacija vraca `404`,
-- nepovezana lokacija/ruta vraca kontrolisanu gresku,
-- segment response sadrzi `mapImageUrl`, `coordinateWidth`, `coordinateHeight`, `path` i `steps`.
+Segmentaciju radi `NavigationRouteService.buildSegments(...)`.
 
-## Vazne napomene za implementaciju
+Trenutna logika:
 
-- Ne koristiti tekst iz inputa kao identifikator rute.
-- Ne crtati niti skalirati rutu na backendu; backend vraca PDF/map koordinate.
-- Ne racunati rutu iz `spaces` direktno; ruta ide preko `navigation_nodes` i `navigation_edges`.
-- Ne oslanjati se na `label` kao jedinstven identifikator.
-- Ne dopustiti da Hibernate sam menja semu u runtime-u; SQL fajlovi su izvor istine.
-- Backend modeli moraju biti uskladjeni sa tabelama iz `database/init/001_schema.sql`.
+- segment krece sa prvim node-om
+- za svaki edge dodaje se sledeci node i jedan step
+- kada se promeni `floorId`, trenutni segment se zatvara
+- pravi se novi segment za novi sprat
+- isti cross-floor edge dobija:
+  - korak izlaska u starom segmentu
+  - arrival korak u novom segmentu
+
+Svaki segment je vezan za jedan `Floor`.
+
+Prakticna posledica:
+
+- frontend dobija odvojene tabove po spratu
+- mapa se menja po segmentu
+- aktivan korak moze da highlight-uje jednu deonicu na aktivnoj mapi
+
+Ogranicenje trenutne implementacije:
+
+- segmentacija gleda samo promenu `floorId`
+- ne proverava posebno `building_id`, `is_cross_floor` ili `is_cross_building`
+
+To je dovoljno dok je sistem prakticno G2-only. Kada uvedes vise objekata, segmentaciju treba prosiriti da menja segment i na promenu objekta.
+
+## 9. Kako se generisu tekstualni koraci
+
+`NavigationRouteService.instruction(...)` koristi sledeca pravila:
+
+1. Ako edge ima `instruction_forward` i nije arrival-context, koristi taj tekst.
+2. Ako je edge tip `elevator`:
+   - odlazak: "Udjite u lift i idite na sprat ..."
+   - dolazak: "Izadjite iz lifta i nastavite po prikazanoj putanji."
+3. Ako je edge tip `stairs`:
+   - odlazak: "Idite stepenicama do sprata ..."
+   - dolazak: "Izadjite sa stepenica i nastavite po prikazanoj putanji."
+4. Ako je ciljni node tip `room`, vraca poruku dolaska.
+5. Ako je edge tip `corridor` ili `virtual`, vraca "Nastavite prema ..."
+6. Inace fallback je "Pratite putanju do ..."
+
+`readableLabel(...)` koristi:
+
+- `node.label` ako postoji
+- inace `external_id` sa `_` -> razmak, lower-case
+
+Napomena:
+
+- trenutne poruke su mesavina lokalnog jezika u seed instrukcijama i fallback poruka iz Java koda
+- ako budes standardizovao jezik, radi to sistemski kroz seed + fallback, ne parcijalno
+
+## 10. Serviranje mapa
+
+Mape su PNG fajlovi u:
+
+- `database/maps/`
+
+Static resource config:
+
+- [backend/src/main/java/com/navigator/backend/config/MapResourceConfig.java](/D:/Feri%20Navigator/FERI-Navigator/backend/src/main/java/com/navigator/backend/config/MapResourceConfig.java)
+
+Backend izlaže:
+
+- `/maps/**`
+
+Podrazumevana lokacija:
+
+- `file:./database/maps/`
+
+To je bitno zato sto `floors.map_image_url` sadrzi vrednosti kao `/maps/1_pritlicje.png`, a frontend ih pretvara u `http://localhost:8080/maps/...`.
+
+Ako promenis putanju fajlova, moras:
+
+- azurirati `feri.maps.location`
+- proveriti da `floors.map_image_url` i dalje pokazuje na validne URL-ove
+
+## 11. Sta seed trenutno priprema
+
+### `002_seed_data.sql`
+
+Priprema:
+
+- lookup tipove
+- building `G2`
+- sve G2 spratove
+- map metadata (`map_image_url`, `coordinate_width`, `coordinate_height`, `z`)
+
+### `003_g2_staging_nodes.sql`
+
+Sadrzi staging skup G2 tacaka po spratovima. Ovo jos nije glavni graf, nego izvor za naredni import korak.
+
+### `004_load_g2_navigation_nodes.sql`
+
+Radi sledece:
+
+- prevodi staging tacke u `navigation_nodes`
+- dodeljuje `node_type` heuristikom iz `node_key`/`label`
+- kreira `spaces` za destinacije tipa `room` i `wc`
+- povezuje `spaces.primary_node_id`
+- kreira `navigation_locations` za sve javne destinacije osim `waypoint` i `corridor`
+
+To je centralni SQL korak koji pravi frontend-vidljive lokacije.
+
+### `005_mvp_navigation_edges.sql`
+
+Dodaje minimalan set edge-eva za MVP.
+
+Vazno:
+
+- ovo nije kompletan graf G2
+- zato backend moze da rutira samo kroz ogranicen deo zgrade
+- mnoge lokacije mogu postojati u dropdown-u, ali nemati put do drugih lokacija
+
+To nije bag u Java kodu sam po sebi, nego ogranicenje trenutno unetih edge-eva.
+
+## 12. Poznata ogranicenja trenutnog stanja
+
+Ovo je najvazniji deo za buduce izmene.
+
+### 1. Nije kompletan graf
+
+`navigation_locations` moze imati mnogo lokacija, ali `navigation_edges` trenutno sadrzi samo MVP putanje. Zato je realno ocekivano da neke rute vrate `NO_ROUTE`.
+
+### 2. Segmentacija je floor-only
+
+Ako se uvede vise objekata i cross-building veze, `buildSegments(...)` mora da reaguje i na promenu objekta, ne samo sprata.
+
+### 3. `NavigationLocation.node` je u Java modelu `nullable=false`
+
+Trenutni model:
+
+- `@JoinColumn(name = "node_id", nullable = false)`
+
+Zbog toga je `hasNode()` trenutno prakticno zastitni sloj, ali SQL schema takodje kaze da `node_id` ne sme biti null. Ako pozelis "lokacija postoji ali jos nije mapirana na node", mora se menjati i schema i model.
+
+### 4. `AStarService` heuristika ne koristi `z`
+
+To nije kriticno dok `weight` dobro modeluje kretanje, ali vredi znati.
+
+### 5. Nema globalnog exception handler-a
+
+`/route` radi lokalni try/catch za `NavigationRouteException`. Ako kasnije uvedes vise kontrolera i slozeniji error model, bolje je da to ode u `@ControllerAdvice`.
+
+### 6. `/path` endpoint je tehnicki dug
+
+On prihvata string `from/to`, trazi po labeli i nije stabilan API za ozbiljnu integraciju. Ako ga zadrzis, tretiraj ga kao debug alat.
+
+### 7. Pretraga lokacija nema eksplicitno sortiranje
+
+Ako korisnicki UX postane bitan, dodaj deterministicko sortiranje po relevantnosti ili abecedi.
+
+### 8. `pom.xml` ima duplirane dependency i plugin unose
+
+Trenutno postoje duplikati za:
+
+- `spring-boot-starter-data-jpa`
+- `postgresql`
+- `spotless-maven-plugin`
+
+To ne mora odmah da obori rad, ali je tehnicki dug i treba ga srediti pazljivo da se ne promeni build ponasanje.
+
+## 13. Pravila za buduce izmene
+
+Ako AI ili covek menja backend, ovo su pravila koja ne treba krsiti bez jasne migracije plana.
+
+### Pravilo 1: `database/init/*.sql` je source of truth
+
+Ne ispravljaj model samo u Javi ako SQL schema govori drugacije. Uvek proveri:
+
+- `001_schema.sql`
+- seed/import skripte
+- da li `ddl-auto=validate` i dalje prolazi
+
+### Pravilo 2: Frontend bira `navigation_locations.id`
+
+Ne vracaj sistem nazad na "rutiraj po nazivu". Stabilan identitet rute je:
+
+- `fromLocationId`
+- `toLocationId`
+
+### Pravilo 3: Backend vraca map koordinate, ne piksele browser prikaza
+
+`x`, `y`, `z`, `coordinateWidth`, `coordinateHeight` moraju ostati u internom map/PDF koordinatnom sistemu. Frontend radi skaliranje kroz SVG `viewBox`.
+
+### Pravilo 4: Graf je skup `navigation_nodes` + `navigation_edges`
+
+Nemoj racunati put direktno iz `spaces` ili `navigation_locations`.
+
+### Pravilo 5: Edge `weight` dolazi iz baze
+
+Ne uvodi u frontend ili DTO sloj "skrivenu" logiku za cost. Ako menjas routing ponasanje, menjaj:
+
+- seed/SQL logiku za tezine
+- ili algoritamski filter edge-eva
+
+### Pravilo 6: `external_id` mora ostati stabilan
+
+Koristi se za:
+
+- seed/import povezivanje
+- legacy debug endpoint
+- SQL skripte za edges
+
+### Pravilo 7: Kada dodajes novi tip pristupacnosti, modeluj ga kroz tipove i filtere
+
+Primer:
+
+- wheelchair
+- avoid_stairs
+- avoid_elevator
+- staff_only
+
+Takve stvari treba graditi preko:
+
+- `node_type`
+- `edge_type`
+- eventualno novih boolean/metapodataka u bazi
+
+Ne hardkoduj pravila po `label` tekstu.
+
+### Pravilo 8: Segment response je frontend ugovor
+
+Ako menjas `RouteResponseDto`, odmah proveri:
+
+- `frontend/src/types/navigation.ts`
+- `frontend/src/pages/NavigacijaPage.tsx`
+
+Posebno ne uklanjaj:
+
+- `segments`
+- `mapImageUrl`
+- `coordinateWidth`
+- `coordinateHeight`
+- `path`
+- `steps`
+- `fromNodeId`
+- `toNodeId`
+
+## 14. Preporuceni smer za naredne izmene
+
+Najrazumniji redosled razvoja je:
+
+1. Dopuniti `navigation_edges` da graf pokrije veci deo G2.
+2. Dodati testove za `NavigationRouteService` i `AStarService`.
+3. Uvesti `@ControllerAdvice` za jedinstven error model.
+4. Prosiriti segmentaciju na promenu objekta.
+5. Uvesti nearest-location scenarije, npr. najblizi WC.
+6. Dodati sortiranje / ranking za pretragu lokacija.
+7. Ako treba, prosiriti routing filtere za accessibility opcije.
+
+## 15. Sta testirati posle svake backend izmene
+
+Minimalna checklista:
+
+1. `GET /api/navigation/locations` vraca validne lokacije.
+2. `GET /api/navigation/route` radi za poznatu MVP rutu.
+3. `allowElevator=false` za rutu koja inace koristi lift daje:
+   - alternativu preko stepenica ili
+   - kontrolisanu gresku ako alternativa ne postoji
+4. `mapImageUrl` pokazuje na fajl koji backend stvarno servira.
+5. Frontend i dalje ume da iscrta `polyline` bez pomerenih koordinata.
+6. Seed skripte i JPA modeli su i dalje uskladjeni.
+
+## 16. Kratak mentalni model za AI
+
+Ako kasnije neki AI bude menjao backend, najbezbednije je da razmislja ovako:
+
+- `navigation_locations` = ono sto korisnik bira
+- `navigation_nodes` = tacke grafa
+- `navigation_edges` = kako se izmedju njih krece
+- `AStarService` = nalazi niz node-ova i edge-eva
+- `NavigationRouteService` = pretvara sirov path u frontend-friendly response
+- `floors` = definisu mapu i koordinatni sistem za prikaz
+- `database/init/*.sql` = istina o podacima i semama
+
+Ako ova podela ostane cista, sistem ce ostati lak za dalje sirenje.
