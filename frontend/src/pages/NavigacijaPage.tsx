@@ -1,42 +1,99 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { sharedStyles as styles } from '../styles/sharedStyles';
+import type {
+  NavigationApiError,
+  NavigationLocation,
+  NavigationRoute,
+  RouteSegment,
+} from '../types/navigation';
 
 type NavigacijaPageProps = {
   initialTarget: string;
   onBack: () => void;
 };
 
-const demoSteps = [
-  'Pot je pripravljena.',
-  '1. Pojdi naravnost do glavnega hodnika.',
-  '2. Zavij desno pri stopnišču.',
-  '3. Nadaljuj do izbrane učilnice.',
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 
 function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
-  const [startLocation, setStartLocation] = useState('');
-  const [targetLocation, setTargetLocation] = useState(initialTarget);
-  const [routeVisible, setRouteVisible] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [fromQuery, setFromQuery] = useState('');
+  const [toQuery, setToQuery] = useState(initialTarget);
+  const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
+  const [toLocation, setToLocation] = useState<NavigationLocation | null>(null);
+  const [fromResults, setFromResults] = useState<NavigationLocation[]>([]);
+  const [toResults, setToResults] = useState<NavigationLocation[]>([]);
+  const [route, setRoute] = useState<NavigationRoute | null>(null);
+  const [activeSegmentIndex, setActiveSegmentIndex] = useState(0);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const [isRouting, setIsRouting] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleShowRoute = () => {
-    const start = startLocation.trim();
-    const target = targetLocation.trim();
+  useLocationSearch(fromQuery, setFromResults);
+  useLocationSearch(toQuery, setToResults);
 
-    if (!start) {
-      setFormError('Vnesi začetno lokacijo.');
-      setRouteVisible(false);
+  const activeSegment = route?.segments[activeSegmentIndex] ?? null;
+  const canRoute = Boolean(fromLocation && toLocation && !isRouting);
+
+  const handleRoute = async () => {
+    if (!fromLocation || !toLocation) {
+      setError('Izberi zacetno in ciljno lokacijo iz seznama.');
       return;
     }
 
-    if (!target) {
-      setFormError('Vnesi cilj.');
-      setRouteVisible(false);
+    setIsRouting(true);
+    setError('');
+
+    try {
+      const params = new URLSearchParams({
+        fromLocationId: String(fromLocation.id),
+        toLocationId: String(toLocation.id),
+        allowElevator: 'true',
+      });
+      const response = await fetch(`${API_BASE_URL}/api/navigation/route?${params}`);
+
+      if (!response.ok) {
+        const apiError = (await response.json().catch(() => ({}))) as NavigationApiError;
+        throw new Error(apiError.message || 'Pot za izbrani lokaciji se ni na voljo.');
+      }
+
+      const nextRoute = (await response.json()) as NavigationRoute;
+      setRoute(nextRoute);
+      setActiveSegmentIndex(0);
+      setActiveStepIndex(0);
+    } catch (routeError) {
+      setRoute(null);
+      setError(routeError instanceof Error ? routeError.message : 'Napaka pri racunanju poti.');
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
+  const moveStep = (direction: 1 | -1) => {
+    if (!route) {
       return;
     }
 
-    setFormError('');
-    setRouteVisible(true);
+    const segment = route.segments[activeSegmentIndex];
+    const nextStepIndex = activeStepIndex + direction;
+
+    if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
+      setActiveStepIndex(nextStepIndex);
+      return;
+    }
+
+    const nextSegmentIndex = activeSegmentIndex + direction;
+    const nextSegment = route.segments[nextSegmentIndex];
+
+    if (!nextSegment) {
+      return;
+    }
+
+    setActiveSegmentIndex(nextSegmentIndex);
+    setActiveStepIndex(direction > 0 ? 0 : Math.max(nextSegment.steps.length - 1, 0));
+  };
+
+  const selectSegment = (index: number) => {
+    setActiveSegmentIndex(index);
+    setActiveStepIndex(0);
   };
 
   return (
@@ -44,55 +101,87 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
       <section style={styles.phoneCanvas}>
         <header style={styles.subPageHeader}>
           <button type="button" style={styles.backButton} onClick={onBack}>
-            ← Nazaj
+            &lt; Nazaj
           </button>
           <h1 style={styles.subPageTitle}>Navigacija</h1>
         </header>
 
         <section style={pageStyles.content}>
-          <label style={pageStyles.label} htmlFor="start-location">
-            Začetna lokacija
-          </label>
-          <input
+          <LocationPicker
             id="start-location"
-            type="text"
-            value={startLocation}
-            onChange={(event) => setStartLocation(event.target.value)}
-            placeholder="Vnesi začetno lokacijo"
-            style={pageStyles.input}
+            label="Zacetna lokacija"
+            placeholder="Poisci zacetno lokacijo"
+            query={fromQuery}
+            selected={fromLocation}
+            results={fromResults}
+            onQueryChange={(value) => {
+              setFromQuery(value);
+              setFromLocation(null);
+              setRoute(null);
+            }}
+            onSelect={(location) => {
+              setFromLocation(location);
+              setFromQuery(location.displayName);
+            }}
           />
 
-          <label style={pageStyles.label} htmlFor="target-location">
-            Ciljna lokacija
-          </label>
-          <input
+          <LocationPicker
             id="target-location"
-            type="text"
-            value={targetLocation}
-            onChange={(event) => setTargetLocation(event.target.value)}
-            placeholder="Vnesi cilj"
-            style={pageStyles.input}
+            label="Ciljna lokacija"
+            placeholder="Poisci cilj"
+            query={toQuery}
+            selected={toLocation}
+            results={toResults}
+            onQueryChange={(value) => {
+              setToQuery(value);
+              setToLocation(null);
+              setRoute(null);
+            }}
+            onSelect={(location) => {
+              setToLocation(location);
+              setToQuery(location.displayName);
+            }}
           />
 
-          <button type="button" style={pageStyles.primaryButton} onClick={handleShowRoute}>
-            Prikaži pot
+          <button
+            type="button"
+            style={{
+              ...pageStyles.primaryButton,
+              ...(canRoute ? null : pageStyles.disabledButton),
+            }}
+            onClick={handleRoute}
+            disabled={!canRoute}
+          >
+            {isRouting ? 'Racunam pot...' : 'Prikazi pot'}
           </button>
 
-          {formError && <p style={pageStyles.errorText}>{formError}</p>}
+          {error && <p style={pageStyles.errorText}>{error}</p>}
 
-          <div style={pageStyles.mapPlaceholder} aria-label="Demo prikaz zemljevida">
-            <p style={pageStyles.mapLabel}>Demo prikaz zemljevida / načrta</p>
-            <MapDemo routeVisible={routeVisible} />
-          </div>
+          {route && activeSegment && (
+            <>
+              <SegmentTabs
+                segments={route.segments}
+                activeSegmentIndex={activeSegmentIndex}
+                onSelect={selectSegment}
+              />
 
-          {routeVisible && (
-            <div style={pageStyles.stepsBox}>
-              {demoSteps.map((step) => (
-                <p key={step} style={pageStyles.stepText}>
-                  {step}
-                </p>
-              ))}
-            </div>
+              <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
+
+              <StepList
+                segment={activeSegment}
+                activeStepIndex={activeStepIndex}
+                onSelectStep={setActiveStepIndex}
+              />
+
+              <div style={pageStyles.stepControls}>
+                <button type="button" style={pageStyles.secondaryButton} onClick={() => moveStep(-1)}>
+                  Prejsnji
+                </button>
+                <button type="button" style={pageStyles.secondaryButton} onClick={() => moveStep(1)}>
+                  Naslednji
+                </button>
+              </div>
+            </>
           )}
         </section>
       </section>
@@ -100,72 +189,258 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
   );
 }
 
-function MapDemo({ routeVisible }: { routeVisible: boolean }) {
+function useLocationSearch(
+  query: string,
+  setResults: (locations: NavigationLocation[]) => void,
+) {
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ query: query.trim(), limit: '20' });
+
+    fetch(`${API_BASE_URL}/api/navigation/locations?${params}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((locations: NavigationLocation[]) => setResults(locations))
+      .catch((searchError) => {
+        if (searchError instanceof DOMException && searchError.name === 'AbortError') {
+          return;
+        }
+        setResults([]);
+      });
+
+    return () => controller.abort();
+  }, [query, setResults]);
+}
+
+type LocationPickerProps = {
+  id: string;
+  label: string;
+  placeholder: string;
+  query: string;
+  selected: NavigationLocation | null;
+  results: NavigationLocation[];
+  onQueryChange: (value: string) => void;
+  onSelect: (location: NavigationLocation) => void;
+};
+
+function LocationPicker({
+  id,
+  label,
+  placeholder,
+  query,
+  selected,
+  results,
+  onQueryChange,
+  onSelect,
+}: LocationPickerProps) {
   return (
-    <svg viewBox="0 0 320 220" style={pageStyles.mapSvg} role="img" aria-hidden="true">
-      <defs>
-        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#d9e2ec" strokeWidth="1" />
-        </pattern>
-      </defs>
-      <rect width="320" height="220" fill="#f8fafc" />
-      <rect width="320" height="220" fill="url(#grid)" />
-
-      <rect x="24" y="34" width="72" height="152" rx="8" fill="#e8eef6" stroke="#c5d3e8" />
-      <rect x="112" y="34" width="88" height="152" rx="8" fill="#eef3fb" stroke="#c5d3e8" />
-      <rect x="216" y="34" width="80" height="152" rx="8" fill="#e8eef6" stroke="#c5d3e8" />
-
-      <line
-        x1="96"
-        y1="110"
-        x2="112"
-        y2="110"
-        stroke="#94a3b8"
-        strokeWidth="6"
-        strokeLinecap="round"
+    <div style={pageStyles.picker}>
+      <label style={pageStyles.label} htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="text"
+        value={query}
+        onChange={(event) => onQueryChange(event.target.value)}
+        placeholder={placeholder}
+        style={pageStyles.input}
+        autoComplete="off"
       />
-      <line
-        x1="200"
-        y1="110"
-        x2="216"
-        y2="110"
-        stroke="#94a3b8"
-        strokeWidth="6"
-        strokeLinecap="round"
-      />
-
-      {routeVisible && (
-        <path
-          d="M 60 170 C 60 130, 160 130, 160 90 S 250 70, 256 54"
-          fill="none"
-          stroke="#f9b54a"
-          strokeWidth="5"
-          strokeLinecap="round"
-          strokeDasharray="8 6"
-        />
+      {selected && (
+        <p style={pageStyles.selectionText}>
+          {selected.buildingCode} - {selected.floorLabel}
+        </p>
       )}
-
-      <circle cx="60" cy="170" r="9" fill="#172033" />
-      <text x="60" y="174" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="700">
-        A
-      </text>
-
-      <circle cx="256" cy="54" r="9" fill="#f09d18" />
-      <text x="256" y="58" textAnchor="middle" fill="#ffffff" fontSize="9" fontWeight="700">
-        B
-      </text>
-
-      <circle cx="156" cy="110" r="5" fill="#64748b" />
-      <circle cx="248" cy="140" r="5" fill="#64748b" />
-    </svg>
+      {!selected && query.trim().length > 0 && results.length > 0 && (
+        <div style={pageStyles.resultsBox}>
+          {results.map((location) => (
+            <button
+              key={location.id}
+              type="button"
+              style={pageStyles.resultButton}
+              onClick={() => onSelect(location)}
+            >
+              <span style={pageStyles.resultName}>{location.displayName}</span>
+              <span style={pageStyles.resultMeta}>
+                {location.buildingCode} - {location.floorLabel}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
+}
+
+function SegmentTabs({
+  segments,
+  activeSegmentIndex,
+  onSelect,
+}: {
+  segments: RouteSegment[];
+  activeSegmentIndex: number;
+  onSelect: (index: number) => void;
+}) {
+  return (
+    <div style={pageStyles.segmentTabs}>
+      {segments.map((segment, index) => (
+        <button
+          key={`${segment.floorId}-${index}`}
+          type="button"
+          style={{
+            ...pageStyles.segmentTab,
+            ...(activeSegmentIndex === index ? pageStyles.segmentTabActive : null),
+          }}
+          onClick={() => onSelect(index)}
+        >
+          {segment.floorLabel}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RouteMap({
+  segment,
+  activeStepIndex,
+}: {
+  segment: RouteSegment;
+  activeStepIndex: number;
+}) {
+  const pathPoints = useMemo(
+    () => segment.path.map((point) => `${point.x},${point.y}`).join(' '),
+    [segment.path],
+  );
+  const activeStep = segment.steps[activeStepIndex];
+  const activeFrom = segment.path.find((point) => point.nodeId === activeStep?.fromNodeId);
+  const activeTo = segment.path.find((point) => point.nodeId === activeStep?.toNodeId);
+
+  return (
+    <div style={pageStyles.mapPanel}>
+      <div style={pageStyles.mapTitleRow}>
+        <p style={pageStyles.mapTitle}>{segment.buildingName}</p>
+        <p style={pageStyles.mapMeta}>{segment.floorLabel}</p>
+      </div>
+      <div style={pageStyles.mapViewport}>
+        <img
+          src={resolveAssetUrl(segment.mapImageUrl)}
+          alt={`${segment.buildingName} ${segment.floorLabel}`}
+          style={pageStyles.mapImage}
+        />
+        <svg
+          viewBox={`0 0 ${segment.coordinateWidth} ${segment.coordinateHeight}`}
+          style={pageStyles.mapOverlay}
+          aria-hidden="true"
+        >
+          <polyline
+            points={pathPoints}
+            fill="none"
+            stroke="#f09d18"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="10"
+            opacity="0.82"
+          />
+          {activeFrom && activeTo && (
+            <line
+              x1={activeFrom.x}
+              y1={activeFrom.y}
+              x2={activeTo.x}
+              y2={activeTo.y}
+              stroke="#172033"
+              strokeLinecap="round"
+              strokeWidth="14"
+              opacity="0.9"
+            />
+          )}
+          {segment.path[0] && <RouteMarker point={segment.path[0]} label="A" fill="#172033" />}
+          {segment.path.at(-1) && (
+            <RouteMarker point={segment.path.at(-1)!} label="B" fill="#f09d18" />
+          )}
+          {activeTo && <RouteMarker point={activeTo} label="" fill="#1d4ed8" radius={9} />}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function RouteMarker({
+  point,
+  label,
+  fill,
+  radius = 13,
+}: {
+  point: { x: number; y: number };
+  label: string;
+  fill: string;
+  radius?: number;
+}) {
+  return (
+    <>
+      <circle cx={point.x} cy={point.y} r={radius} fill={fill} />
+      {label && (
+        <text
+          x={point.x}
+          y={point.y + 4}
+          textAnchor="middle"
+          fill="#ffffff"
+          fontSize="12"
+          fontWeight="800"
+        >
+          {label}
+        </text>
+      )}
+    </>
+  );
+}
+
+function StepList({
+  segment,
+  activeStepIndex,
+  onSelectStep,
+}: {
+  segment: RouteSegment;
+  activeStepIndex: number;
+  onSelectStep: (index: number) => void;
+}) {
+  return (
+    <div style={pageStyles.stepsBox}>
+      {segment.steps.map((step, index) => (
+        <button
+          key={`${step.fromNodeId}-${step.toNodeId}-${index}`}
+          type="button"
+          style={{
+            ...pageStyles.stepButton,
+            ...(activeStepIndex === index ? pageStyles.stepButtonActive : null),
+          }}
+          onClick={() => onSelectStep(index)}
+        >
+          <span style={pageStyles.stepNumber}>{index + 1}</span>
+          <span style={pageStyles.stepText}>{step.text}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function resolveAssetUrl(path: string) {
+  if (path.startsWith('http')) {
+    return path;
+  }
+
+  return `${API_BASE_URL}${path}`;
 }
 
 const pageStyles: Record<string, CSSProperties> = {
   content: {
     display: 'grid',
-    gap: 10,
+    gap: 12,
     padding: '16px 16px 28px',
+  },
+  picker: {
+    display: 'grid',
+    gap: 7,
+    position: 'relative',
   },
   label: {
     color: '#172033',
@@ -175,69 +450,201 @@ const pageStyles: Record<string, CSSProperties> = {
   },
   input: {
     background: '#ffffff',
-    border: '1px solid #eadfce',
-    borderRadius: 18,
+    border: '1px solid #d8dee8',
+    borderRadius: 16,
     boxSizing: 'border-box',
     color: '#172033',
     fontSize: 15,
     outline: 'none',
-    padding: '14px 16px',
+    padding: '13px 14px',
     width: '100%',
+  },
+  selectionText: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: 800,
+    margin: '-2px 0 0',
+  },
+  resultsBox: {
+    background: '#ffffff',
+    border: '1px solid #d8dee8',
+    borderRadius: 12,
+    boxShadow: '0 14px 28px rgba(23, 32, 51, 0.13)',
+    display: 'grid',
+    left: 0,
+    maxHeight: 220,
+    overflowY: 'auto',
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    zIndex: 5,
+  },
+  resultButton: {
+    background: '#ffffff',
+    border: 0,
+    borderBottom: '1px solid #edf1f7',
+    cursor: 'pointer',
+    display: 'grid',
+    gap: 2,
+    padding: '10px 12px',
+    textAlign: 'left',
+  },
+  resultName: {
+    color: '#172033',
+    fontSize: 14,
+    fontWeight: 900,
+  },
+  resultMeta: {
+    color: '#64748b',
+    fontSize: 12,
+    fontWeight: 800,
   },
   primaryButton: {
     background: '#172033',
     border: 0,
-    borderRadius: 18,
+    borderRadius: 16,
     color: '#ffffff',
     cursor: 'pointer',
     fontSize: 15,
     fontWeight: 900,
-    marginTop: 6,
+    marginTop: 2,
     padding: '14px 16px',
     width: '100%',
+  },
+  disabledButton: {
+    cursor: 'not-allowed',
+    opacity: 0.48,
   },
   errorText: {
-    color: '#b45309',
+    background: '#fff7ed',
+    border: '1px solid #fed7aa',
+    borderRadius: 10,
+    color: '#9a3412',
     fontSize: 13,
     fontWeight: 800,
-    margin: '2px 0 0',
+    lineHeight: 1.35,
+    margin: 0,
+    padding: '10px 12px',
   },
-  mapPlaceholder: {
+  segmentTabs: {
+    display: 'flex',
+    gap: 8,
+    overflowX: 'auto',
+    paddingTop: 4,
+  },
+  segmentTab: {
     background: '#ffffff',
-    border: '1px solid #eadfce',
-    borderRadius: 24,
-    boxShadow: '0 14px 28px rgba(54, 42, 27, 0.09)',
-    marginTop: 10,
-    overflow: 'hidden',
-    padding: '12px 12px 10px',
+    border: '1px solid #d8dee8',
+    borderRadius: 999,
+    color: '#334155',
+    cursor: 'pointer',
+    flex: '0 0 auto',
+    fontSize: 13,
+    fontWeight: 900,
+    padding: '9px 12px',
   },
-  mapLabel: {
+  segmentTabActive: {
+    background: '#172033',
+    borderColor: '#172033',
+    color: '#ffffff',
+  },
+  mapPanel: {
+    background: '#ffffff',
+    border: '1px solid #d8dee8',
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  mapTitleRow: {
+    alignItems: 'center',
+    display: 'flex',
+    justifyContent: 'space-between',
+    padding: '11px 12px',
+  },
+  mapTitle: {
+    color: '#172033',
+    fontSize: 13,
+    fontWeight: 900,
+    margin: 0,
+  },
+  mapMeta: {
     color: '#64748b',
     fontSize: 12,
-    fontWeight: 800,
-    margin: '0 0 8px',
-    textAlign: 'center',
+    fontWeight: 900,
+    margin: 0,
   },
-  mapSvg: {
-    display: 'block',
-    height: 'auto',
+  mapViewport: {
+    aspectRatio: '1190 / 842',
+    background: '#f8fafc',
+    overflow: 'hidden',
+    position: 'relative',
     width: '100%',
   },
+  mapImage: {
+    display: 'block',
+    height: '100%',
+    objectFit: 'contain',
+    width: '100%',
+  },
+  mapOverlay: {
+    inset: 0,
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
   stepsBox: {
-    background: '#ffffff',
-    border: '1px solid #eadfce',
-    borderRadius: 20,
     display: 'grid',
     gap: 8,
-    marginTop: 4,
-    padding: '14px 16px',
+  },
+  stepButton: {
+    alignItems: 'flex-start',
+    background: '#ffffff',
+    border: '1px solid #d8dee8',
+    borderRadius: 12,
+    color: '#172033',
+    cursor: 'pointer',
+    display: 'grid',
+    gap: 10,
+    gridTemplateColumns: '28px 1fr',
+    padding: '11px 12px',
+    textAlign: 'left',
+    width: '100%',
+  },
+  stepButtonActive: {
+    borderColor: '#f09d18',
+    boxShadow: '0 0 0 2px rgba(240, 157, 24, 0.18)',
+  },
+  stepNumber: {
+    alignItems: 'center',
+    background: '#172033',
+    borderRadius: 999,
+    color: '#ffffff',
+    display: 'inline-flex',
+    fontSize: 12,
+    fontWeight: 900,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
   },
   stepText: {
     color: '#172033',
     fontSize: 14,
-    fontWeight: 700,
-    lineHeight: 1.45,
-    margin: 0,
+    fontWeight: 800,
+    lineHeight: 1.35,
+  },
+  stepControls: {
+    display: 'grid',
+    gap: 10,
+    gridTemplateColumns: '1fr 1fr',
+  },
+  secondaryButton: {
+    background: '#ffffff',
+    border: '1px solid #d8dee8',
+    borderRadius: 14,
+    color: '#172033',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 900,
+    padding: '12px 10px',
   },
 };
 

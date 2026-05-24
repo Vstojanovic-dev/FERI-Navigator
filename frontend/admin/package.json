@@ -1,0 +1,11 @@
+{
+  "name": "feri-navigator-admin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --configLoader runner",
+    "build": "tsc -p tsconfig.json && vite build --configLoader runner",
+    "preview": "vite preview --configLoader runner"
+  }
+}
