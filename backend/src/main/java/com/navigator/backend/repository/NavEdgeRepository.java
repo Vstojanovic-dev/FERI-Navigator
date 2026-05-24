@@ -35,10 +35,10 @@ public interface NavEdgeRepository extends JpaRepository<NavEdge, Long> {
             WHERE e.fromNode.floorId = :floorId
             AND e.isCrossFloor = false
             """)
-  List<NavEdge> findAllByFloor(@Param("floorId") Integer floorId);
+  List<NavEdge> findAllByFloor(@Param("floorId") Long floorId);
 
   // Samo prelazi između spratova
   List<NavEdge> findAllByIsCrossFloorTrue();
 
-  void deleteAllByFromNodeFloorId(Integer floorId);
+  void deleteAllByFromNodeFloorId(Long floorId);
 }

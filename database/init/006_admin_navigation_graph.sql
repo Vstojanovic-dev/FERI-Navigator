@@ -1,0 +1,5 @@
+-- Admin navigation graph export slot.
+--
+-- Use the admin panel "Export SQL" action after editing the graph, then replace
+-- this file with the generated SQL and commit it so the team receives the same
+-- navigation data after rebuilding the database.

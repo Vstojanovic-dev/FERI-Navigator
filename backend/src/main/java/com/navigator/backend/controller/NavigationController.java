@@ -1,7 +1,13 @@
 package com.navigator.backend.controller;
 
 import com.navigator.backend.dto.PathResponseDto;
+import com.navigator.backend.dto.NavigationErrorDto;
+import com.navigator.backend.dto.NavigationLocationDto;
+import com.navigator.backend.dto.RouteResponseDto;
 import com.navigator.backend.service.AStarService;
+import com.navigator.backend.service.NavigationRouteException;
+import com.navigator.backend.service.NavigationRouteService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +19,32 @@ import org.springframework.web.bind.annotation.*;
 public class NavigationController {
 
   private final AStarService aStarService;
+  private final NavigationRouteService navigationRouteService;
+
+  @GetMapping("/locations")
+  public ResponseEntity<List<NavigationLocationDto>> getLocations(
+      @RequestParam(defaultValue = "") String query, @RequestParam(defaultValue = "20") int limit) {
+    return ResponseEntity.ok(navigationRouteService.searchLocations(query, limit));
+  }
+
+  @GetMapping("/route")
+  public ResponseEntity<?> getRoute(
+      @RequestParam Long fromLocationId,
+      @RequestParam Long toLocationId,
+      @RequestParam(defaultValue = "true") boolean allowElevator) {
+    try {
+      RouteResponseDto route =
+          navigationRouteService.route(fromLocationId, toLocationId, allowElevator);
+      return ResponseEntity.ok(route);
+    } catch (NavigationRouteException exception) {
+      return ResponseEntity.status(exception.getStatus())
+          .body(
+              NavigationErrorDto.builder()
+                  .code(exception.getCode())
+                  .message(exception.getMessage())
+                  .build());
+    }
+  }
 
   /**
    * Traži najkraći put između dva čvora.

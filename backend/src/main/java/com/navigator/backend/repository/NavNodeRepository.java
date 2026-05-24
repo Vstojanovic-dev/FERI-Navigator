@@ -18,18 +18,18 @@ public interface NavNodeRepository extends JpaRepository<NavNode, Long> {
   Optional<NavNode> findFirstByLabelIgnoreCase(String label);
 
   // Briše sve čvorove za određeni sprat — korisno za re-import
-  void deleteAllByFloorId(Integer floorId);
+  void deleteAllByFloorId(Long floorId);
 
   // PostGIS — nađi najbliži čvor na određenom spratu
   @Query(
       value =
           """
-            SELECT * FROM nav_nodes
+            SELECT * FROM navigation_nodes
             WHERE floor_id = :floorId
-            ORDER BY ST_Distance(geom, ST_SetSRID(ST_MakePoint(:x, :y), 3857))
+            ORDER BY ST_Distance(geom, ST_SetSRID(ST_MakePoint(:x, :y), 0))
             LIMIT 1
             """,
       nativeQuery = true)
   Optional<NavNode> findNearestOnFloor(
-      @Param("floorId") Integer floorId, @Param("x") double x, @Param("y") double y);
+      @Param("floorId") Long floorId, @Param("x") double x, @Param("y") double y);
 }

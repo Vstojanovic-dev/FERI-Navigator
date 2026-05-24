@@ -1,6 +1,7 @@
 package com.navigator.backend.service;
 
 import com.navigator.backend.dto.PathResponseDto;
+import com.navigator.backend.dto.RouteSearchResult;
 import com.navigator.backend.model.NavEdge;
 import com.navigator.backend.model.NavNode;
 import com.navigator.backend.repository.NavEdgeRepository;
@@ -27,66 +28,56 @@ public class AStarService {
   private final NavNodeRepository nodeRepo;
   private final NavEdgeRepository edgeRepo;
 
-  /**
-   * Traži najkraći put između dva čvora koristeći A* algoritam.
-   *
-   * @param fromLabel label ili externalId početnog čvora (npr. "referat", "1_wp1")
-   * @param toLabel label ili externalId ciljnog čvora
-   * @return PathResponseDto sa listom čvorova i ukupnom cijenom, ili porukom o grešci
-   */
   public PathResponseDto findPath(String fromLabel, String toLabel) {
-    // ── 1. Pronađi startni i ciljni čvor ──
     Optional<NavNode> startOpt = findNode(fromLabel);
     Optional<NavNode> goalOpt = findNode(toLabel);
 
     if (startOpt.isEmpty()) {
-      log.warn("Startni čvor nije pronađen: {}", fromLabel);
       return PathResponseDto.builder()
-          .message("Startni čvor nije pronađen: " + fromLabel)
+          .message("Startni cvor nije pronadjen: " + fromLabel)
           .path(Collections.emptyList())
           .build();
     }
+
     if (goalOpt.isEmpty()) {
-      log.warn("Ciljni čvor nije pronađen: {}", toLabel);
       return PathResponseDto.builder()
-          .message("Ciljni čvor nije pronađen: " + toLabel)
+          .message("Ciljni cvor nije pronadjen: " + toLabel)
           .path(Collections.emptyList())
           .build();
     }
 
-    NavNode start = startOpt.get();
-    NavNode goal = goalOpt.get();
-
-    if (start.getId().equals(goal.getId())) {
+    RouteSearchResult route = findPath(startOpt.get(), goalOpt.get(), true);
+    if (route.getNodes().isEmpty()) {
       return PathResponseDto.builder()
-          .totalCost(0)
-          .path(List.of(toPathNode(start)))
-          .message("Start i cilj su isti čvor.")
+          .message("Put nije pronadjen izmedju '" + fromLabel + "' i '" + toLabel + "'.")
+          .path(Collections.emptyList())
           .build();
     }
 
-    log.info("A* pretraga: {} -> {}", start.getExternalId(), goal.getExternalId());
+    return buildResponse(route.getNodes(), route.getTotalCost());
+  }
 
-    // ── 2. A* ──
-    // gScore[id] = najmanji poznati cost od starta do čvora
+  public RouteSearchResult findPath(NavNode start, NavNode goal, boolean allowElevator) {
+    if (start.getId().equals(goal.getId())) {
+      return RouteSearchResult.builder().nodes(List.of(start)).edges(List.of()).totalCost(0).build();
+    }
+
+    log.info("A* search: {} -> {}", start.getExternalId(), goal.getExternalId());
+
     Map<Long, Double> gScore = new HashMap<>();
-    // fScore[id] = gScore + heuristika (procjena do cilja)
     Map<Long, Double> fScore = new HashMap<>();
-    // cameFrom[id] = prethodni čvor na optimalnom putu
     Map<Long, Long> cameFrom = new HashMap<>();
-
+    Map<Long, NavEdge> cameFromEdge = new HashMap<>();
     Set<Long> closedSet = new HashSet<>();
 
     gScore.put(start.getId(), 0.0);
     fScore.put(start.getId(), heuristic(start, goal));
 
-    // Open set sortiran po fScore
     PriorityQueue<Long> openSet =
         new PriorityQueue<>(
             Comparator.comparingDouble(id -> fScore.getOrDefault(id, Double.MAX_VALUE)));
     openSet.add(start.getId());
 
-    // Cache čvorova da ne idemo u bazu za svaki čvor
     Map<Long, NavNode> nodeCache = new HashMap<>();
     nodeCache.put(start.getId(), start);
     nodeCache.put(goal.getId(), goal);
@@ -95,31 +86,39 @@ public class AStarService {
       Long currentId = openSet.poll();
 
       if (currentId.equals(goal.getId())) {
-        // Put pronađen — rekonstruiši
         List<NavNode> pathNodes = reconstructPath(cameFrom, currentId, nodeCache);
+        List<NavEdge> pathEdges = reconstructEdges(cameFromEdge, pathNodes);
         double totalCost = gScore.getOrDefault(currentId, 0.0);
-        log.info("Put pronađen: {} čvorova, cijena={}", pathNodes.size(), totalCost);
-        return buildResponse(pathNodes, totalCost);
+        log.info("Path found: {} nodes, cost={}", pathNodes.size(), totalCost);
+        return RouteSearchResult.builder()
+            .nodes(pathNodes)
+            .edges(pathEdges)
+            .totalCost(totalCost)
+            .build();
       }
 
       closedSet.add(currentId);
 
-      // Dohvati sve veze iz ovog čvora
-      NavNode current = resolveNode(currentId, nodeCache);
-      List<NavEdge> edges = edgeRepo.findByFromNodeId(currentId);
+      for (NavEdge edge : edgeRepo.findByFromNodeId(currentId)) {
+        if (!allowElevator && "elevator".equals(edge.getEdgeTypeCode())) {
+          continue;
+        }
 
-      for (NavEdge edge : edges) {
         NavNode neighbor = edge.getToNode();
         Long neighborId = neighbor.getId();
 
-        if (closedSet.contains(neighborId)) continue;
+        if (closedSet.contains(neighborId)) {
+          continue;
+        }
 
         nodeCache.putIfAbsent(neighborId, neighbor);
 
-        double tentativeG = gScore.getOrDefault(currentId, Double.MAX_VALUE) + edge.getWeight();
+        double tentativeG =
+            gScore.getOrDefault(currentId, Double.MAX_VALUE) + edge.getWeight().doubleValue();
 
         if (tentativeG < gScore.getOrDefault(neighborId, Double.MAX_VALUE)) {
           cameFrom.put(neighborId, currentId);
+          cameFromEdge.put(neighborId, edge);
           gScore.put(neighborId, tentativeG);
           fScore.put(neighborId, tentativeG + heuristic(neighbor, goal));
 
@@ -130,36 +129,25 @@ public class AStarService {
       }
     }
 
-    log.warn("Put nije pronađen: {} -> {}", fromLabel, toLabel);
-    return PathResponseDto.builder()
-        .message("Put nije pronađen između '" + fromLabel + "' i '" + toLabel + "'.")
-        .path(Collections.emptyList())
-        .build();
+    log.warn("Path not found: {} -> {}", start.getExternalId(), goal.getExternalId());
+    return RouteSearchResult.builder().nodes(List.of()).edges(List.of()).totalCost(0).build();
   }
 
-  // ── Pomoćne metode ──
-
-  /** Traži čvor po labelu (case-insensitive) ili externalId-u. */
   private Optional<NavNode> findNode(String identifier) {
-    // Probaj prvo po externalId (format "sprat_label", npr. "2_lift")
     Optional<NavNode> byExternal = nodeRepo.findByExternalId(identifier);
-    if (byExternal.isPresent()) return byExternal;
+    if (byExternal.isPresent()) {
+      return byExternal;
+    }
 
-    // Onda po labelu (case-insensitive) — uzmi prvi rezultat
     return nodeRepo.findFirstByLabelIgnoreCase(identifier);
   }
 
-  /**
-   * Euklidska heuristika između dva čvora (admissible — nikad ne precjenjuje). Koristi SVG
-   * koordinate čvorova.
-   */
   private double heuristic(NavNode a, NavNode b) {
-    double dx = a.getGeom().getX() - b.getGeom().getX();
-    double dy = a.getGeom().getY() - b.getGeom().getY();
+    double dx = a.getX().doubleValue() - b.getX().doubleValue();
+    double dy = a.getY().doubleValue() - b.getY().doubleValue();
     return Math.sqrt(dx * dx + dy * dy);
   }
 
-  /** Rekonstruira put od cilja unazad prema startu, pa obrne listu. */
   private List<NavNode> reconstructPath(
       Map<Long, Long> cameFrom, Long currentId, Map<Long, NavNode> cache) {
     List<NavNode> path = new ArrayList<>();
@@ -167,9 +155,20 @@ public class AStarService {
       path.add(resolveNode(currentId, cache));
       currentId = cameFrom.get(currentId);
     }
-    path.add(resolveNode(currentId, cache)); // dodaj startni čvor
+    path.add(resolveNode(currentId, cache));
     Collections.reverse(path);
     return path;
+  }
+
+  private List<NavEdge> reconstructEdges(Map<Long, NavEdge> cameFromEdge, List<NavNode> nodes) {
+    List<NavEdge> edges = new ArrayList<>();
+    for (int i = 1; i < nodes.size(); i++) {
+      NavEdge edge = cameFromEdge.get(nodes.get(i).getId());
+      if (edge != null) {
+        edges.add(edge);
+      }
+    }
+    return edges;
   }
 
   private NavNode resolveNode(Long id, Map<Long, NavNode> cache) {
@@ -178,8 +177,7 @@ public class AStarService {
         nodeId ->
             nodeRepo
                 .findById(nodeId)
-                .orElseThrow(
-                    () -> new IllegalStateException("Čvor nije pronađen u bazi: " + nodeId)));
+                .orElseThrow(() -> new IllegalStateException("Node not found: " + nodeId)));
   }
 
   private PathResponseDto buildResponse(List<NavNode> nodes, double totalCost) {
@@ -192,10 +190,10 @@ public class AStarService {
         .id(node.getId())
         .externalId(node.getExternalId())
         .label(node.getLabel())
-        .nodeType(node.getNodeType())
+        .nodeType(node.getNodeTypeCode())
         .floorId(node.getFloorId())
-        .x(node.getGeom().getX())
-        .y(node.getGeom().getY())
+        .x(node.getX().doubleValue())
+        .y(node.getY().doubleValue())
         .build();
   }
 }

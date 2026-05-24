@@ -12,6 +12,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 COPY --from=build /app/backend/target/*.jar app.jar
+COPY database/maps ./database/maps
 
 EXPOSE 8080
 

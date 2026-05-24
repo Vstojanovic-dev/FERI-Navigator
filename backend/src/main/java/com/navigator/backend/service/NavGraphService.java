@@ -1,10 +1,15 @@
 package com.navigator.backend.service;
 
 import com.navigator.backend.dto.FloorGraphDto;
+import com.navigator.backend.model.EdgeType;
 import com.navigator.backend.model.NavEdge;
 import com.navigator.backend.model.NavNode;
+import com.navigator.backend.model.NodeType;
+import com.navigator.backend.repository.EdgeTypeRepository;
 import com.navigator.backend.repository.NavEdgeRepository;
 import com.navigator.backend.repository.NavNodeRepository;
+import com.navigator.backend.repository.NodeTypeRepository;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,14 +30,16 @@ public class NavGraphService {
 
   private final NavNodeRepository nodeRepo;
   private final NavEdgeRepository edgeRepo;
+  private final NodeTypeRepository nodeTypeRepo;
+  private final EdgeTypeRepository edgeTypeRepo;
 
-  private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 3857);
+  private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 0);
 
   @Transactional
   public FloorGraphDto.ImportResult importFloorGraph(FloorGraphDto.ImportRequest request) {
-    Integer floor = request.getFloor();
+    Long floor = request.getFloor().longValue();
     log.info(
-        "Uvoz grafa za {}. sprat — {} čvorova, {} veza",
+        "Uvoz grafa za {}. sprat - {} cvorova, {} veza",
         floor,
         request.getNodes().size(),
         request.getEdges().size());
@@ -44,21 +51,25 @@ public class NavGraphService {
 
     for (FloorGraphDto.NodeDto dto : request.getNodes()) {
       Point point = makePoint(dto.getX(), dto.getY());
+      String nodeTypeCode = dto.getNodeType() != null ? dto.getNodeType() : inferNodeType(dto);
 
       NavNode node =
           NavNode.builder()
               .floorId(floor)
               .label(dto.getLabel())
               .isWaypoint(dto.getLabel() == null)
-              .nodeType(dto.getNodeType() != null ? dto.getNodeType() : inferNodeType(dto))
-              .roomId(dto.getRoomId())
+              .nodeType(resolveNodeType(nodeTypeCode))
+              .spaceId(dto.getRoomId())
+              .x(BigDecimal.valueOf(dto.getX()))
+              .y(BigDecimal.valueOf(dto.getY()))
+              .z(BigDecimal.ZERO)
               .externalId(floor + "_" + dto.getId())
               .geom(point)
               .build();
 
       NavNode saved = nodeRepo.save(node);
       nodeMap.put(dto.getId(), saved);
-      log.debug("Čvor upisan: {} ({})", dto.getId(), dto.getLabel());
+      log.debug("Cvor upisan: {} ({})", dto.getId(), dto.getLabel());
     }
 
     int edgesInserted = 0;
@@ -67,7 +78,7 @@ public class NavGraphService {
       NavNode toNode = nodeMap.get(dto.getTo());
 
       if (fromNode == null || toNode == null) {
-        log.warn("Veza preskočena — čvor nije pronađen: {} -> {}", dto.getFrom(), dto.getTo());
+        log.warn("Veza preskocena - cvor nije pronadjen: {} -> {}", dto.getFrom(), dto.getTo());
         continue;
       }
 
@@ -88,18 +99,18 @@ public class NavGraphService {
       edgesInserted++;
     }
 
-    log.info("Import završen: {} čvorova, {} veza", nodeMap.size(), edgesInserted);
+    log.info("Import zavrsen: {} cvorova, {} veza", nodeMap.size(), edgesInserted);
 
     return new FloorGraphDto.ImportResult(
         nodeMap.size(),
         edgesInserted,
-        floor,
-        "Uspješno uvezeno "
+        request.getFloor(),
+        "Uspjesno uvezeno "
             + nodeMap.size()
-            + " čvorova i "
+            + " cvorova i "
             + edgesInserted
             + " veza za "
-            + floor
+            + request.getFloor()
             + ". sprat");
   }
 
@@ -111,11 +122,11 @@ public class NavGraphService {
       NavNode toNode = nodeRepo.findByExternalId(dto.getTo()).orElse(null);
 
       if (fromNode == null || toNode == null) {
-        log.warn("Cross-floor veza preskočena: {} -> {}", dto.getFrom(), dto.getTo());
+        log.warn("Cross-floor veza preskocena: {} -> {}", dto.getFrom(), dto.getTo());
         continue;
       }
 
-      String edgeType = dto.getEdgeType() != null ? dto.getEdgeType() : "stairs";
+      EdgeType edgeType = resolveEdgeType(dto.getEdgeType() != null ? dto.getEdgeType() : "stairs");
       double weight = calculateDistance(fromNode.getGeom(), toNode.getGeom()) + 100;
 
       saveEdge(
@@ -140,15 +151,32 @@ public class NavGraphService {
 
   private void saveEdge(
       NavNode from, NavNode to, double weight, String type, boolean crossFloor, LineString geom) {
+    saveEdge(from, to, weight, resolveEdgeType(type), crossFloor, geom);
+  }
+
+  private void saveEdge(
+      NavNode from, NavNode to, double weight, EdgeType type, boolean crossFloor, LineString geom) {
     edgeRepo.save(
         NavEdge.builder()
             .fromNode(from)
             .toNode(to)
-            .weight(weight)
+            .weight(BigDecimal.valueOf(weight))
             .edgeType(type)
             .isCrossFloor(crossFloor)
             .geom(geom)
             .build());
+  }
+
+  private NodeType resolveNodeType(String code) {
+    return nodeTypeRepo
+        .findByCode(code)
+        .orElseThrow(() -> new IllegalArgumentException("Nepoznat tip cvora: " + code));
+  }
+
+  private EdgeType resolveEdgeType(String code) {
+    return edgeTypeRepo
+        .findByCode(code)
+        .orElseThrow(() -> new IllegalArgumentException("Nepoznat tip ivice: " + code));
   }
 
   private Point makePoint(double x, double y) {
@@ -169,7 +197,7 @@ public class NavGraphService {
     String label = dto.getLabel().toLowerCase();
     if (label.contains("lift") || label.contains("dvigalo")) return "elevator";
     if (label.contains("stepen")) return "stairs";
-    if (label.contains("wc") || label.contains("stranišče")) return "wc";
+    if (label.contains("wc") || label.contains("stranisce")) return "wc";
     if (label.contains("hodnik")) return "corridor";
     return "room";
   }

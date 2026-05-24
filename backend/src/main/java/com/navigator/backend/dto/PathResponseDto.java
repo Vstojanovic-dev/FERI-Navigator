@@ -30,7 +30,7 @@ public class PathResponseDto {
     private String externalId;
     private String label;
     private String nodeType;
-    private Integer floorId;
+    private Long floorId;
     private double x;
     private double y;
   }
