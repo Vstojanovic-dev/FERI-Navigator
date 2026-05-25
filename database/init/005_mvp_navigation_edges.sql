@@ -28,7 +28,7 @@ WITH edge_input(
         ('G2_2_nadstropje_wp12', 'G2_2_nadstropje_farad_lab', 'virtual', FALSE, FALSE, 'Laboratorij Farad je ob hodniku.', 'Vrni se iz laboratorija Farad na hodnik.', 'Farad'),
         ('G2_2_nadstropje_wp12', 'G2_2_nadstropje_weber_lab', 'virtual', FALSE, FALSE, 'Laboratorij Weber je ob hodniku.', 'Vrni se iz laboratorija Weber na hodnik.', 'Weber'),
         ('G2_2_nadstropje_wp12', 'G2_2_nadstropje_wp13', 'corridor', FALSE, FALSE, 'Nadaljuj po hodniku proti laboratoriju Tesla.', 'Nadaljuj nazaj proti laboratorijema Farad in Weber.', NULL),
-        ('G2_2_nadstropje_wp13', 'G2_2_nadstropje_teesla_lab', 'virtual', FALSE, FALSE, 'Laboratorij Tesla je ob hodniku.', 'Vrni se iz laboratorija Tesla na hodnik.', 'Tesla')
+        ('G2_2_nadstropje_wp13', 'G2_2_nadstropje_tesla_lab', 'virtual', FALSE, FALSE, 'Laboratorij Tesla je ob hodniku.', 'Vrni se iz laboratorija Tesla na hodnik.', 'Tesla')
 ),
 resolved_edges AS (
     SELECT

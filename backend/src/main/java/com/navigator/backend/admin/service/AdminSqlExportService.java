@@ -20,6 +20,63 @@ public class AdminSqlExportService {
 
   @Transactional(readOnly = true)
   public String exportSql() {
+    List<LookupRow> spaceTypes = lookupRows("space_types");
+    List<LookupRow> nodeTypes = lookupRows("node_types");
+    List<LookupRow> edgeTypes = lookupRows("edge_types");
+
+    List<BuildingRow> buildings =
+        jdbcClient
+            .sql(
+                """
+                SELECT code, name, description, image_url
+                FROM buildings
+                ORDER BY code
+                """)
+            .query(BuildingRow.class)
+            .list();
+
+    List<FloorRow> floors =
+        jdbcClient
+            .sql(
+                """
+                SELECT
+                  b.code AS building_code,
+                  f.code,
+                  f.label,
+                  f.level_number,
+                  f.z,
+                  f.map_image_url,
+                  f.coordinate_width,
+                  f.coordinate_height
+                FROM floors f
+                JOIN buildings b ON b.id = f.building_id
+                ORDER BY b.code, f.level_number, f.code
+                """)
+            .query(FloorRow.class)
+            .list();
+
+    List<SpaceRow> spaces =
+        jdbcClient
+            .sql(
+                """
+                SELECT
+                  b.code AS building_code,
+                  f.code AS floor_code,
+                  st.code AS space_type_code,
+                  s.code,
+                  s.name,
+                  s.description,
+                  s.image_url,
+                  s.is_public
+                FROM spaces s
+                JOIN buildings b ON b.id = s.building_id
+                JOIN floors f ON f.id = s.floor_id
+                JOIN space_types st ON st.id = s.space_type_id
+                ORDER BY b.code, f.level_number, s.code
+                """)
+            .query(SpaceRow.class)
+            .list();
+
     List<NodeRow> nodes =
         jdbcClient
             .sql(
@@ -110,15 +167,22 @@ public class AdminSqlExportService {
             .list();
 
     Set<String> buildingCodes = new LinkedHashSet<>();
-    for (NodeRow node : nodes) {
-      buildingCodes.add(node.buildingCode());
+    for (BuildingRow building : buildings) {
+      buildingCodes.add(building.code());
     }
 
     StringBuilder sql = new StringBuilder();
     sql.append("-- Generated from the admin map editor.\n");
-    sql.append("-- Commit this file when admin graph changes should be shared with the team.\n");
+    sql.append("-- Complete navigation snapshot: lookups, buildings, floors, spaces, nodes, edges and locations.\n");
+    sql.append("-- Commit this file when admin navigation changes should be shared with the team.\n");
     sql.append("-- Generated at: ").append(OffsetDateTime.now()).append("\n\n");
 
+    appendLookupTable(sql, "Space types", "space_types", spaceTypes);
+    appendLookupTable(sql, "Node types", "node_types", nodeTypes);
+    appendLookupTable(sql, "Edge types", "edge_types", edgeTypes);
+    appendBuildings(sql, buildings);
+    appendFloors(sql, floors);
+    appendSpaces(sql, spaces);
     appendNodes(sql, nodes, buildingCodes);
     appendEdges(sql, edges, buildingCodes);
     appendStaleNodeDelete(sql, nodes, buildingCodes);
@@ -126,6 +190,204 @@ public class AdminSqlExportService {
     appendLocations(sql, locations, buildingCodes);
 
     return sql.toString();
+  }
+
+  private List<LookupRow> lookupRows(String tableName) {
+    return jdbcClient
+        .sql(
+            "SELECT code, name, description FROM "
+                + tableName
+                + " ORDER BY code")
+        .query(LookupRow.class)
+        .list();
+  }
+
+  private void appendLookupTable(
+      StringBuilder sql, String title, String tableName, List<LookupRow> rows) {
+    if (rows.isEmpty()) {
+      return;
+    }
+
+    sql.append("-- ").append(title).append("\n");
+    sql.append("WITH lookup_input(code, name, description) AS (\n");
+    appendValues(
+        sql,
+        rows.stream()
+            .map(
+                row ->
+                    List.of(
+                        stringValue(row.code()),
+                        stringValue(row.name()),
+                        stringValue(row.description())))
+            .toList());
+    sql.append(")\n");
+    sql.append("INSERT INTO ").append(tableName).append(" (code, name, description)\n");
+    sql.append(
+        """
+        SELECT code, name, description
+        FROM lookup_input
+        ON CONFLICT (code) DO UPDATE
+        SET name = EXCLUDED.name,
+            description = EXCLUDED.description;
+
+        """);
+  }
+
+  private void appendBuildings(StringBuilder sql, List<BuildingRow> buildings) {
+    if (buildings.isEmpty()) {
+      return;
+    }
+
+    sql.append("-- Buildings\n");
+    sql.append("WITH building_input(code, name, description, image_url) AS (\n");
+    appendValues(
+        sql,
+        buildings.stream()
+            .map(
+                building ->
+                    List.of(
+                        stringValue(building.code()),
+                        stringValue(building.name()),
+                        stringValue(building.description()),
+                        stringValue(building.imageUrl())))
+            .toList());
+    sql.append(")\n");
+    sql.append(
+        """
+        INSERT INTO buildings (code, name, description, image_url)
+        SELECT code, name, description, image_url
+        FROM building_input
+        ON CONFLICT (code) DO UPDATE
+        SET name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            image_url = EXCLUDED.image_url,
+            updated_at = NOW();
+
+        """);
+  }
+
+  private void appendFloors(StringBuilder sql, List<FloorRow> floors) {
+    if (floors.isEmpty()) {
+      return;
+    }
+
+    sql.append("-- Floors and map metadata\n");
+    sql.append("WITH floor_input(\n");
+    sql.append("    building_code, code, label, level_number, z,\n");
+    sql.append("    map_image_url, coordinate_width, coordinate_height\n");
+    sql.append(") AS (\n");
+    appendValues(
+        sql,
+        floors.stream()
+            .map(
+                floor ->
+                    List.of(
+                        stringValue(floor.buildingCode()),
+                        stringValue(floor.code()),
+                        stringValue(floor.label()),
+                        decimalValue(floor.levelNumber()),
+                        decimalValue(floor.z()),
+                        stringValue(floor.mapImageUrl()),
+                        decimalValue(floor.coordinateWidth()),
+                        decimalValue(floor.coordinateHeight())))
+            .toList());
+    sql.append(")\n");
+    sql.append(
+        """
+        INSERT INTO floors (
+            building_id,
+            code,
+            label,
+            level_number,
+            z,
+            map_image_url,
+            coordinate_width,
+            coordinate_height
+        )
+        SELECT
+            b.id,
+            fi.code,
+            fi.label,
+            fi.level_number,
+            fi.z,
+            fi.map_image_url,
+            fi.coordinate_width,
+            fi.coordinate_height
+        FROM floor_input fi
+        JOIN buildings b ON b.code = fi.building_code
+        ON CONFLICT (building_id, code) DO UPDATE
+        SET label = EXCLUDED.label,
+            level_number = EXCLUDED.level_number,
+            z = EXCLUDED.z,
+            map_image_url = EXCLUDED.map_image_url,
+            coordinate_width = EXCLUDED.coordinate_width,
+            coordinate_height = EXCLUDED.coordinate_height,
+            updated_at = NOW();
+
+        """);
+  }
+
+  private void appendSpaces(StringBuilder sql, List<SpaceRow> spaces) {
+    if (spaces.isEmpty()) {
+      return;
+    }
+
+    sql.append("-- Spaces\n");
+    sql.append("WITH space_input(\n");
+    sql.append("    building_code, floor_code, space_type_code, code,\n");
+    sql.append("    name, description, image_url, is_public\n");
+    sql.append(") AS (\n");
+    appendValues(
+        sql,
+        spaces.stream()
+            .map(
+                space ->
+                    List.of(
+                        stringValue(space.buildingCode()),
+                        stringValue(space.floorCode()),
+                        stringValue(space.spaceTypeCode()),
+                        stringValue(space.code()),
+                        stringValue(space.name()),
+                        stringValue(space.description()),
+                        stringValue(space.imageUrl()),
+                        boolValue(space.isPublic())))
+            .toList());
+    sql.append(")\n");
+    sql.append(
+        """
+        INSERT INTO spaces (
+            building_id,
+            floor_id,
+            space_type_id,
+            code,
+            name,
+            description,
+            image_url,
+            is_public
+        )
+        SELECT
+            b.id,
+            f.id,
+            st.id,
+            si.code,
+            si.name,
+            si.description,
+            si.image_url,
+            si.is_public
+        FROM space_input si
+        JOIN buildings b ON b.code = si.building_code
+        JOIN floors f ON f.building_id = b.id AND f.code = si.floor_code
+        JOIN space_types st ON st.code = si.space_type_code
+        ON CONFLICT (building_id, code) DO UPDATE
+        SET floor_id = EXCLUDED.floor_id,
+            space_type_id = EXCLUDED.space_type_id,
+            name = EXCLUDED.name,
+            description = EXCLUDED.description,
+            image_url = EXCLUDED.image_url,
+            is_public = EXCLUDED.is_public,
+            updated_at = NOW();
+
+        """);
   }
 
   private void appendNodes(StringBuilder sql, List<NodeRow> nodes, Set<String> buildingCodes) {
@@ -244,6 +506,10 @@ public class AdminSqlExportService {
   }
 
   private void appendEdges(StringBuilder sql, List<EdgeRow> edges, Set<String> buildingCodes) {
+    if (buildingCodes.isEmpty()) {
+      return;
+    }
+
     sql.append("-- Navigation edges\n");
     appendBuildingInput(sql, buildingCodes);
     if (edges.isEmpty()) {
@@ -520,6 +786,30 @@ public class AdminSqlExportService {
   private String boolValue(Boolean value) {
     return Boolean.TRUE.equals(value) ? "TRUE" : "FALSE";
   }
+
+  private record LookupRow(String code, String name, String description) {}
+
+  private record BuildingRow(String code, String name, String description, String imageUrl) {}
+
+  private record FloorRow(
+      String buildingCode,
+      String code,
+      String label,
+      BigDecimal levelNumber,
+      BigDecimal z,
+      String mapImageUrl,
+      BigDecimal coordinateWidth,
+      BigDecimal coordinateHeight) {}
+
+  private record SpaceRow(
+      String buildingCode,
+      String floorCode,
+      String spaceTypeCode,
+      String code,
+      String name,
+      String description,
+      String imageUrl,
+      Boolean isPublic) {}
 
   private record NodeRow(
       String externalId,

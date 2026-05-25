@@ -157,7 +157,7 @@ INSERT INTO g2_navigation_nodes (floor, node_key, label, pixel_x, pixel_y) VALUE
 ('2_nadstropje', 'wp12', 'wp12', 312.9, 417.9),
 ('2_nadstropje', 'farad_lab', 'farad_lab', 370.9, 412.9),
 ('2_nadstropje', 'weber_lab', 'weber_lab', 498.8, 402.9),
-('2_nadstropje', 'teesla_lab', 'teesla_lab', 649.8, 396.9),
+('2_nadstropje', 'tesla_lab', 'tesla_lab', 649.8, 396.9),
 ('2_nadstropje', 'wp13', 'wp13', 762.7, 393.9),
 ('2_nadstropje', 'prostor_za_ucenje', 'prostor_za_ucenje', 759.7, 317.9),
 ('2_nadstropje', 'stepeniste_lab', 'stepeniste_lab', 759.7, 476.9)
@@ -212,7 +212,7 @@ ON CONFLICT (floor, node_key) DO UPDATE
 INSERT INTO g2_navigation_nodes (floor, node_key, label, pixel_x, pixel_y) VALUES
 ('4_nadstropje', 'stepeniste_seminarske', 'stepeniste_seminarske', 759.7, 209.4),
 ('4_nadstropje', 'wp1', 'wp1', 759.7, 162.4),
-('4_nadstropje', 'galrija', 'galrija', 786.7, 163.4),
+('4_nadstropje', 'galerija', 'galerija', 786.7, 163.4),
 ('4_nadstropje', 'wc_osoblje', 'wc_osoblje', 744.7, 128.4),
 ('4_nadstropje', 'wp2', 'wp2', 685.7, 169.4),
 ('4_nadstropje', 'wp3', 'wp3', 597.8, 167.4),
