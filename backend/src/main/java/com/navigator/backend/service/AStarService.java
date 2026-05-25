@@ -59,7 +59,11 @@ public class AStarService {
 
   public RouteSearchResult findPath(NavNode start, NavNode goal, boolean allowElevator) {
     if (start.getId().equals(goal.getId())) {
-      return RouteSearchResult.builder().nodes(List.of(start)).edges(List.of()).totalCost(0).build();
+      return RouteSearchResult.builder()
+          .nodes(List.of(start))
+          .edges(List.of())
+          .totalCost(0)
+          .build();
     }
 
     log.info("A* search: {} -> {}", start.getExternalId(), goal.getExternalId());

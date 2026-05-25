@@ -1,5 +1,5 @@
 :root {
-  font-family: "Aptos", "Segoe UI", sans-serif;
+  font-family: 'Aptos', 'Segoe UI', sans-serif;
   color: #172033;
   background: #e9eef3;
   text-rendering: optimizeLegibility;
@@ -22,8 +22,7 @@ body,
 body {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(218, 226, 235, 0.74)),
-    repeating-linear-gradient(90deg, rgba(23, 32, 51, 0.035) 0 1px, transparent 1px 42px),
-    #e9eef3;
+    repeating-linear-gradient(90deg, rgba(23, 32, 51, 0.035) 0 1px, transparent 1px 42px), #e9eef3;
 }
 
 button,
@@ -505,7 +504,7 @@ button:disabled {
 }
 
 .sql-preview {
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: 'Cascadia Mono', Consolas, monospace;
   font-size: 11px;
   min-height: 220px;
   white-space: pre;

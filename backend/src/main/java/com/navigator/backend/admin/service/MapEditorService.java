@@ -86,7 +86,9 @@ public class MapEditorService {
 
     return new GraphDto(
         toFloorViewDto(floor),
-        nodes.stream().map(node -> toNodeDto(node, nodesWithCrossFloorEdges.contains(node.getId()))).toList(),
+        nodes.stream()
+            .map(node -> toNodeDto(node, nodesWithCrossFloorEdges.contains(node.getId())))
+            .toList(),
         collapseEdgesForEditor(edges, floorId));
   }
 
@@ -106,7 +108,8 @@ public class MapEditorService {
     node.setY(decimal(request.y()));
     node.setZ(floor.getZ());
     node.setGeom(makePoint(request.x(), request.y()));
-    node.setExternalId(resolveExternalId(request.externalId(), request.label(), nodeType.getCode(), floor));
+    node.setExternalId(
+        resolveExternalId(request.externalId(), request.label(), nodeType.getCode(), floor));
 
     return toNodeDto(nodeRepository.save(node), false);
   }
@@ -117,7 +120,8 @@ public class MapEditorService {
     AdminFloor floor = findFloor(request.floorId());
     AdminNodeType nodeType = findNodeType(request.nodeTypeCode());
     String externalId =
-        resolveExternalIdForUpdate(request.externalId(), request.label(), nodeType.getCode(), floor, nodeId);
+        resolveExternalIdForUpdate(
+            request.externalId(), request.label(), nodeType.getCode(), floor, nodeId);
 
     node.setFloorId(floor.getId());
     node.setNodeType(nodeType);
@@ -140,16 +144,13 @@ public class MapEditorService {
 
     Integer locationCount =
         jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM navigation_locations WHERE node_id = ?",
-            Integer.class,
-            nodeId);
+            "SELECT COUNT(*) FROM navigation_locations WHERE node_id = ?", Integer.class, nodeId);
     Integer spacePrimaryCount =
         jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM spaces WHERE primary_node_id = ?",
-            Integer.class,
-            nodeId);
+            "SELECT COUNT(*) FROM spaces WHERE primary_node_id = ?", Integer.class, nodeId);
 
-    if ((locationCount != null && locationCount > 0) || (spacePrimaryCount != null && spacePrimaryCount > 0)) {
+    if ((locationCount != null && locationCount > 0)
+        || (spacePrimaryCount != null && spacePrimaryCount > 0)) {
       throw new MapEditorException(
           HttpStatus.CONFLICT,
           "NODE_HAS_DEPENDENCIES",
@@ -201,7 +202,8 @@ public class MapEditorService {
   public EdgeDto updateEdge(Long edgeId, EdgeUpsertRequest request) {
     AdminNavEdge current = findEdge(edgeId);
     AdminNavEdge oldReverse =
-        edgeRepository.findByFromNodeIdAndToNodeId(current.getToNode().getId(), current.getFromNode().getId())
+        edgeRepository
+            .findByFromNodeIdAndToNodeId(current.getToNode().getId(), current.getFromNode().getId())
             .orElse(null);
 
     AdminNavNode fromNode = findNode(request.fromNodeId());
@@ -231,16 +233,16 @@ public class MapEditorService {
       }
       AdminNavEdge reverseSaved =
           upsertDirectionalEdge(
-          reverseExisting,
-          toNode,
-          fromNode,
-          edgeType,
-          true,
-          request.isCrossFloor(),
-          request.isCrossBuilding(),
-          request.instructionBackward(),
-          request.instructionForward(),
-          request.landmark());
+              reverseExisting,
+              toNode,
+              fromNode,
+              edgeType,
+              true,
+              request.isCrossFloor(),
+              request.isCrossBuilding(),
+              request.instructionBackward(),
+              request.instructionForward(),
+              request.landmark());
       if (oldReverse != null
           && Boolean.TRUE.equals(oldReverse.getIsBidirectional())
           && !oldReverse.getId().equals(primary.getId())
@@ -260,11 +262,14 @@ public class MapEditorService {
   public void deleteEdge(Long edgeId) {
     AdminNavEdge edge = findEdge(edgeId);
     AdminNavEdge reverse =
-        edgeRepository.findByFromNodeIdAndToNodeId(edge.getToNode().getId(), edge.getFromNode().getId()).orElse(null);
+        edgeRepository
+            .findByFromNodeIdAndToNodeId(edge.getToNode().getId(), edge.getFromNode().getId())
+            .orElse(null);
 
     if (reverse != null
         && !reverse.getId().equals(edge.getId())
-        && (Boolean.TRUE.equals(edge.getIsBidirectional()) || Boolean.TRUE.equals(reverse.getIsBidirectional()))) {
+        && (Boolean.TRUE.equals(edge.getIsBidirectional())
+            || Boolean.TRUE.equals(reverse.getIsBidirectional()))) {
       edgeRepository.delete(reverse);
     }
 
@@ -306,7 +311,8 @@ public class MapEditorService {
     return result;
   }
 
-  private AdminNavEdge chooseRepresentative(Long activeFloorId, AdminNavEdge first, AdminNavEdge second) {
+  private AdminNavEdge chooseRepresentative(
+      Long activeFloorId, AdminNavEdge first, AdminNavEdge second) {
     boolean firstStartsOnActiveFloor = first.getFromNode().getFloorId().equals(activeFloorId);
     boolean secondStartsOnActiveFloor = second.getFromNode().getFloorId().equals(activeFloorId);
 
@@ -380,7 +386,8 @@ public class MapEditorService {
     }
   }
 
-  private BigDecimal calculateWeight(AdminNavNode fromNode, AdminNavNode toNode, boolean isCrossFloor) {
+  private BigDecimal calculateWeight(
+      AdminNavNode fromNode, AdminNavNode toNode, boolean isCrossFloor) {
     BigDecimal distance = BigDecimal.valueOf(fromNode.getGeom().distance(toNode.getGeom()));
     if (isCrossFloor) {
       distance = distance.add(CROSS_FLOOR_PENALTY);
@@ -523,11 +530,13 @@ public class MapEditorService {
   }
 
   private LookupOptionDto toLookupDto(AdminNodeType nodeType) {
-    return new LookupOptionDto(nodeType.getId(), nodeType.getCode(), nodeType.getName(), nodeType.getDescription());
+    return new LookupOptionDto(
+        nodeType.getId(), nodeType.getCode(), nodeType.getName(), nodeType.getDescription());
   }
 
   private LookupOptionDto toLookupDto(AdminEdgeType edgeType) {
-    return new LookupOptionDto(edgeType.getId(), edgeType.getCode(), edgeType.getName(), edgeType.getDescription());
+    return new LookupOptionDto(
+        edgeType.getId(), edgeType.getCode(), edgeType.getName(), edgeType.getDescription());
   }
 
   private NodeDto toNodeDto(AdminNavNode node, boolean hasCrossFloorConnections) {
@@ -589,7 +598,8 @@ public class MapEditorService {
   }
 
   private LineString makeLineString(Point from, Point to) {
-    return geometryFactory.createLineString(new Coordinate[] {from.getCoordinate(), to.getCoordinate()});
+    return geometryFactory.createLineString(
+        new Coordinate[] {from.getCoordinate(), to.getCoordinate()});
   }
 
   private String cleanText(String value) {

@@ -48,7 +48,8 @@ public class MapEditorController {
   @GetMapping(value = "/export/sql", produces = MediaType.TEXT_PLAIN_VALUE)
   public ResponseEntity<String> exportSql() {
     return ResponseEntity.ok()
-        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=006_admin_navigation_graph.sql")
+        .header(
+            HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=006_admin_navigation_graph.sql")
         .body(sqlExportService.exportSql());
   }
 
@@ -58,7 +59,8 @@ public class MapEditorController {
   }
 
   @PatchMapping("/nodes/{nodeId}")
-  public NodeDto updateNode(@PathVariable Long nodeId, @Valid @RequestBody NodeUpsertRequest request) {
+  public NodeDto updateNode(
+      @PathVariable Long nodeId, @Valid @RequestBody NodeUpsertRequest request) {
     return mapEditorService.updateNode(nodeId, request);
   }
 
@@ -74,7 +76,8 @@ public class MapEditorController {
   }
 
   @PatchMapping("/edges/{edgeId}")
-  public EdgeDto updateEdge(@PathVariable Long edgeId, @Valid @RequestBody EdgeUpsertRequest request) {
+  public EdgeDto updateEdge(
+      @PathVariable Long edgeId, @Valid @RequestBody EdgeUpsertRequest request) {
     return mapEditorService.updateEdge(edgeId, request);
   }
 

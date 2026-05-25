@@ -62,9 +62,7 @@ public class NavigationRouteService {
 
     if (searchResult.getNodes().isEmpty()) {
       throw new NavigationRouteException(
-          HttpStatus.NOT_FOUND,
-          "NO_ROUTE",
-          "Za izabrane lokacije jos ne postoji unesena ruta.");
+          HttpStatus.NOT_FOUND, "NO_ROUTE", "Za izabrane lokacije jos ne postoji unesena ruta.");
     }
 
     return RouteResponseDto.builder()

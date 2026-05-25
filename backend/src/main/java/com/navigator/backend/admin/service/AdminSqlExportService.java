@@ -173,8 +173,10 @@ public class AdminSqlExportService {
 
     StringBuilder sql = new StringBuilder();
     sql.append("-- Generated from the admin map editor.\n");
-    sql.append("-- Complete navigation snapshot: lookups, buildings, floors, spaces, nodes, edges and locations.\n");
-    sql.append("-- Commit this file when admin navigation changes should be shared with the team.\n");
+    sql.append(
+        "-- Complete navigation snapshot: lookups, buildings, floors, spaces, nodes, edges and locations.\n");
+    sql.append(
+        "-- Commit this file when admin navigation changes should be shared with the team.\n");
     sql.append("-- Generated at: ").append(OffsetDateTime.now()).append("\n\n");
 
     appendLookupTable(sql, "Space types", "space_types", spaceTypes);
@@ -194,10 +196,7 @@ public class AdminSqlExportService {
 
   private List<LookupRow> lookupRows(String tableName) {
     return jdbcClient
-        .sql(
-            "SELECT code, name, description FROM "
-                + tableName
-                + " ORDER BY code")
+        .sql("SELECT code, name, description FROM " + tableName + " ORDER BY code")
         .query(LookupRow.class)
         .list();
   }
@@ -466,7 +465,8 @@ public class AdminSqlExportService {
 
         """);
 
-    sql.append("-- Remove graph rows for exported buildings that are no longer present in admin.\n");
+    sql.append(
+        "-- Remove graph rows for exported buildings that are no longer present in admin.\n");
     appendBuildingInput(sql, buildingCodes);
     sql.append(", node_input(external_id) AS (\n");
     appendValues(sql, nodes.stream().map(node -> List.of(stringValue(node.externalId()))).toList());
@@ -513,13 +513,16 @@ public class AdminSqlExportService {
     sql.append("-- Navigation edges\n");
     appendBuildingInput(sql, buildingCodes);
     if (edges.isEmpty()) {
-      sql.append(", edge_input(from_external_id, to_external_id) AS (SELECT NULL, NULL WHERE FALSE)\n");
+      sql.append(
+          ", edge_input(from_external_id, to_external_id) AS (SELECT NULL, NULL WHERE FALSE)\n");
     } else {
       sql.append(", edge_input(from_external_id, to_external_id) AS (\n");
       appendValues(
           sql,
           edges.stream()
-              .map(edge -> List.of(stringValue(edge.fromExternalId()), stringValue(edge.toExternalId())))
+              .map(
+                  edge ->
+                      List.of(stringValue(edge.fromExternalId()), stringValue(edge.toExternalId())))
               .toList());
       sql.append(")\n");
     }
@@ -620,7 +623,8 @@ public class AdminSqlExportService {
     }
 
     sql.append("-- Space to primary node links\n");
-    sql.append("WITH space_primary_input(building_code, space_code, primary_node_external_id) AS (\n");
+    sql.append(
+        "WITH space_primary_input(building_code, space_code, primary_node_external_id) AS (\n");
     appendValues(
         sql,
         spacePrimaries.stream()
@@ -682,7 +686,9 @@ public class AdminSqlExportService {
     sql.append(", location_input(node_external_id) AS (\n");
     appendValues(
         sql,
-        locations.stream().map(location -> List.of(stringValue(location.nodeExternalId()))).toList());
+        locations.stream()
+            .map(location -> List.of(stringValue(location.nodeExternalId())))
+            .toList());
     sql.append(")\n");
     sql.append(
         """

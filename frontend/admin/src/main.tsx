@@ -6,5 +6,5 @@ import AdminApp from './AdminApp.tsx';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AdminApp />
-  </StrictMode>,
+  </StrictMode>
 );

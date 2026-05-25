@@ -252,7 +252,7 @@ function AdminApp() {
       return [];
     }
     return graph.edges.filter(
-      (edge) => edge.fromFloorId === graph.floor.floorId && edge.toFloorId === graph.floor.floorId,
+      (edge) => edge.fromFloorId === graph.floor.floorId && edge.toFloorId === graph.floor.floorId
     );
   }, [graph]);
 
@@ -261,7 +261,7 @@ function AdminApp() {
       return [];
     }
     return graph.edges.filter(
-      (edge) => edge.fromFloorId !== graph.floor.floorId || edge.toFloorId !== graph.floor.floorId,
+      (edge) => edge.fromFloorId !== graph.floor.floorId || edge.toFloorId !== graph.floor.floorId
     );
   }, [graph]);
 
@@ -275,7 +275,9 @@ function AdminApp() {
 
   const loadGraph = useCallback(async (floorId: number) => {
     setError('');
-    const nextGraph = await apiFetch<GraphResponse>(`/api/admin/map-editor/floors/${floorId}/graph`);
+    const nextGraph = await apiFetch<GraphResponse>(
+      `/api/admin/map-editor/floors/${floorId}/graph`
+    );
     setGraph(nextGraph);
   }, []);
 
@@ -361,7 +363,7 @@ function AdminApp() {
     const loadTargetNodes = async () => {
       try {
         const targetGraph = await apiFetch<GraphResponse>(
-          `/api/admin/map-editor/floors/${connectTargetFloorId}/graph`,
+          `/api/admin/map-editor/floors/${connectTargetFloorId}/graph`
         );
         setConnectTargetNodes(targetGraph.nodes);
       } catch (targetError) {
@@ -398,7 +400,10 @@ function AdminApp() {
         return;
       }
 
-      if (Math.abs(preview.x - dragState.startX) < 0.5 && Math.abs(preview.y - dragState.startY) < 0.5) {
+      if (
+        Math.abs(preview.x - dragState.startX) < 0.5 &&
+        Math.abs(preview.y - dragState.startY) < 0.5
+      ) {
         setDragPreview({});
         return;
       }
@@ -464,7 +469,10 @@ function AdminApp() {
       floorId: graph.floor.floorId,
       label: '',
       externalId: '',
-      nodeTypeCode: nodeTypes.find((type) => type.code === 'waypoint')?.code ?? nodeTypes[0]?.code ?? 'waypoint',
+      nodeTypeCode:
+        nodeTypes.find((type) => type.code === 'waypoint')?.code ??
+        nodeTypes[0]?.code ??
+        'waypoint',
       isWaypoint: true,
       isPublic: true,
       x: round2(point.x),
@@ -492,7 +500,10 @@ function AdminApp() {
     setDragState({ nodeId: node.id, startX: node.x, startY: node.y });
   };
 
-  const handleEdgeClick = (edge: EditorEdge, event?: ReactMouseEvent<SVGElement | HTMLButtonElement>) => {
+  const handleEdgeClick = (
+    edge: EditorEdge,
+    event?: ReactMouseEvent<SVGElement | HTMLButtonElement>
+  ) => {
     event?.stopPropagation();
     if (tool === 'delete') {
       void deleteEdge(edge);
@@ -540,7 +551,8 @@ function AdminApp() {
       fromLabel: fromNode.externalId,
       toLabel: toNode.externalId,
       edgeTypeCode:
-        edgeTypes.find((type) => (crossFloor ? type.code === 'elevator' : type.code === 'corridor'))?.code ??
+        edgeTypes.find((type) => (crossFloor ? type.code === 'elevator' : type.code === 'corridor'))
+          ?.code ??
         edgeTypes[0]?.code ??
         'corridor',
       isBidirectional: true,
@@ -588,7 +600,7 @@ function AdminApp() {
             isPublic: nodeForm.isPublic,
             spaceId: nodeForm.spaceId.trim() ? Number(nodeForm.spaceId) : null,
           }),
-        },
+        }
       );
       setDirtySinceExport(true);
       setNotice(nodeForm.kind === 'create' ? 'Node je dodat.' : 'Node je sacuvan.');
@@ -644,7 +656,7 @@ function AdminApp() {
             instructionBackward: emptyToNull(edgeForm.instructionBackward),
             landmark: emptyToNull(edgeForm.landmark),
           }),
-        },
+        }
       );
       setDirtySinceExport(true);
       setNotice(edgeForm.kind === 'create' ? 'Veza je dodata.' : 'Veza je sacuvana.');
@@ -658,7 +670,10 @@ function AdminApp() {
   };
 
   const deleteEdge = async (edge: EditorEdge | null = selectedEdge) => {
-    if (!edge || !window.confirm(`Obrisi vezu ${edge.fromNodeExternalId} -> ${edge.toNodeExternalId}?`)) {
+    if (
+      !edge ||
+      !window.confirm(`Obrisi vezu ${edge.fromNodeExternalId} -> ${edge.toNodeExternalId}?`)
+    ) {
       return;
     }
     try {
@@ -719,7 +734,12 @@ function AdminApp() {
           <span className={dirtySinceExport ? 'dirty-pill dirty' : 'dirty-pill'}>
             {dirtySinceExport ? 'Unexported changes' : 'Export up to date'}
           </span>
-          <button type="button" className="primary-button" onClick={exportCurrentSql} disabled={isExporting}>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={exportCurrentSql}
+            disabled={isExporting}
+          >
             {isExporting ? 'Exporting...' : 'Export SQL'}
           </button>
         </div>
@@ -903,10 +923,20 @@ function AdminApp() {
               {exportSql ? <span>{Math.round(exportSql.length / 1024)} KB</span> : null}
             </div>
             <div className="export-actions">
-              <button type="button" className="secondary-button" onClick={exportCurrentSql} disabled={isExporting}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={exportCurrentSql}
+                disabled={isExporting}
+              >
                 Generate
               </button>
-              <button type="button" className="secondary-button" onClick={downloadExport} disabled={!exportSql}>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={downloadExport}
+                disabled={!exportSql}
+              >
                 Download
               </button>
               <button
@@ -929,7 +959,11 @@ function AdminApp() {
               </div>
               <div className="edge-list">
                 {crossFloorEdges.slice(0, 8).map((edge) => (
-                  <button key={edge.id} type="button" onClick={(event) => handleEdgeClick(edge, event)}>
+                  <button
+                    key={edge.id}
+                    type="button"
+                    onClick={(event) => handleEdgeClick(edge, event)}
+                  >
                     <strong>{edge.fromNodeExternalId}</strong>
                     <span>{edge.toNodeExternalId}</span>
                   </button>
@@ -972,7 +1006,10 @@ function ConnectPanel({
         <>
           <label>
             Target floor
-            <select value={connectTargetFloorId ?? ''} onChange={(event) => onTargetFloorChange(Number(event.target.value))}>
+            <select
+              value={connectTargetFloorId ?? ''}
+              onChange={(event) => onTargetFloorChange(Number(event.target.value))}
+            >
               {floors.map((floor) => (
                 <option key={floor.floorId} value={floor.floorId}>
                   {floor.buildingCode} - {floor.floorLabel}
@@ -982,7 +1019,10 @@ function ConnectPanel({
           </label>
           <label>
             Target node
-            <select value={connectTargetNodeId ?? ''} onChange={(event) => onTargetNodeChange(Number(event.target.value))}>
+            <select
+              value={connectTargetNodeId ?? ''}
+              onChange={(event) => onTargetNodeChange(Number(event.target.value))}
+            >
               <option value="">Izaberi node</option>
               {connectTargetNodes.map((node) => (
                 <option key={node.id} value={node.id}>
@@ -991,7 +1031,12 @@ function ConnectPanel({
               ))}
             </select>
           </label>
-          <button type="button" className="secondary-button" onClick={onPrepare} disabled={connectTargetNodeId == null}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onPrepare}
+            disabled={connectTargetNodeId == null}
+          >
             Prepare cross-floor edge
           </button>
         </>
@@ -1021,11 +1066,17 @@ function NodeForm({
     <div className="compact-stack">
       <label>
         Label
-        <input value={form.label} onChange={(event) => onChange({ ...form, label: event.target.value })} />
+        <input
+          value={form.label}
+          onChange={(event) => onChange({ ...form, label: event.target.value })}
+        />
       </label>
       <label>
         External ID
-        <input value={form.externalId} onChange={(event) => onChange({ ...form, externalId: event.target.value })} />
+        <input
+          value={form.externalId}
+          onChange={(event) => onChange({ ...form, externalId: event.target.value })}
+        />
       </label>
       <label>
         Node type
@@ -1049,7 +1100,10 @@ function NodeForm({
       </label>
       <label>
         Space ID
-        <input value={form.spaceId} onChange={(event) => onChange({ ...form, spaceId: event.target.value })} />
+        <input
+          value={form.spaceId}
+          onChange={(event) => onChange({ ...form, spaceId: event.target.value })}
+        />
       </label>
       <div className="metric-grid">
         <NumberField label="X" value={form.x} onChange={(x) => onChange({ ...form, x })} />
@@ -1111,7 +1165,10 @@ function EdgeForm({
       <p className="readonly-box">To: {form.toLabel}</p>
       <label>
         Edge type
-        <select value={form.edgeTypeCode} onChange={(event) => onChange({ ...form, edgeTypeCode: event.target.value })}>
+        <select
+          value={form.edgeTypeCode}
+          onChange={(event) => onChange({ ...form, edgeTypeCode: event.target.value })}
+        >
           {edgeTypes.map((type) => (
             <option key={type.code} value={type.code}>
               {type.code}
@@ -1159,7 +1216,10 @@ function EdgeForm({
       </label>
       <label>
         Landmark
-        <input value={form.landmark} onChange={(event) => onChange({ ...form, landmark: event.target.value })} />
+        <input
+          value={form.landmark}
+          onChange={(event) => onChange({ ...form, landmark: event.target.value })}
+        />
       </label>
       <div className="button-grid">
         <button type="button" className="primary-button" onClick={onSave} disabled={isSaving}>
@@ -1190,7 +1250,11 @@ function NumberField({
   return (
     <label>
       {label}
-      <input type="number" value={value} onChange={(event) => onChange(Number(event.target.value))} />
+      <input
+        type="number"
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
     </label>
   );
 }
@@ -1348,13 +1412,19 @@ function LocationPicker({
           autoComplete="off"
         />
       </label>
-      {selected ? <span className="selected-location">{selected.buildingCode} - {selected.floorLabel}</span> : null}
+      {selected ? (
+        <span className="selected-location">
+          {selected.buildingCode} - {selected.floorLabel}
+        </span>
+      ) : null}
       {!selected && query.trim() && results.length > 0 ? (
         <div className="location-results">
           {results.map((location) => (
             <button key={location.id} type="button" onClick={() => onSelect(location)}>
               <strong>{location.displayName}</strong>
-              <span>{location.buildingCode} - {location.floorLabel}</span>
+              <span>
+                {location.buildingCode} - {location.floorLabel}
+              </span>
             </button>
           ))}
         </div>
@@ -1367,11 +1437,25 @@ function RouteMiniMap({ segment }: { segment: RouteSegment }) {
   const pathPoints = segment.path.map((point) => `${point.x},${point.y}`).join(' ');
   return (
     <div className="route-map">
-      <img src={resolveAssetUrl(segment.mapImageUrl)} alt={`${segment.buildingName} ${segment.floorLabel}`} />
+      <img
+        src={resolveAssetUrl(segment.mapImageUrl)}
+        alt={`${segment.buildingName} ${segment.floorLabel}`}
+      />
       <svg viewBox={`0 0 ${segment.coordinateWidth} ${segment.coordinateHeight}`}>
-        <polyline points={pathPoints} fill="none" stroke="#f59e0b" strokeLinecap="round" strokeLinejoin="round" strokeWidth="10" />
-        {segment.path[0] ? <circle cx={segment.path[0].x} cy={segment.path[0].y} r="12" fill="#172033" /> : null}
-        {segment.path.at(-1) ? <circle cx={segment.path.at(-1)!.x} cy={segment.path.at(-1)!.y} r="12" fill="#2563eb" /> : null}
+        <polyline
+          points={pathPoints}
+          fill="none"
+          stroke="#f59e0b"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="10"
+        />
+        {segment.path[0] ? (
+          <circle cx={segment.path[0].x} cy={segment.path[0].y} r="12" fill="#172033" />
+        ) : null}
+        {segment.path.at(-1) ? (
+          <circle cx={segment.path.at(-1)!.x} cy={segment.path.at(-1)!.y} r="12" fill="#2563eb" />
+        ) : null}
       </svg>
     </div>
   );
@@ -1478,7 +1562,7 @@ function getSvgPoint(
   clientX: number,
   clientY: number,
   svg: SVGSVGElement | null,
-  floor: FloorView,
+  floor: FloorView
 ): { x: number; y: number } | null {
   if (!svg) {
     return null;
@@ -1488,8 +1572,17 @@ function getSvgPoint(
     return null;
   }
   return {
-    x: Math.max(0, Math.min(floor.coordinateWidth, ((clientX - rect.left) / rect.width) * floor.coordinateWidth)),
-    y: Math.max(0, Math.min(floor.coordinateHeight, ((clientY - rect.top) / rect.height) * floor.coordinateHeight)),
+    x: Math.max(
+      0,
+      Math.min(floor.coordinateWidth, ((clientX - rect.left) / rect.width) * floor.coordinateWidth)
+    ),
+    y: Math.max(
+      0,
+      Math.min(
+        floor.coordinateHeight,
+        ((clientY - rect.top) / rect.height) * floor.coordinateHeight
+      )
+    ),
   };
 }
 

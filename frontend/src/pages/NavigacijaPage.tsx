@@ -174,10 +174,18 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
               />
 
               <div style={pageStyles.stepControls}>
-                <button type="button" style={pageStyles.secondaryButton} onClick={() => moveStep(-1)}>
+                <button
+                  type="button"
+                  style={pageStyles.secondaryButton}
+                  onClick={() => moveStep(-1)}
+                >
                   Prejsnji
                 </button>
-                <button type="button" style={pageStyles.secondaryButton} onClick={() => moveStep(1)}>
+                <button
+                  type="button"
+                  style={pageStyles.secondaryButton}
+                  onClick={() => moveStep(1)}
+                >
                   Naslednji
                 </button>
               </div>
@@ -189,10 +197,7 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
   );
 }
 
-function useLocationSearch(
-  query: string,
-  setResults: (locations: NavigationLocation[]) => void,
-) {
+function useLocationSearch(query: string, setResults: (locations: NavigationLocation[]) => void) {
   useEffect(() => {
     const controller = new AbortController();
     const params = new URLSearchParams({ query: query.trim(), limit: '20' });
@@ -309,7 +314,7 @@ function RouteMap({
 }) {
   const pathPoints = useMemo(
     () => segment.path.map((point) => `${point.x},${point.y}`).join(' '),
-    [segment.path],
+    [segment.path]
   );
   const activeStep = segment.steps[activeStepIndex];
   const activeFrom = segment.path.find((point) => point.nodeId === activeStep?.fromNodeId);
