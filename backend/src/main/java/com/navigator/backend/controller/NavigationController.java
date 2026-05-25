@@ -30,11 +30,12 @@ public class NavigationController {
   @GetMapping("/route")
   public ResponseEntity<?> getRoute(
       @RequestParam Long fromLocationId,
-      @RequestParam Long toLocationId,
+      @RequestParam(required = false) Long toLocationId,
+      @RequestParam(required = false) String targetType,
       @RequestParam(defaultValue = "true") boolean allowElevator) {
     try {
       RouteResponseDto route =
-          navigationRouteService.route(fromLocationId, toLocationId, allowElevator);
+          navigationRouteService.route(fromLocationId, toLocationId, targetType, allowElevator);
       return ResponseEntity.ok(route);
     } catch (NavigationRouteException exception) {
       return ResponseEntity.status(exception.getStatus())
