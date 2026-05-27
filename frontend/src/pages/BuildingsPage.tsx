@@ -76,12 +76,32 @@ function BuildingsPage() {
       return buildings;
     }
 
-    return buildings.filter((building) => {
-      return (
-        building.name.toLowerCase().includes(query) ||
-        (building.description ?? '').toLowerCase().includes(query)
-      );
-    });
+    const scoreBuilding = (building: BuildingSummary) => {
+      const name = building.name.toLowerCase();
+      const description = (building.description ?? '').toLowerCase();
+      const spaceCountText = String(building.spaceCount);
+
+      if (name.startsWith(query)) {
+        return 0;
+      }
+      if (name.includes(query)) {
+        return 1;
+      }
+      if (description.includes(query) || spaceCountText.includes(query)) {
+        return 2;
+      }
+      return 3;
+    };
+
+    return [...buildings]
+      .filter((building) => scoreBuilding(building) < 3)
+      .sort((left, right) => {
+        const byScore = scoreBuilding(left) - scoreBuilding(right);
+        if (byScore !== 0) {
+          return byScore;
+        }
+        return left.name.localeCompare(right.name);
+      });
   }, [buildings, searchText]);
 
   const openSpaceNavigation = (space: CatalogSpace) => {
@@ -99,6 +119,7 @@ function BuildingsPage() {
           })
         }
         onFindClassroom={openSpaceNavigation}
+        showAllMenuItems
       />
     );
   }
@@ -106,7 +127,7 @@ function BuildingsPage() {
   if (selectedBuilding) {
     return (
       <PageShell>
-        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" />
+        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems />
         <section className={styles.content}>
           <img
             src={resolveAssetUrl(selectedBuilding.imageUrl) ?? '/feri-logo.png'}

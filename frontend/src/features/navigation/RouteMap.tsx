@@ -16,6 +16,22 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
   const activeStep = segment.steps[activeStepIndex];
   const activeFrom = segment.path.find((point) => point.nodeId === activeStep?.fromNodeId);
   const activeTo = segment.path.find((point) => point.nodeId === activeStep?.toNodeId);
+  const activeFromIndex = segment.path.findIndex((point) => point.nodeId === activeStep?.fromNodeId);
+  const activeToIndex = segment.path.findIndex((point) => point.nodeId === activeStep?.toNodeId);
+  const donePoints =
+    activeFromIndex >= 0
+      ? segment.path
+          .slice(0, activeFromIndex + 1)
+          .map((point) => `${point.x},${point.y}`)
+          .join(' ')
+      : '';
+  const remainingPoints =
+    activeFromIndex >= 0
+      ? segment.path
+          .slice(activeFromIndex)
+          .map((point) => `${point.x},${point.y}`)
+          .join(' ')
+      : pathPoints;
   const imageUrl = resolveAssetUrl(segment.mapImageUrl);
 
   return (
@@ -34,27 +50,57 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
           <polyline
             points={pathPoints}
             fill="none"
-            stroke="#f09d18"
+            stroke="#d6e0ec"
             strokeLinecap="round"
             strokeLinejoin="round"
-            strokeWidth="10"
-            opacity="0.82"
+            strokeWidth="14"
+            opacity="0.78"
           />
+          {remainingPoints && (
+            <polyline
+              points={remainingPoints}
+              fill="none"
+              stroke="#f09d18"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="11"
+              strokeDasharray="2 0"
+              opacity="0.9"
+            />
+          )}
+          {donePoints && (
+            <polyline
+              points={donePoints}
+              fill="none"
+              stroke="#172033"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="11"
+              opacity="0.56"
+            />
+          )}
           {activeFrom && activeTo && (
             <line
               x1={activeFrom.x}
               y1={activeFrom.y}
               x2={activeTo.x}
               y2={activeTo.y}
-              stroke="#172033"
+              stroke="#2563eb"
               strokeLinecap="round"
-              strokeWidth="14"
-              opacity="0.9"
+              strokeWidth="16"
+              opacity="0.98"
             />
           )}
           {segment.path[0] && <RouteMarker point={segment.path[0]} label="A" fill="#172033" />}
           {segment.path.at(-1) && <RouteMarker point={segment.path.at(-1)!} label="B" fill="#f09d18" />}
           {activeTo && <RouteMarker point={activeTo} label="" fill="#1d4ed8" radius={9} />}
+          {activeFromIndex >= 0 && segment.path[activeFromIndex] && (
+            <RouteMarker point={segment.path[activeFromIndex]} label="" fill="#172033" radius={8} />
+          )}
+          {activeToIndex >= 0 && segment.path[activeToIndex] && (
+            <circle cx={segment.path[activeToIndex].x} cy={segment.path[activeToIndex].y} r="14" fill="#1d4ed8" opacity="0.2" />
+          )}
+          {activeTo && <circle cx={activeTo.x} cy={activeTo.y} r="18" fill="#1d4ed8" opacity="0.12" />}
         </svg>
       </div>
     </div>

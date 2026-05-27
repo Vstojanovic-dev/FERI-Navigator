@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
+import MainMenuOverlay from '../components/MainMenuOverlay';
 import OverlayModal from '../components/OverlayModal';
 import PageShell from '../components/PageShell';
 import SearchField from '../components/SearchField';
@@ -65,7 +66,46 @@ function HomePage() {
     };
   }, [searchText]);
 
-  const filteredSpaces = useMemo(() => spaces, [spaces]);
+  const filteredSpaces = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) {
+      return spaces;
+    }
+
+    const scoreSpace = (space: CatalogSpace) => {
+      const name = space.name.toLowerCase();
+      const type = space.type.toLowerCase();
+      const building = space.buildingName.toLowerCase();
+      const floor = space.floor.toLowerCase();
+      const description = (space.description ?? '').toLowerCase();
+
+      if (name.startsWith(query)) {
+        return 0;
+      }
+      if (name.includes(query)) {
+        return 1;
+      }
+      if (
+        type.includes(query) ||
+        building.includes(query) ||
+        floor.includes(query) ||
+        description.includes(query)
+      ) {
+        return 2;
+      }
+      return 3;
+    };
+
+    return [...spaces]
+      .filter((space) => scoreSpace(space) < 3)
+      .sort((left, right) => {
+        const byScore = scoreSpace(left) - scoreSpace(right);
+        if (byScore !== 0) {
+          return byScore;
+        }
+        return left.name.localeCompare(right.name);
+      });
+  }, [spaces, searchText]);
 
   const openSpace = (space: CatalogSpace) => {
     navigate('/', { replace: true, state: { selectedSpace: space } satisfies HomePageState });
@@ -82,6 +122,7 @@ function HomePage() {
         space={selectedSpace}
         onBack={() => navigate('/', { replace: true, state: null })}
         onFindClassroom={openNavigation}
+        showAllMenuItems
       />
     );
   }
@@ -178,21 +219,7 @@ function HomePage() {
         )}
       </section>
 
-      {isMenuOpen && (
-        <div className={styles.menuOverlay} onClick={() => setIsMenuOpen(false)} role="presentation">
-          <nav className={styles.menuPanel} aria-label="Glavni meni" onClick={(event) => event.stopPropagation()}>
-            <button type="button" className={styles.menuItem} onClick={() => navigate('/objekti')}>
-              Vsi objekti
-            </button>
-            <button type="button" className={styles.menuItem} onClick={() => navigate('/navigacija')}>
-              Navigacija
-            </button>
-            <button type="button" className={styles.menuItem} onClick={() => navigate('/o-feri')}>
-              O FERI
-            </button>
-          </nav>
-        </div>
-      )}
+      <MainMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
       {isMapPopupOpen && (
         <OverlayModal title="Zemljevid FERI" onClose={() => setIsMapPopupOpen(false)}>
