@@ -14,11 +14,33 @@ type NavigacijaPageProps = {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
 
+type NearestTarget = {
+  kind: 'nearest';
+  id: 'nearest-wc';
+  displayName: string;
+  targetType: 'wc';
+  meta: string;
+};
+
+type TargetSelection = NavigationLocation | NearestTarget;
+
+const NEAREST_WC_TARGET: NearestTarget = {
+  kind: 'nearest',
+  id: 'nearest-wc',
+  displayName: 'Najblizi WC',
+  targetType: 'wc',
+  meta: 'Najkraca dostupna ruta do WC-a',
+};
+
+function isNearestTarget(target: TargetSelection): target is NearestTarget {
+  return 'kind' in target && target.kind === 'nearest';
+}
+
 function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
   const [fromQuery, setFromQuery] = useState('');
   const [toQuery, setToQuery] = useState(initialTarget);
   const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
-  const [toLocation, setToLocation] = useState<NavigationLocation | null>(null);
+  const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const [fromResults, setFromResults] = useState<NavigationLocation[]>([]);
   const [toResults, setToResults] = useState<NavigationLocation[]>([]);
   const [route, setRoute] = useState<NavigationRoute | null>(null);
@@ -31,10 +53,10 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
   useLocationSearch(toQuery, setToResults);
 
   const activeSegment = route?.segments[activeSegmentIndex] ?? null;
-  const canRoute = Boolean(fromLocation && toLocation && !isRouting);
+  const canRoute = Boolean(fromLocation && toTarget && !isRouting);
 
   const handleRoute = async () => {
-    if (!fromLocation || !toLocation) {
+    if (!fromLocation || !toTarget) {
       setError('Izberi zacetno in ciljno lokacijo iz seznama.');
       return;
     }
@@ -45,9 +67,13 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
     try {
       const params = new URLSearchParams({
         fromLocationId: String(fromLocation.id),
-        toLocationId: String(toLocation.id),
         allowElevator: 'true',
       });
+      if (isNearestTarget(toTarget)) {
+        params.set('targetType', toTarget.targetType);
+      } else {
+        params.set('toLocationId', String(toTarget.id));
+      }
       const response = await fetch(`${API_BASE_URL}/api/navigation/route?${params}`);
 
       if (!response.ok) {
@@ -120,6 +146,9 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
               setRoute(null);
             }}
             onSelect={(location) => {
+              if (isNearestTarget(location)) {
+                return;
+              }
               setFromLocation(location);
               setFromQuery(location.displayName);
             }}
@@ -130,16 +159,17 @@ function NavigacijaPage({ initialTarget, onBack }: NavigacijaPageProps) {
             label="Ciljna lokacija"
             placeholder="Poisci cilj"
             query={toQuery}
-            selected={toLocation}
+            selected={toTarget}
             results={toResults}
+            nearestTarget={NEAREST_WC_TARGET}
             onQueryChange={(value) => {
               setToQuery(value);
-              setToLocation(null);
+              setToTarget(null);
               setRoute(null);
             }}
-            onSelect={(location) => {
-              setToLocation(location);
-              setToQuery(location.displayName);
+            onSelect={(target) => {
+              setToTarget(target);
+              setToQuery(target.displayName);
             }}
           />
 
@@ -221,10 +251,11 @@ type LocationPickerProps = {
   label: string;
   placeholder: string;
   query: string;
-  selected: NavigationLocation | null;
+  selected: TargetSelection | null;
   results: NavigationLocation[];
+  nearestTarget?: NearestTarget;
   onQueryChange: (value: string) => void;
-  onSelect: (location: NavigationLocation) => void;
+  onSelect: (location: TargetSelection) => void;
 };
 
 function LocationPicker({
@@ -234,9 +265,13 @@ function LocationPicker({
   query,
   selected,
   results,
+  nearestTarget,
   onQueryChange,
   onSelect,
 }: LocationPickerProps) {
+  const showResults = !selected && query.trim().length > 0;
+  const hasResults = results.length > 0 || Boolean(nearestTarget);
+
   return (
     <div style={pageStyles.picker}>
       <label style={pageStyles.label} htmlFor={id}>
@@ -253,11 +288,24 @@ function LocationPicker({
       />
       {selected && (
         <p style={pageStyles.selectionText}>
-          {selected.buildingCode} - {selected.floorLabel}
+          {isNearestTarget(selected)
+            ? selected.meta
+            : `${selected.buildingCode} - ${selected.floorLabel}`}
         </p>
       )}
-      {!selected && query.trim().length > 0 && results.length > 0 && (
+      {showResults && hasResults && (
         <div style={pageStyles.resultsBox}>
+          {nearestTarget && (
+            <button
+              key={nearestTarget.id}
+              type="button"
+              style={pageStyles.resultButton}
+              onClick={() => onSelect(nearestTarget)}
+            >
+              <span style={pageStyles.resultName}>{nearestTarget.displayName}</span>
+              <span style={pageStyles.resultMeta}>{nearestTarget.meta}</span>
+            </button>
+          )}
           {results.map((location) => (
             <button
               key={location.id}

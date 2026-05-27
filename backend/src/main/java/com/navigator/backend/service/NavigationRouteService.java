@@ -40,18 +40,23 @@ public class NavigationRouteService {
   }
 
   @Transactional(readOnly = true)
-  public List<NavigationLocationDto> searchSpaces(String query, int limit) {
-    int normalizedLimit = Math.max(1, Math.min(limit, 200));
-    String normalizedQuery = query == null ? "" : query.trim();
-    return locationRepository
-        .searchSpaces(normalizedQuery, PageRequest.of(0, normalizedLimit))
-        .stream()
-        .map(this::toLocationDto)
-        .toList();
-  }
+  public RouteResponseDto route(
+      Long fromLocationId, Long toLocationId, String targetType, boolean allowElevator) {
+    String normalizedTargetType = normalizeTargetType(targetType);
+    boolean hasLocationTarget = toLocationId != null;
+    boolean hasNearestTarget = normalizedTargetType != null;
 
-  @Transactional(readOnly = true)
-  public RouteResponseDto route(Long fromLocationId, Long toLocationId, boolean allowElevator) {
+    if (hasLocationTarget == hasNearestTarget) {
+      throw new NavigationRouteException(
+          HttpStatus.BAD_REQUEST,
+          "INVALID_TARGET",
+          "Posaljite tacno jedan cilj: toLocationId ili targetType.");
+    }
+
+    if (hasNearestTarget) {
+      return routeToNearestTarget(fromLocationId, normalizedTargetType, allowElevator);
+    }
+
     NavigationLocation from = findLocation(fromLocationId, "fromLocationId");
     NavigationLocation to = findLocation(toLocationId, "toLocationId");
 
@@ -84,6 +89,73 @@ public class NavigationRouteService {
         .totalCost(searchResult.getTotalCost())
         .segments(buildSegments(searchResult))
         .build();
+  }
+
+  private RouteResponseDto routeToNearestTarget(
+      Long fromLocationId, String targetType, boolean allowElevator) {
+    if (!"wc".equals(targetType)) {
+      throw new NavigationRouteException(
+          HttpStatus.BAD_REQUEST,
+          "UNSUPPORTED_TARGET_TYPE",
+          "Podrzan je samo targetType=wc.");
+    }
+
+    NavigationLocation from = findLocation(fromLocationId, "fromLocationId");
+    if (!from.hasNode()) {
+      throw new NavigationRouteException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          "LOCATION_WITHOUT_NODE",
+          "Pocetna lokacija jos nije povezana sa navigacionim grafom.");
+    }
+
+    List<NavigationLocation> candidates =
+        locationRepository.findEnabledByLocationType(targetType).stream()
+            .filter(NavigationLocation::hasNode)
+            .filter(candidate -> !candidate.getId().equals(from.getId()))
+            .toList();
+
+    if (candidates.isEmpty()) {
+      throw new NavigationRouteException(
+          HttpStatus.NOT_FOUND,
+          "TARGET_TYPE_NOT_AVAILABLE",
+          "Najblizi WC trenutno nije dostupan u navigacionim podacima.");
+    }
+
+    NavigationLocation bestLocation = null;
+    RouteSearchResult bestRoute = null;
+    for (NavigationLocation candidate : candidates) {
+      RouteSearchResult candidateRoute =
+          aStarService.findPath(from.getNode(), candidate.getNode(), allowElevator);
+      if (candidateRoute.getNodes().isEmpty()) {
+        continue;
+      }
+      if (bestRoute == null || candidateRoute.getTotalCost() < bestRoute.getTotalCost()) {
+        bestRoute = candidateRoute;
+        bestLocation = candidate;
+      }
+    }
+
+    if (bestRoute == null || bestLocation == null) {
+      throw new NavigationRouteException(
+          HttpStatus.NOT_FOUND,
+          "NO_ROUTE_TO_TARGET_TYPE",
+          "Do najblizeg WC-a trenutno ne postoji unesena ruta.");
+    }
+
+    return RouteResponseDto.builder()
+        .routeId("route-" + from.getId() + "-nearest-" + targetType + "-" + bestLocation.getId())
+        .from(toLocationDto(from))
+        .to(toLocationDto(bestLocation))
+        .totalCost(bestRoute.getTotalCost())
+        .segments(buildSegments(bestRoute))
+        .build();
+  }
+
+  private String normalizeTargetType(String targetType) {
+    if (targetType == null || targetType.isBlank()) {
+      return null;
+    }
+    return targetType.trim().toLowerCase(Locale.ROOT);
   }
 
   private NavigationLocation findLocation(Long locationId, String fieldName) {
