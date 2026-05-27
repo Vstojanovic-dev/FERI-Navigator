@@ -40,6 +40,17 @@ public class NavigationRouteService {
   }
 
   @Transactional(readOnly = true)
+  public List<NavigationLocationDto> searchSpaces(String query, int limit) {
+    int normalizedLimit = Math.max(1, Math.min(limit, 200));
+    String normalizedQuery = query == null ? "" : query.trim();
+    return locationRepository
+        .searchSpaces(normalizedQuery, PageRequest.of(0, normalizedLimit))
+        .stream()
+        .map(this::toLocationDto)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
   public RouteResponseDto route(
       Long fromLocationId, Long toLocationId, String targetType, boolean allowElevator) {
     String normalizedTargetType = normalizeTargetType(targetType);

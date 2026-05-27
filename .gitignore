@@ -20,7 +20,12 @@ node_modules/
 **/node_modules/
 dist/
 dist-ssr/
+build-dist/
 coverage/
+.vite-cache/
+.tsbuildinfo/
+.playwright-browsers/
+test-results/
 
 # Backend build output
 target/

@@ -1,11 +1,3 @@
-export type Screen =
-  | 'home'
-  | 'ucilnica'
-  | 'objekti'
-  | 'podrobnostiObjekta'
-  | 'oFeri'
-  | 'navigacija';
-
 export type NavigationLocation = {
   id: number;
   displayName: string;

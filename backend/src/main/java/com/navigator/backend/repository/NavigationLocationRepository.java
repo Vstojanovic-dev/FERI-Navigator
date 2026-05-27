@@ -45,6 +45,18 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
   @Query("SELECT l FROM NavigationLocation l WHERE l.id = :id AND l.isEnabled = true")
   Optional<NavigationLocation> findEnabledById(@Param("id") Long id);
 
+  @EntityGraph(attributePaths = {"building", "floor", "space", "space.spaceType"})
+  @Query(
+      """
+          SELECT l FROM NavigationLocation l
+          WHERE l.isEnabled = true
+            AND l.space IS NOT NULL
+            AND l.building.id = :buildingId
+            AND l.locationType IN ('classroom', 'laboratory', 'office')
+          ORDER BY l.floor.z, l.displayName
+          """)
+  List<NavigationLocation> findEnabledCatalogSpacesByBuildingId(@Param("buildingId") Long buildingId);
+
   @EntityGraph(attributePaths = {"building", "floor", "node"})
   @Query(
       """

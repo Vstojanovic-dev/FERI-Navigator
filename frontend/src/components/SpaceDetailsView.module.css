@@ -1,0 +1,101 @@
+.topImageWrap {
+  position: relative;
+  height: 380px;
+}
+
+.topImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.backButton {
+  position: absolute;
+  top: 18px;
+  left: 16px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-brand-900);
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  min-height: calc(100vh - 344px);
+  margin-top: -36px;
+  padding: 24px 18px 30px;
+  background: var(--color-surface-canvas);
+  border-radius: 34px 34px 0 0;
+  box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.18);
+}
+
+.type {
+  margin: 0 0 6px;
+  color: var(--color-accent-500);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.name {
+  margin: 0;
+  color: var(--color-brand-900);
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: -1.2px;
+  line-height: 1;
+}
+
+.description {
+  margin: 16px 0 0;
+  min-height: 24px;
+  color: var(--color-text-body);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.infoRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.infoItem {
+  padding: 14px;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 20px;
+}
+
+.infoLabel {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-text-subtle);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.infoValue {
+  color: var(--color-brand-900);
+  font-size: 14px;
+}
+
+.primaryButton {
+  width: 100%;
+  margin-top: 22px;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--color-brand-900);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}

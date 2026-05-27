@@ -1,0 +1,29 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 22px;
+  background: linear-gradient(135deg, var(--color-brand-900) 0%, #26364f 58%, #445a7c 100%);
+  color: #fff;
+}
+
+.backButton {
+  flex-shrink: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  flex: 1;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+}
