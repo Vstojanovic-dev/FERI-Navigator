@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface NavigationLocationRepository extends JpaRepository<NavigationLocation, Long> {
 
-  @EntityGraph(attributePaths = {"building", "floor", "node"})
+  @EntityGraph(attributePaths = {"building", "floor", "node", "space", "space.spaceType"})
   @Query(
       """
           SELECT l FROM NavigationLocation l
@@ -26,7 +26,22 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
           """)
   List<NavigationLocation> searchEnabled(@Param("query") String query, Pageable pageable);
 
-  @EntityGraph(attributePaths = {"building", "floor", "node"})
+  @EntityGraph(attributePaths = {"building", "floor", "node", "space", "space.spaceType"})
+  @Query(
+      """
+          SELECT l FROM NavigationLocation l
+          WHERE l.isEnabled = true
+          AND l.space IS NOT NULL
+          AND l.locationType IN ('classroom', 'laboratory', 'office')
+          AND (
+            :query = ''
+            OR LOWER(l.searchableName) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(l.displayName) LIKE LOWER(CONCAT('%', :query, '%'))
+          )
+          """)
+  List<NavigationLocation> searchSpaces(@Param("query") String query, Pageable pageable);
+
+  @EntityGraph(attributePaths = {"building", "floor", "node", "space", "space.spaceType"})
   @Query("SELECT l FROM NavigationLocation l WHERE l.id = :id AND l.isEnabled = true")
   Optional<NavigationLocation> findEnabledById(@Param("id") Long id);
 }

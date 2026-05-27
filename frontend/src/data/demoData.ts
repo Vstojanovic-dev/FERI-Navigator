@@ -10,6 +10,7 @@ export type Space = {
   name: string;
   type: string;
   buildingId: number;
+  buildingName?: string;
   floor: string;
   description: string;
   imageUrl: string;

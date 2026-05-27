@@ -40,6 +40,10 @@ public class NavigationLocation {
   @Column(name = "space_id")
   private Long spaceId;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "space_id", insertable = false, updatable = false)
+  private Space space;
+
   @Column(name = "is_enabled", nullable = false)
   private Boolean isEnabled = true;
 

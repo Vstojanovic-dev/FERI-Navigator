@@ -1,5 +1,17 @@
-import { useMemo, useState, type CSSProperties } from 'react';
-import { demoSpaces, getBuildingName, type Space } from '../data/demoData';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { getBuildingName, type Space } from '../data/demoData';
+import type { NavigationLocation } from '../types/navigation';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+
+const fallbackSpaceImages: Record<string, string> = {
+  classroom: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=900',
+  laboratory: 'https://images.unsplash.com/photo-1581090464777-f3220bbe1b8b?w=900',
+  office: 'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=900',
+  wc: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=900',
+  service: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=900',
+  public_area: 'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=900',
+};
 
 type MainPageProps = {
   introDone: boolean;
@@ -23,23 +35,63 @@ function MainPage({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
+  const [spaces, setSpaces] = useState<Space[]>([]);
+  const [isLoadingSpaces, setIsLoadingSpaces] = useState(true);
+  const [spacesError, setSpacesError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const params = new URLSearchParams({ query: '', limit: '200' });
+
+    setIsLoadingSpaces(true);
+    setSpacesError('');
+
+    fetch(`${API_BASE_URL}/api/navigation/spaces?${params}`, { signal: controller.signal })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Prostorov trenutno ni mogoce naloziti.');
+        }
+
+        return response.json();
+      })
+      .then((locations: NavigationLocation[]) => {
+        setSpaces(locations.map(locationToSpace));
+      })
+      .catch((loadError) => {
+        if (loadError instanceof DOMException && loadError.name === 'AbortError') {
+          return;
+        }
+
+        setSpaces([]);
+        setSpacesError(
+          loadError instanceof Error ? loadError.message : 'Napaka pri nalaganju prostorov.'
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsLoadingSpaces(false);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
 
   const filteredSpaces = useMemo(() => {
     const query = searchText.trim().toLowerCase();
 
     if (!query) {
-      return demoSpaces;
+      return spaces;
     }
 
-    return demoSpaces.filter((space) => {
+    return spaces.filter((space) => {
       return (
         space.name.toLowerCase().includes(query) ||
         space.type.toLowerCase().includes(query) ||
-        getBuildingName(space.buildingId).toLowerCase().includes(query) ||
+        (space.buildingName ?? getBuildingName(space.buildingId)).toLowerCase().includes(query) ||
         space.floor.toLowerCase().includes(query)
       );
     });
-  }, [searchText]);
+  }, [searchText, spaces]);
 
   const closeMenu = () => setIsMenuOpen(false);
 
@@ -106,7 +158,17 @@ function MainPage({
             <span style={styles.resultBadge}>{filteredSpaces.length}</span>
           </div>
 
-          {filteredSpaces.length === 0 ? (
+          {isLoadingSpaces ? (
+            <div style={styles.emptyState}>
+              <strong style={styles.emptyTitle}>Nalaganje prostorov</strong>
+              <span style={styles.emptyText}>Berem podatke iz baze.</span>
+            </div>
+          ) : spacesError ? (
+            <div style={styles.emptyState}>
+              <strong style={styles.emptyTitle}>Napaka</strong>
+              <span style={styles.emptyText}>{spacesError}</span>
+            </div>
+          ) : filteredSpaces.length === 0 ? (
             <div style={styles.emptyState}>
               <strong style={styles.emptyTitle}>Ni rezultatov</strong>
               <span style={styles.emptyText}>Poskusi z drugim nazivom prostora.</span>
@@ -128,7 +190,7 @@ function MainPage({
                         <span style={styles.typeChip}>{space.type}</span>
                       </div>
                       <p style={styles.compactCardMeta}>
-                        {getBuildingName(space.buildingId)} · {space.floor}
+                        {space.buildingName ?? getBuildingName(space.buildingId)} · {space.floor}
                       </p>
                     </div>
 
@@ -217,6 +279,61 @@ function MainPage({
       )}
     </main>
   );
+}
+
+function locationToSpace(location: NavigationLocation): Space {
+  const name = location.spaceName || readableLocationName(location);
+  const type = readableSpaceType(location);
+
+  return {
+    id: location.spaceId ?? location.id,
+    name,
+    type,
+    buildingId: location.buildingId,
+    buildingName: location.buildingName,
+    floor: location.floorLabel,
+    description:
+      location.description ||
+      `${type} ${name} se nahaja v objektu ${location.buildingName}, ${location.floorLabel}.`,
+    imageUrl: resolveSpaceImage(location.imageUrl, location.locationType),
+  };
+}
+
+function readableLocationName(location: NavigationLocation) {
+  const suffix = ` - ${location.buildingCode}, ${location.floorLabel}`;
+
+  if (location.displayName.endsWith(suffix)) {
+    return location.displayName.slice(0, -suffix.length);
+  }
+
+  return location.displayName;
+}
+
+function readableSpaceType(location: NavigationLocation) {
+  if (location.spaceTypeName) {
+    return location.spaceTypeName;
+  }
+
+  const typeLabels: Record<string, string> = {
+    classroom: 'Classroom',
+    laboratory: 'Laboratory',
+    office: 'Office',
+    public_area: 'Public area',
+    service: 'Service',
+    wc: 'WC',
+    entrance: 'Entrance',
+    exit: 'Exit',
+  };
+
+  return typeLabels[location.locationType] ?? location.locationType;
+}
+
+function resolveSpaceImage(imageUrl: string | null, locationType: string) {
+  if (imageUrl) {
+    return imageUrl.startsWith('http') ? imageUrl : `${API_BASE_URL}${imageUrl}`;
+  }
+
+  return fallbackSpaceImages[locationType] ?? fallbackSpaceImages.public_area;
 }
 
 const styles: Record<string, CSSProperties> = {

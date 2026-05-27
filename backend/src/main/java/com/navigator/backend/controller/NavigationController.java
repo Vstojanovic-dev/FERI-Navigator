@@ -27,6 +27,12 @@ public class NavigationController {
     return ResponseEntity.ok(navigationRouteService.searchLocations(query, limit));
   }
 
+  @GetMapping("/spaces")
+  public ResponseEntity<List<NavigationLocationDto>> getSpaces(
+      @RequestParam(defaultValue = "") String query, @RequestParam(defaultValue = "200") int limit) {
+    return ResponseEntity.ok(navigationRouteService.searchSpaces(query, limit));
+  }
+
   @GetMapping("/route")
   public ResponseEntity<?> getRoute(
       @RequestParam Long fromLocationId,

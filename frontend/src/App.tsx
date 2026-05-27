@@ -69,7 +69,7 @@ function App() {
     return (
       <UcilnicaPage
         space={selectedSpace}
-        buildingName={getBuildingName(selectedSpace.buildingId)}
+        buildingName={selectedSpace.buildingName ?? getBuildingName(selectedSpace.buildingId)}
         onBack={() => setScreen(ucilnicaReturnScreen)}
         onFindClassroom={handleFindClassroom}
       />

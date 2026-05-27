@@ -10,6 +10,7 @@ import com.navigator.backend.model.Floor;
 import com.navigator.backend.model.NavEdge;
 import com.navigator.backend.model.NavNode;
 import com.navigator.backend.model.NavigationLocation;
+import com.navigator.backend.model.Space;
 import com.navigator.backend.repository.NavigationLocationRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,10 +30,21 @@ public class NavigationRouteService {
 
   @Transactional(readOnly = true)
   public List<NavigationLocationDto> searchLocations(String query, int limit) {
-    int normalizedLimit = Math.max(1, Math.min(limit, 50));
+    int normalizedLimit = Math.max(1, Math.min(limit, 200));
     String normalizedQuery = query == null ? "" : query.trim();
     return locationRepository
         .searchEnabled(normalizedQuery, PageRequest.of(0, normalizedLimit))
+        .stream()
+        .map(this::toLocationDto)
+        .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public List<NavigationLocationDto> searchSpaces(String query, int limit) {
+    int normalizedLimit = Math.max(1, Math.min(limit, 200));
+    String normalizedQuery = query == null ? "" : query.trim();
+    return locationRepository
+        .searchSpaces(normalizedQuery, PageRequest.of(0, normalizedLimit))
         .stream()
         .map(this::toLocationDto)
         .toList();
@@ -255,6 +267,8 @@ public class NavigationRouteService {
   }
 
   private NavigationLocationDto toLocationDto(NavigationLocation location) {
+    Space space = location.getSpace();
+
     return NavigationLocationDto.builder()
         .id(location.getId())
         .displayName(location.getDisplayName())
@@ -266,6 +280,11 @@ public class NavigationRouteService {
         .floorCode(location.getFloor().getCode())
         .floorLabel(location.getFloor().getLabel())
         .nodeId(location.getNode() != null ? location.getNode().getId() : null)
+        .spaceId(space != null ? space.getId() : location.getSpaceId())
+        .spaceName(space != null ? space.getName() : null)
+        .spaceTypeName(space != null && space.getSpaceType() != null ? space.getSpaceType().getName() : null)
+        .description(space != null ? space.getDescription() : null)
+        .imageUrl(space != null ? space.getImageUrl() : null)
         .hasNode(location.hasNode())
         .build();
   }
