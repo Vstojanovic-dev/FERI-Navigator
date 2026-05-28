@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import type { CatalogSpace } from '../types/catalog';
 import { resolveAssetUrl } from '../services/api';
+import MainMenuOverlay from './MainMenuOverlay';
 import PageShell from './PageShell';
 import styles from './SpaceDetailsView.module.css';
 
@@ -7,10 +9,17 @@ type SpaceDetailsViewProps = {
   space: CatalogSpace;
   onBack: () => void;
   onFindClassroom: (space: CatalogSpace) => void;
+  showAllMenuItems?: boolean;
 };
 
-function SpaceDetailsView({ space, onBack, onFindClassroom }: SpaceDetailsViewProps) {
+function SpaceDetailsView({
+  space,
+  onBack,
+  onFindClassroom,
+  showAllMenuItems = false,
+}: SpaceDetailsViewProps) {
   const imageUrl = resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png';
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <PageShell>
@@ -18,6 +27,15 @@ function SpaceDetailsView({ space, onBack, onFindClassroom }: SpaceDetailsViewPr
         <img src={imageUrl} alt={space.name} className={styles.topImage} />
         <button type="button" className={styles.backButton} onClick={onBack}>
           &lt; Nazaj
+        </button>
+        <button
+          type="button"
+          className={styles.menuButton}
+          onClick={() => setIsMenuOpen((value) => !value)}
+          aria-expanded={isMenuOpen}
+          aria-label="Odpri meni"
+        >
+          ☰
         </button>
       </div>
 
@@ -37,10 +55,19 @@ function SpaceDetailsView({ space, onBack, onFindClassroom }: SpaceDetailsViewPr
           </div>
         </div>
 
-        <button type="button" className={styles.primaryButton} onClick={() => onFindClassroom(space)}>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          onClick={() => onFindClassroom(space)}
+        >
           Poišči učilnico
         </button>
       </section>
+      <MainMenuOverlay
+        isOpen={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        showAllItems={showAllMenuItems}
+      />
     </PageShell>
   );
 }

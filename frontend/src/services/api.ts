@@ -13,7 +13,10 @@ export class ApiError extends Error {
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(buildUrl(path), init);
   if (!response.ok) {
-    const errorBody = (await response.json().catch(() => ({}))) as { message?: string; code?: string };
+    const errorBody = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      code?: string;
+    };
     throw new ApiError(errorBody.message ?? 'Request failed.', errorBody.code);
   }
   return (await response.json()) as T;

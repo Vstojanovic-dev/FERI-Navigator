@@ -55,7 +55,8 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
             AND l.locationType IN ('classroom', 'laboratory', 'office')
           ORDER BY l.floor.z, l.displayName
           """)
-  List<NavigationLocation> findEnabledCatalogSpacesByBuildingId(@Param("buildingId") Long buildingId);
+  List<NavigationLocation> findEnabledCatalogSpacesByBuildingId(
+      @Param("buildingId") Long buildingId);
 
   @EntityGraph(attributePaths = {"building", "floor", "node"})
   @Query(

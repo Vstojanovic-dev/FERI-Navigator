@@ -106,9 +106,7 @@ public class NavigationRouteService {
       Long fromLocationId, String targetType, boolean allowElevator) {
     if (!"wc".equals(targetType)) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST,
-          "UNSUPPORTED_TARGET_TYPE",
-          "Podrzan je samo targetType=wc.");
+          HttpStatus.BAD_REQUEST, "UNSUPPORTED_TARGET_TYPE", "Podrzan je samo targetType=wc.");
     }
 
     NavigationLocation from = findLocation(fromLocationId, "fromLocationId");
@@ -365,7 +363,8 @@ public class NavigationRouteService {
         .nodeId(location.getNode() != null ? location.getNode().getId() : null)
         .spaceId(space != null ? space.getId() : location.getSpaceId())
         .spaceName(space != null ? space.getName() : null)
-        .spaceTypeName(space != null && space.getSpaceType() != null ? space.getSpaceType().getName() : null)
+        .spaceTypeName(
+            space != null && space.getSpaceType() != null ? space.getSpaceType().getName() : null)
         .description(space != null ? space.getDescription() : null)
         .imageUrl(space != null ? space.getImageUrl() : null)
         .hasNode(location.hasNode())

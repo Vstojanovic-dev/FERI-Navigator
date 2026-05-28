@@ -31,8 +31,8 @@ class CatalogServiceTest {
   void listBuildingsReturnsCatalogSummariesIncludingSpaceCount() {
     CatalogService service = new CatalogService(buildingRepository, locationRepository);
 
-    when(buildingRepository.findCatalogSummaries()).thenReturn(
-        List.of(new BuildingCatalogDto(7L, "Objekt G2", "Opis", "/img/g2.png", 12L)));
+    when(buildingRepository.findCatalogSummaries())
+        .thenReturn(List.of(new BuildingCatalogDto(7L, "Objekt G2", "Opis", "/img/g2.png", 12L)));
 
     List<BuildingCatalogDto> result = service.listBuildings();
 
@@ -65,12 +65,7 @@ class CatalogServiceTest {
 
   private NavigationLocation buildLocation() {
     Building building =
-        Building.builder()
-            .id(2L)
-            .code("G2")
-            .name("Objekt G2")
-            .description("Opis")
-            .build();
+        Building.builder().id(2L).code("G2").name("Objekt G2").description("Opis").build();
     Floor floor =
         Floor.builder()
             .id(3L)
