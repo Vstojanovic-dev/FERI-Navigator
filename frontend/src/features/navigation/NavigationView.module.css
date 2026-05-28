@@ -23,7 +23,7 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(210px, 42vh) 138px auto;
   gap: 6px;
   overflow: hidden;
   opacity: 0;
@@ -80,10 +80,13 @@
 
 .mapWrap {
   min-height: 0;
+  max-height: 42vh;
 }
 
 .stepsWrap {
+  height: 138px;
   padding-right: 2px;
+  overflow: hidden;
 }
 
 .bottomNav {
@@ -189,11 +192,11 @@
 
 .mapAnimated {
   height: 100%;
-  animation: contentSwap 240ms ease;
+  animation: contentSwap 140ms ease-out;
 }
 
 .stepsAnimated {
-  animation: contentSwap 240ms ease;
+  animation: contentSwap 140ms ease-out;
 }
 
 .picker {
@@ -459,10 +462,8 @@
 @keyframes contentSwap {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }

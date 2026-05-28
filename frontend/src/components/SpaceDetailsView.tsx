@@ -25,8 +25,8 @@ function SpaceDetailsView({
     <PageShell>
       <div className={styles.topImageWrap}>
         <img src={imageUrl} alt={space.name} className={styles.topImage} />
-        <button type="button" className={styles.backButton} onClick={onBack}>
-          &lt; Nazaj
+        <button type="button" className={styles.backButton} onClick={onBack} aria-label="Nazaj">
+          ←
         </button>
         <button
           type="button"

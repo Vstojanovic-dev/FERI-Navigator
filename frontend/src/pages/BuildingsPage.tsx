@@ -15,6 +15,38 @@ type BuildingsPageState = {
   selectedSpace?: CatalogSpace;
 };
 
+const BUILDING_PLAN_MAP: Record<string, string> = {
+  'Objekt C': '/maps/objekt_c.png',
+  'Objekt E': '/maps/objekt_e.png',
+  'Objekt F': '/maps/objekt_f_p.png',
+  'Objekt G': '/maps/objekt_g_p.png',
+  'Objekt G2': '/maps/objekt_g_2_n.png',
+  'Objekt G3': '/maps/g3_pritlicje.png',
+};
+
+const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
+  'Objekt C': [
+    { id: 9001, name: 'C-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9002, name: 'C-102', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+  'Objekt E': [
+    { id: 9101, name: 'E-201', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt E', floor: '1. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+  'Objekt F': [
+    { id: 9201, name: 'F-001', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt F', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+  'Objekt G': [
+    { id: 9301, name: 'G-001', type: 'Predavalnica', buildingId: 0, buildingName: 'Objekt G', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9302, name: 'Galerija', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G', floor: '4. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+  'Objekt G2': [
+    { id: 9401, name: 'G2-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G2', floor: '1. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+  'Objekt G3': [
+    { id: 9501, name: 'G3-301', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt G3', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+  ],
+};
+
 function BuildingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -125,61 +157,52 @@ function BuildingsPage() {
   }
 
   if (selectedBuilding) {
+    const planImageUrl = BUILDING_PLAN_MAP[selectedBuilding.name] ?? resolveAssetUrl(selectedBuilding.imageUrl);
+    const spacesForBuilding =
+      buildingSpaces.length > 0
+        ? buildingSpaces
+        : DEMO_SPACES_BY_BUILDING[selectedBuilding.name] ?? [];
+
     return (
       <PageShell>
         <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems />
         <section className={styles.content}>
-          <img
-            src={resolveAssetUrl(selectedBuilding.imageUrl) ?? '/feri-logo.png'}
-            alt={selectedBuilding.name}
-            className={styles.heroImage}
-          />
-          <p className={styles.description}>{selectedBuilding.description ?? ''}</p>
-
           <h2 className={styles.sectionTitle}>Načrt objekta</h2>
           <div className={styles.placeholderBox}>
-            Tukaj bo kasneje prikazan načrt objekta (PDF ali slika tlorisa).
+            {planImageUrl ? (
+              <img src={planImageUrl} alt={`Načrt objekta ${selectedBuilding.name}`} className={styles.planImage} />
+            ) : (
+              <span>Za ta objekt trenutno ni dodanega načrta.</span>
+            )}
           </div>
 
           <h2 className={styles.sectionTitle}>Prostori v objektu</h2>
 
-          {buildingSpaces.length === 0 ? (
+          {spacesForBuilding.length === 0 ? (
             <EmptyState title="Ni prostorov" text="Za ta objekt še ni dodanih prostorov." />
           ) : (
-            <div className={styles.cardsList}>
-              {buildingSpaces.map((space) => (
-                <div key={space.id} className={styles.spaceRow}>
-                  <div className={styles.spaceRowInfo}>
-                    <h3 className={styles.spaceRowTitle}>{space.name}</h3>
-                    <p className={styles.spaceRowMeta}>
-                      {space.type} · {space.floor}
-                    </p>
-                  </div>
-                  <div className={styles.actions}>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() =>
-                        navigate('/objekti', {
-                          replace: true,
-                          state: {
-                            selectedBuilding,
-                            selectedSpace: space,
-                          } satisfies BuildingsPageState,
-                        })
-                      }
-                    >
-                      Podrobnosti
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() => openSpaceNavigation(space)}
-                    >
-                      Poišči
-                    </button>
-                  </div>
-                </div>
+            <div className={styles.spaceCardsList}>
+              {spacesForBuilding.map((space) => (
+                <article
+                  key={space.id}
+                  className={styles.spaceCard}
+                  onClick={() =>
+                    navigate('/objekti', {
+                      replace: true,
+                      state: {
+                        selectedBuilding,
+                        selectedSpace: space,
+                      } satisfies BuildingsPageState,
+                    })
+                  }
+                >
+                  <img
+                    src={resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png'}
+                    alt={space.name}
+                    className={styles.spaceCardImage}
+                  />
+                  <h3 className={styles.spaceCardTitle}>{space.name}</h3>
+                </article>
               ))}
             </div>
           )}
