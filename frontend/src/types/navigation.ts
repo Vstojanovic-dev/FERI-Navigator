@@ -1,11 +1,3 @@
-export type Screen =
-  | 'home'
-  | 'ucilnica'
-  | 'objekti'
-  | 'podrobnostiObjekta'
-  | 'oFeri'
-  | 'navigacija';
-
 export type NavigationLocation = {
   id: number;
   displayName: string;
@@ -17,6 +9,11 @@ export type NavigationLocation = {
   floorCode: string;
   floorLabel: string;
   nodeId: number | null;
+  spaceId: number | null;
+  spaceName: string | null;
+  spaceTypeName: string | null;
+  description: string | null;
+  imageUrl: string | null;
   hasNode: boolean;
 };
 

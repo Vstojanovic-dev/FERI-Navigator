@@ -1,0 +1,26 @@
+.searchBox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  background: #fff;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 22px;
+  box-shadow: var(--shadow-card-soft);
+}
+
+.icon {
+  color: var(--color-text-muted);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-brand-900);
+  font-size: 15px;
+  padding: 15px 0;
+}
