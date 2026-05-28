@@ -53,5 +53,8 @@ public class RouteResponseDto {
     private Long fromNodeId;
     private Long toNodeId;
     private String type;
+    private String icon;
+    private String maneuverType;
+    private Long zoneId;
   }
 }

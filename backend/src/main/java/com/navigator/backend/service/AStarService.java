@@ -25,6 +25,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AStarService {
 
+  private static final double STAIRS_PENALTY = 15.0;
+
   private final NavNodeRepository nodeRepo;
   private final NavEdgeRepository edgeRepo;
 
@@ -118,7 +120,9 @@ public class AStarService {
         nodeCache.putIfAbsent(neighborId, neighbor);
 
         double tentativeG =
-            gScore.getOrDefault(currentId, Double.MAX_VALUE) + edge.getWeight().doubleValue();
+            gScore.getOrDefault(currentId, Double.MAX_VALUE)
+                + edge.getWeight().doubleValue()
+                + movementPenalty(edge);
 
         if (tentativeG < gScore.getOrDefault(neighborId, Double.MAX_VALUE)) {
           cameFrom.put(neighborId, currentId);
@@ -144,6 +148,14 @@ public class AStarService {
     }
 
     return nodeRepo.findFirstByLabelIgnoreCase(identifier);
+  }
+
+  private double movementPenalty(NavEdge edge) {
+    if ("stairs".equals(edge.getEdgeTypeCode())) {
+      // Slightly prefer elevator routes when travel cost is otherwise similar.
+      return STAIRS_PENALTY;
+    }
+    return 0;
   }
 
   private double heuristic(NavNode a, NavNode b) {

@@ -33,6 +33,9 @@ export type RouteStep = {
   fromNodeId: number;
   toNodeId: number;
   type: string;
+  icon: string;
+  maneuverType: string;
+  zoneId: number | null;
 };
 
 export type RouteSegment = {

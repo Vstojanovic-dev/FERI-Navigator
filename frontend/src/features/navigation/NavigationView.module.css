@@ -388,7 +388,7 @@
 
 .stepButton {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 26px 1fr;
   gap: 8px;
   width: 100%;
   padding: 8px 10px;
@@ -414,16 +414,14 @@
   box-shadow: 0 0 0 2px rgba(240, 157, 24, 0.2);
 }
 
-.stepNumber {
+.stepIcon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  background: var(--color-brand-900);
-  color: #fff;
-  font-size: 11px;
+  width: 22px;
+  height: 22px;
+  color: var(--color-brand-900);
+  font-size: 18px;
   font-weight: 900;
 }
 

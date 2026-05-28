@@ -9,6 +9,22 @@ type StepListProps = {
   windowSize?: number;
 };
 
+const iconByManeuver: Record<string, string> = {
+  straight: '↑',
+  slight_left: '↖',
+  left: '←',
+  slight_right: '↗',
+  right: '→',
+  turn_back: '↺',
+  stairs_up: '⇡',
+  stairs_down: '⇣',
+  elevator: '🛗',
+  elevator_exit: '⇢',
+  enter: '↪',
+  destination: '●',
+  building_transfer: '⇄',
+};
+
 function StepList({
   segment,
   activeStepIndex,
@@ -32,7 +48,9 @@ function StepList({
             className={`${styles.stepButton} ${activeStepIndex === index ? styles.stepButtonActive : ''}`}
             onClick={() => onSelectStep(index)}
           >
-            <span className={styles.stepNumber}>{index + 1}</span>
+            <span className={styles.stepIcon} aria-hidden="true">
+              {iconByManeuver[step.icon] ?? iconByManeuver[step.maneuverType] ?? '↑'}
+            </span>
             <span className={styles.stepText}>{step.text}</span>
           </button>
         );
