@@ -13,6 +13,7 @@ import com.navigator.backend.model.Building;
 import com.navigator.backend.model.Floor;
 import com.navigator.backend.model.NavNode;
 import com.navigator.backend.model.NavigationLocation;
+import com.navigator.backend.model.NodeType;
 import com.navigator.backend.repository.NavigationLocationRepository;
 import java.math.BigDecimal;
 import java.util.List;
@@ -142,7 +143,7 @@ class NavigationRouteServiceTest {
                 .id(nodeId)
                 .externalId("node-" + nodeId)
                 .label(displayName)
-                .nodeTypeCode("room")
+                .nodeType(NodeType.builder().id(1L).code("room").name("Room").build())
                 .floor(floor)
                 .floorId(floor.getId())
                 .x(BigDecimal.ONE)
