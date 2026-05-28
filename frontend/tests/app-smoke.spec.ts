@@ -161,6 +161,44 @@ test('navigation route can calculate a route', async ({ page }) => {
   await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
 });
 
+test('home page can prefill navigation target from a space card action', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('[data-testid="space-results"]').waitFor();
+  await page.getByRole('button', { name: 'Poišči učilnico' }).click();
+  await expect(page).toHaveURL(/\/navigacija$/);
+  await expect(page.locator('#target-location')).toHaveValue('Alfa');
+});
+
+test('buildings page can prefill navigation target from building space action', async ({ page }) => {
+  await page.goto('/objekti');
+  await page.locator('[data-testid="building-results"]').waitFor();
+  await page.getByText('Objekt G2').click();
+  await page.getByRole('button', { name: 'Poišči' }).click();
+  await expect(page).toHaveURL(/\/navigacija$/);
+  await expect(page.locator('#target-location')).toHaveValue('Alfa');
+});
+
+test('navigation route shows backend error message when route lookup fails', async ({ page }) => {
+  await page.route('**/api/navigation/route**', async (route) => {
+    await route.fulfill({
+      status: 404,
+      json: {
+        code: 'NO_ROUTE',
+        message: 'Za izabrane lokacije jos ne postoji unesena ruta.',
+      },
+    });
+  });
+
+  await page.goto('/navigacija');
+  await page.locator('#start-location').fill('Glavni');
+  await page.getByText('Glavni vhod - G2, Pritlicje').click();
+  await page.locator('#target-location').fill('Alfa');
+  await page.getByText('Alfa - G2, 1. nadstropje').click();
+  await page.getByTestId('show-route-button').click();
+
+  await expect(page.getByText('Za izabrane lokacije jos ne postoji unesena ruta.')).toBeVisible();
+});
+
 test('about route renders static content and top-level refresh works', async ({ page }) => {
   await page.goto('/o-feri');
   await expect(
