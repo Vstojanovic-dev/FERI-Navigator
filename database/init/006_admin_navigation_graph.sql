@@ -1,7 +1,7 @@
 -- Generated from the admin map editor.
 -- Complete navigation snapshot: lookups, buildings, floors, spaces, nodes, edges and locations.
 -- Commit this file when admin navigation changes should be shared with the team.
--- Generated at: 2026-05-27T13:58:57.109758974Z
+-- Generated at: 2026-05-28T10:16:43.955446374Z
 
 -- Space types
 WITH lookup_input(code, name, description) AS (
