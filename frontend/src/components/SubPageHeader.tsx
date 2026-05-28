@@ -16,8 +16,8 @@ function SubPageHeader({ title, fallbackTo, showAllMenuItems = false }: SubPageH
   return (
     <>
       <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={handleBack}>
-          &lt; Nazaj
+        <button type="button" className={styles.backButton} onClick={handleBack} aria-label="Nazaj">
+          ←
         </button>
         <h1 className={styles.title}>{title}</h1>
         <button

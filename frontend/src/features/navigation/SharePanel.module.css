@@ -1,0 +1,94 @@
+.panel {
+  margin-top: 12px;
+  background: var(--color-surface, #f5f7fa);
+  border: 1px solid var(--color-border, #dde3ed);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #172033);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--color-text-secondary, #5a6a82);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.closeButton:hover {
+  background: var(--color-hover, #e8edf5);
+}
+
+.urlRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-input-bg, #ffffff);
+  border: 1px solid var(--color-border, #dde3ed);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.urlText {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-text-secondary, #5a6a82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyButton {
+  flex-shrink: 0;
+  background: var(--color-primary, #172033);
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.copyButton:hover {
+  opacity: 0.85;
+}
+
+.qrToggle {
+  background: none;
+  border: 1px solid var(--color-border, #dde3ed);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary, #5a6a82);
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.qrToggle:hover {
+  background: var(--color-hover, #e8edf5);
+}
+
+.qrWrap {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 4px;
+}

@@ -141,3 +141,19 @@ CREATE INDEX idx_navigation_edges_type ON navigation_edges(edge_type_id);
 CREATE INDEX idx_navigation_edges_geom ON navigation_edges USING GIST (geom);
 CREATE INDEX idx_navigation_locations_search ON navigation_locations(searchable_name);
 CREATE INDEX idx_navigation_locations_type ON navigation_locations(location_type);
+
+
+CREATE TABLE navigation_route_shares (
+    id               BIGSERIAL PRIMARY KEY,
+    share_code       VARCHAR(12)  NOT NULL UNIQUE,
+    from_location_id BIGINT       NOT NULL REFERENCES navigation_locations(id) ON DELETE CASCADE,
+    to_location_id   BIGINT       REFERENCES navigation_locations(id) ON DELETE CASCADE,
+    target_type      VARCHAR(50),
+    allow_elevator   BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    CONSTRAINT ck_shares_one_target CHECK (
+        (to_location_id IS NOT NULL) <> (target_type IS NOT NULL)
+    )
+);
+
+CREATE INDEX idx_navigation_route_shares_code ON navigation_route_shares(share_code);
