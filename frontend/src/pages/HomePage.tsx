@@ -150,7 +150,11 @@ function HomePage() {
                   : styles.introTitleBlockHidden
             }
           >
-            <img src="/feri-logo.png" alt="FERI" className={introDone ? styles.feriLogo : styles.introFeriLogo} />
+            <img
+              src="/feri-logo.png"
+              alt="FERI"
+              className={introDone ? styles.feriLogo : styles.introFeriLogo}
+            />
             <h1 className={introDone ? styles.mainTitle : styles.introMainTitle}>Navigator</h1>
           </div>
 
@@ -184,7 +188,11 @@ function HomePage() {
         ) : (
           <div className={styles.compactCardsList} data-testid="space-results">
             {filteredSpaces.map((space) => (
-              <article key={space.id} className={styles.compactCard} onClick={() => openSpace(space)}>
+              <article
+                key={space.id}
+                className={styles.compactCard}
+                onClick={() => openSpace(space)}
+              >
                 <img
                   src={resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png'}
                   alt={space.name}

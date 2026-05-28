@@ -118,21 +118,26 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
   const compactToLabel = toTarget?.displayName || toQuery || 'Ciljna lokacija';
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = Boolean(route && route.segments.length > 1);
-  const canMovePrev = Boolean(route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0));
+  const canMovePrev = Boolean(
+    route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0)
+  );
   const canMoveNext = Boolean(
     route &&
-      activeSegment &&
-      !(
-        activeSegmentIndex === route.segments.length - 1 &&
-        activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
-      )
+    activeSegment &&
+    !(
+      activeSegmentIndex === route.segments.length - 1 &&
+      activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
+    )
   );
 
   const stepsWindowSize = 4;
   const stepsWindowStart = activeSegment
     ? Math.max(
         0,
-        Math.min(activeSegment.steps.length - stepsWindowSize, activeStepIndex - Math.floor(stepsWindowSize / 2))
+        Math.min(
+          activeSegment.steps.length - stepsWindowSize,
+          activeStepIndex - Math.floor(stepsWindowSize / 2)
+        )
       )
     : 0;
 
@@ -141,7 +146,9 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
   return (
     <section className={styles.content}>
       {isFormExpanded || isFormCollapsing ? (
-        <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
+        <div
+          className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}
+        >
           <LocationPicker
             id="start-location"
             label="Začetna lokacija"

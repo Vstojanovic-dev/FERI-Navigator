@@ -162,13 +162,20 @@ function BuildingsPage() {
                       onClick={() =>
                         navigate('/objekti', {
                           replace: true,
-                          state: { selectedBuilding, selectedSpace: space } satisfies BuildingsPageState,
+                          state: {
+                            selectedBuilding,
+                            selectedSpace: space,
+                          } satisfies BuildingsPageState,
                         })
                       }
                     >
                       Podrobnosti
                     </button>
-                    <button type="button" className={styles.secondaryButton} onClick={() => openSpaceNavigation(space)}>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => openSpaceNavigation(space)}
+                    >
                       Poišči
                     </button>
                   </div>
@@ -196,7 +203,10 @@ function BuildingsPage() {
                 key={building.id}
                 className={styles.card}
                 onClick={() =>
-                  navigate('/objekti', { replace: true, state: { selectedBuilding: building } satisfies BuildingsPageState })
+                  navigate('/objekti', {
+                    replace: true,
+                    state: { selectedBuilding: building } satisfies BuildingsPageState,
+                  })
                 }
               >
                 <img

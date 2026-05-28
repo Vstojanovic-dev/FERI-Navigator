@@ -16,7 +16,9 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
   const activeStep = segment.steps[activeStepIndex];
   const activeFrom = segment.path.find((point) => point.nodeId === activeStep?.fromNodeId);
   const activeTo = segment.path.find((point) => point.nodeId === activeStep?.toNodeId);
-  const activeFromIndex = segment.path.findIndex((point) => point.nodeId === activeStep?.fromNodeId);
+  const activeFromIndex = segment.path.findIndex(
+    (point) => point.nodeId === activeStep?.fromNodeId
+  );
   const activeToIndex = segment.path.findIndex((point) => point.nodeId === activeStep?.toNodeId);
   const donePoints =
     activeFromIndex >= 0
@@ -41,7 +43,13 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
         <p className={styles.mapMeta}>{segment.floorLabel}</p>
       </div>
       <div className={styles.mapViewport}>
-        {imageUrl && <img src={imageUrl} alt={`${segment.buildingName} ${segment.floorLabel}`} className={styles.mapImage} />}
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt={`${segment.buildingName} ${segment.floorLabel}`}
+            className={styles.mapImage}
+          />
+        )}
         <svg
           viewBox={`0 0 ${segment.coordinateWidth} ${segment.coordinateHeight}`}
           className={styles.mapOverlay}
@@ -92,15 +100,25 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
             />
           )}
           {segment.path[0] && <RouteMarker point={segment.path[0]} label="A" fill="#172033" />}
-          {segment.path.at(-1) && <RouteMarker point={segment.path.at(-1)!} label="B" fill="#f09d18" />}
+          {segment.path.at(-1) && (
+            <RouteMarker point={segment.path.at(-1)!} label="B" fill="#f09d18" />
+          )}
           {activeTo && <RouteMarker point={activeTo} label="" fill="#1d4ed8" radius={9} />}
           {activeFromIndex >= 0 && segment.path[activeFromIndex] && (
             <RouteMarker point={segment.path[activeFromIndex]} label="" fill="#172033" radius={8} />
           )}
           {activeToIndex >= 0 && segment.path[activeToIndex] && (
-            <circle cx={segment.path[activeToIndex].x} cy={segment.path[activeToIndex].y} r="14" fill="#1d4ed8" opacity="0.2" />
+            <circle
+              cx={segment.path[activeToIndex].x}
+              cy={segment.path[activeToIndex].y}
+              r="14"
+              fill="#1d4ed8"
+              opacity="0.2"
+            />
           )}
-          {activeTo && <circle cx={activeTo.x} cy={activeTo.y} r="18" fill="#1d4ed8" opacity="0.12" />}
+          {activeTo && (
+            <circle cx={activeTo.x} cy={activeTo.y} r="18" fill="#1d4ed8" opacity="0.12" />
+          )}
         </svg>
       </div>
     </div>
@@ -122,7 +140,14 @@ function RouteMarker({
     <>
       <circle cx={point.x} cy={point.y} r={radius} fill={fill} />
       {label && (
-        <text x={point.x} y={point.y + 4} textAnchor="middle" fill="#ffffff" fontSize="12" fontWeight="800">
+        <text
+          x={point.x}
+          y={point.y + 4}
+          textAnchor="middle"
+          fill="#ffffff"
+          fontSize="12"
+          fontWeight="800"
+        >
           {label}
         </text>
       )}

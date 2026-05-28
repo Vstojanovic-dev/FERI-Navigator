@@ -26,16 +26,16 @@ function StepList({
       {visibleSteps.map((step, offset) => {
         const index = start + offset;
         return (
-        <button
-          key={`${step.fromNodeId}-${step.toNodeId}-${index}`}
-          type="button"
-          className={`${styles.stepButton} ${activeStepIndex === index ? styles.stepButtonActive : ''}`}
-          onClick={() => onSelectStep(index)}
-        >
-          <span className={styles.stepNumber}>{index + 1}</span>
-          <span className={styles.stepText}>{step.text}</span>
-        </button>
-      );
+          <button
+            key={`${step.fromNodeId}-${step.toNodeId}-${index}`}
+            type="button"
+            className={`${styles.stepButton} ${activeStepIndex === index ? styles.stepButtonActive : ''}`}
+            onClick={() => onSelectStep(index)}
+          >
+            <span className={styles.stepNumber}>{index + 1}</span>
+            <span className={styles.stepText}>{step.text}</span>
+          </button>
+        );
       })}
     </div>
   );

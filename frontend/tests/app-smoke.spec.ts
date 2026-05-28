@@ -107,7 +107,9 @@ const routeResponse = {
         { nodeId: 11, externalId: 'A', label: 'A', nodeType: 'entrance', x: 10, y: 10, z: 0 },
         { nodeId: 12, externalId: 'B', label: 'B', nodeType: 'room', x: 20, y: 20, z: 0 },
       ],
-      steps: [{ index: 0, text: 'Nastavite prema Alfa.', fromNodeId: 11, toNodeId: 12, type: 'corridor' }],
+      steps: [
+        { index: 0, text: 'Nastavite prema Alfa.', fromNodeId: 11, toNodeId: 12, type: 'corridor' },
+      ],
     },
   ],
 };

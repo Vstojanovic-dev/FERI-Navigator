@@ -27,7 +27,9 @@
   justify-content: space-between;
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 1000ms ease, transform 1000ms ease;
+  transition:
+    opacity 1000ms ease,
+    transform 1000ms ease;
 }
 
 .roundButton,
@@ -44,7 +46,9 @@
   font-size: 19px;
   font-weight: 900;
   cursor: pointer;
-  transition: opacity 1000ms ease, transform 1000ms ease;
+  transition:
+    opacity 1000ms ease,
+    transform 1000ms ease;
 }
 
 .roundButton {
@@ -102,7 +106,9 @@
   display: block;
   width: auto;
   object-fit: contain;
-  transition: height 1300ms ease, margin 1300ms ease;
+  transition:
+    height 1300ms ease,
+    margin 1300ms ease;
 }
 
 .feriLogo {
@@ -135,7 +141,9 @@
   background: var(--color-surface-canvas);
   border-radius: 34px 34px 0 0;
   box-shadow: 0 -24px 45px rgba(8, 13, 24, 0.18);
-  transition: opacity 1000ms ease, transform 1250ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    opacity 1000ms ease,
+    transform 1250ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .bottomPanelVisible {

@@ -12,7 +12,12 @@ type SpaceDetailsViewProps = {
   showAllMenuItems?: boolean;
 };
 
-function SpaceDetailsView({ space, onBack, onFindClassroom, showAllMenuItems = false }: SpaceDetailsViewProps) {
+function SpaceDetailsView({
+  space,
+  onBack,
+  onFindClassroom,
+  showAllMenuItems = false,
+}: SpaceDetailsViewProps) {
   const imageUrl = resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png';
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -50,7 +55,11 @@ function SpaceDetailsView({ space, onBack, onFindClassroom, showAllMenuItems = f
           </div>
         </div>
 
-        <button type="button" className={styles.primaryButton} onClick={() => onFindClassroom(space)}>
+        <button
+          type="button"
+          className={styles.primaryButton}
+          onClick={() => onFindClassroom(space)}
+        >
           Poišči učilnico
         </button>
       </section>
