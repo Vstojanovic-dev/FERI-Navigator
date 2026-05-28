@@ -9,6 +9,7 @@ function AppRouter() {
       <Route path="/" element={<HomePage />} />
       <Route path="/objekti" element={<BuildingsPage />} />
       <Route path="/navigacija" element={<NavigationPage />} />
+      <Route path="/share/:shareCode" element={<NavigationPage />} />
     </Routes>
   );
 }

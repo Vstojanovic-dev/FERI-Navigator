@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ApiError } from '../../services/api';
-import { fetchRoute } from '../../services/navigationService';
+import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
+import SharePanel from './SharePanel';
 import StepList from './StepList';
 import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
@@ -11,9 +12,20 @@ import styles from './NavigationView.module.css';
 
 type NavigationViewProps = {
   initialTarget: string;
+  // Opciono — predpopunjava oba polja iz shared linka
+  sharedFromLocationId?: number;
+  sharedToLocationId?: number;
+  sharedTargetType?: string;
+  sharedAllowElevator?: boolean;
 };
 
-function NavigationView({ initialTarget }: NavigationViewProps) {
+function NavigationView({
+  initialTarget,
+  sharedFromLocationId,
+  sharedToLocationId,
+  sharedTargetType,
+  sharedAllowElevator,
+}: NavigationViewProps) {
   const [fromQuery, setFromQuery] = useState('');
   const [toQuery, setToQuery] = useState(initialTarget);
   const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
@@ -28,6 +40,53 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
   const [isRouteVisible, setIsRouteVisible] = useState(false);
   const [transitionNonce, setTransitionNonce] = useState(0);
 
+  // Share state
+  const [isCreatingShare, setIsCreatingShare] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState('');
+  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
+
+  // Bootstrap iz shared linka
+  useEffect(() => {
+    if (!sharedFromLocationId) return;
+
+    const routeFromShare = async () => {
+      setIsRouting(true);
+      setError('');
+      try {
+        const nextRoute = await fetchRoute({
+          fromLocationId: sharedFromLocationId,
+          toLocationId: sharedToLocationId,
+          targetType: sharedTargetType,
+          allowElevator: sharedAllowElevator ?? true,
+        });
+        setRoute(nextRoute);
+        setActiveSegmentIndex(0);
+        setActiveStepIndex(0);
+        setIsRouteVisible(false);
+        setTransitionNonce((v) => v + 1);
+        setIsFormCollapsing(true);
+        window.setTimeout(() => {
+          setIsFormExpanded(false);
+          setIsFormCollapsing(false);
+          setIsRouteVisible(true);
+        }, 240);
+      } catch (routeError) {
+        setError(
+          routeError instanceof ApiError
+            ? routeError.message
+            : 'Deljena pot trenutno ni dostopna.'
+        );
+      } finally {
+        setIsRouting(false);
+      }
+    };
+
+    routeFromShare();
+    // Namerno samo ob mountu — ne ponavljamo pri svakom renderu
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     setToQuery(initialTarget);
     setToTarget(null);
@@ -36,6 +95,9 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
     setIsFormCollapsing(false);
     setIsRouteVisible(false);
     setTransitionNonce(0);
+    setShareUrl(null);
+    setShareError('');
+    setIsSharePanelOpen(false);
   }, [initialTarget]);
 
   const fromResults = useLocationSearch(fromQuery);
@@ -51,6 +113,9 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
 
     setIsRouting(true);
     setError('');
+    setShareUrl(null);
+    setShareError('');
+    setIsSharePanelOpen(false);
 
     try {
       const nextRoute = await fetchRoute({
@@ -78,15 +143,34 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
     }
   };
 
-  const moveRouteStep = (direction: 1 | -1) => {
-    if (!route) {
-      return;
-    }
+  const handleShare = async () => {
+    if (!fromLocation || !toTarget) return;
 
-    const segment = route.segments[activeSegmentIndex];
-    if (!segment) {
-      return;
+    setIsCreatingShare(true);
+    setShareError('');
+
+    try {
+      const response = await createShare({
+        fromLocationId: fromLocation.id,
+        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+        allowElevator: true,
+      });
+      setShareUrl(response.shareUrl);
+      setIsSharePanelOpen(true);
+    } catch (shareErr) {
+      setShareError(
+        shareErr instanceof ApiError ? shareErr.message : 'Napaka pri ustvarjanju povezave.'
+      );
+    } finally {
+      setIsCreatingShare(false);
     }
+  };
+
+  const moveRouteStep = (direction: 1 | -1) => {
+    if (!route) return;
+    const segment = route.segments[activeSegmentIndex];
+    if (!segment) return;
 
     const nextStepIndex = activeStepIndex + direction;
     if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
@@ -96,9 +180,7 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
 
     const nextSegmentIndex = activeSegmentIndex + direction;
     const nextSegment = route.segments[nextSegmentIndex];
-    if (!nextSegment) {
-      return;
-    }
+    if (!nextSegment) return;
 
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(nextSegmentIndex);
@@ -123,11 +205,11 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
   );
   const canMoveNext = Boolean(
     route &&
-    activeSegment &&
-    !(
-      activeSegmentIndex === route.segments.length - 1 &&
-      activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
-    )
+      activeSegment &&
+      !(
+        activeSegmentIndex === route.segments.length - 1 &&
+        activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
+      )
   );
 
   const stepsWindowSize = 4;
@@ -160,11 +242,11 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
               setFromQuery(value);
               setFromLocation(null);
               setRoute(null);
+              setShareUrl(null);
+              setIsSharePanelOpen(false);
             }}
             onSelect={(location) => {
-              if (isNearestTarget(location)) {
-                return;
-              }
+              if (isNearestTarget(location)) return;
               setFromLocation(location);
               setFromQuery(location.displayName);
             }}
@@ -182,6 +264,8 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
               setToQuery(value);
               setToTarget(null);
               setRoute(null);
+              setShareUrl(null);
+              setIsSharePanelOpen(false);
             }}
             onSelect={(target) => {
               setToTarget(target);
@@ -206,6 +290,7 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
           onClick={() => {
             setIsFormExpanded(true);
             setIsRouteVisible(false);
+            setIsSharePanelOpen(false);
           }}
           aria-label="Uredi lokacije"
         >
@@ -251,6 +336,24 @@ function NavigationView({ initialTarget }: NavigationViewProps) {
               />
             </div>
           </div>
+
+          {/* Share dugme i panel */}
+          <div className={styles.shareRow}>
+            <button
+              type="button"
+              className={styles.shareButton}
+              onClick={handleShare}
+              disabled={isCreatingShare}
+              aria-label="Deli pot"
+            >
+              {isCreatingShare ? 'Ustvarjam...' : '↗ Podeli'}
+            </button>
+          </div>
+          {shareError && <p className={styles.errorText}>{shareError}</p>}
+          {isSharePanelOpen && shareUrl && (
+            <SharePanel shareUrl={shareUrl} onClose={() => setIsSharePanelOpen(false)} />
+          )}
+
           <div className={styles.bottomNav}>
             <div className={styles.navButtons}>
               <button

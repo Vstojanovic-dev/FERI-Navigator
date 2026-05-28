@@ -27,3 +27,40 @@ export async function fetchRoute(input: {
 
   return apiFetch<NavigationRoute>(`/api/navigation/route?${params}`);
 }
+
+// ── Share ────────────────────────────────────────────────────────────────────
+
+export type CreateShareRequest = {
+  fromLocationId: number;
+  toLocationId?: number;
+  targetType?: string;
+  allowElevator: boolean;
+};
+
+export type CreateShareResponse = {
+  shareCode: string;
+  shareUrl: string;
+};
+
+export type ResolveShareResponse = {
+  fromLocationId: number;
+  toLocationId?: number;
+  targetType?: string;
+  allowElevator: boolean;
+};
+
+export async function createShare(input: CreateShareRequest): Promise<CreateShareResponse> {
+  return apiFetch<CreateShareResponse>('/api/navigation/share', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function resolveShare(shareCode: string): Promise<ResolveShareResponse> {
+  return apiFetch<ResolveShareResponse>(`/api/navigation/share/${shareCode}`);
+}
+
+export async function fetchLocation(locationId: number): Promise<NavigationLocation> {
+  return apiFetch<NavigationLocation>(`/api/navigation/locations/${locationId}`);
+}

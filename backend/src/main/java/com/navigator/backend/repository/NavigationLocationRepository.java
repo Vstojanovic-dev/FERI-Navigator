@@ -45,6 +45,9 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
   @Query("SELECT l FROM NavigationLocation l WHERE l.id = :id AND l.isEnabled = true")
   Optional<NavigationLocation> findEnabledById(@Param("id") Long id);
 
+  @Query("SELECT COUNT(l) > 0 FROM NavigationLocation l WHERE l.id = :id AND l.isEnabled = true")
+  boolean existsEnabledById(@Param("id") Long id);
+
   @EntityGraph(attributePaths = {"building", "floor", "space", "space.spaceType"})
   @Query(
       """
