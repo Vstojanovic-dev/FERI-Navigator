@@ -47,6 +47,9 @@ function NavigationView({
 
   const { isGenerating: isGeneratingPdf, downloadPdf } = useRoutePdf();
 
+  // true samo če browser podpira Web Share API (vsi mobilni browseri)
+  const canNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+
   useEffect(() => {
     if (!sharedFromLocationId) return;
 
@@ -140,6 +143,12 @@ function NavigationView({
     }
   };
 
+  /**
+   * Najpre kreiramo share URL na serveru (isto kao i prije).
+   * Na mobilnom browseru koji podržava Web Share API odmah otvaramo
+   * native share sheet — korisnik bira aplikaciju (WhatsApp, Viber, SMS...).
+   * Na desktopu fallback na postojeći SharePanel s copy gumbom.
+   */
   const handleShare = async () => {
     if (!fromLocation || !toTarget) return;
     setIsCreatingShare(true);
@@ -152,7 +161,27 @@ function NavigationView({
         allowElevator: true,
       });
       setShareUrl(response.shareUrl);
-      setIsSharePanelOpen(true);
+
+      if (canNativeShare) {
+        // Mobitel — otvori native share sheet
+        try {
+          await navigator.share({
+            title: `FERI Navigator: ${fromLocation.displayName} → ${toTarget.displayName}`,
+            text: 'Poglej pot na FERI Navigatorju',
+            url: response.shareUrl,
+          });
+          // Korisnik je podijelio ili zatvorio sheet — ne pokazujemo SharePanel
+        } catch (shareSheetErr) {
+          // AbortError znači da je korisnik sam zatvorio sheet — to nije greška
+          if (shareSheetErr instanceof Error && shareSheetErr.name !== 'AbortError') {
+            // Neočekivana greška — padamo na SharePanel kao rezerva
+            setIsSharePanelOpen(true);
+          }
+        }
+      } else {
+        // Desktop — stari SharePanel s copy gumbom
+        setIsSharePanelOpen(true);
+      }
     } catch (shareErr) {
       setShareError(
         shareErr instanceof ApiError ? shareErr.message : 'Napaka pri ustvarjanju povezave.'
@@ -346,7 +375,11 @@ function NavigationView({
               {isGeneratingPdf ? 'Ustvarjam PDF...' : '⬇ Natisni PDF'}
             </button>
           </div>
+
           {shareError && <p className={styles.errorText}>{shareError}</p>}
+
+          {/* SharePanel se prikazuje samo na desktopu (canNativeShare = false)
+              ili kao rezerva kada native share ne uspije */}
           {isSharePanelOpen && shareUrl && (
             <SharePanel shareUrl={shareUrl} onClose={() => setIsSharePanelOpen(false)} />
           )}
