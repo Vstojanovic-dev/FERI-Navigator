@@ -12,6 +12,7 @@ import SharePanel from './SharePanel';
 import StepList from './StepList';
 import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
+import { useRoutePdf } from './useRoutePdf';
 import styles from './NavigationView.module.css';
 
 const STEP_ICONS: Record<string, string> = {
@@ -36,7 +37,6 @@ function stepIcon(step: { icon: string; maneuverType: string }) {
 
 type NavigationViewProps = {
   initialTarget: string;
-  // Opciono — predpopunjava oba polja iz shared linka
   sharedFromLocationId?: number;
   sharedToLocationId?: number;
   sharedTargetType?: string;
@@ -105,7 +105,6 @@ function NavigationView({
     };
 
     routeFromShare();
-    // Namerno samo ob mountu — ne ponavljamo pri svakom renderu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -201,7 +200,6 @@ function NavigationView({
       setError('Izberi začetno in ciljno lokacijo iz seznama.');
       return;
     }
-
     setIsRouting(true);
     setError('');
     try {
@@ -234,26 +232,21 @@ function NavigationView({
     if (!route) return;
     const segment = route.segments[activeSegmentIndex];
     if (!segment) return;
-
     const nextStepIndex = activeStepIndex + direction;
     if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
       setActiveStepIndex(nextStepIndex);
       return;
     }
-
     const nextSegmentIndex = activeSegmentIndex + direction;
     const nextSegment = route.segments[nextSegmentIndex];
     if (!nextSegment) return;
-
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(nextSegmentIndex);
     setActiveStepIndex(direction > 0 ? 0 : Math.max(nextSegment.steps.length - 1, 0));
   };
 
   const jumpToSegment = (index: number) => {
-    if (!route || index === activeSegmentIndex || index < 0 || index >= route.segments.length) {
-      return;
-    }
+    if (!route || index === activeSegmentIndex || index < 0 || index >= route.segments.length) return;
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(index);
     setActiveStepIndex(0);
@@ -283,7 +276,6 @@ function NavigationView({
         activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
       )
   );
-
   const stepsWindowSize = 4;
   const stepsWindowStart = activeSegment
     ? Math.floor(activeStepIndex / stepsWindowSize) * stepsWindowSize
@@ -313,9 +305,7 @@ function NavigationView({
   return (
     <section className={`${styles.content} ${showRouteLayout ? styles.contentRoute : ''}`}>
       {isFormExpanded || isFormCollapsing ? (
-        <div
-          className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}
-        >
+        <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
           <LocationPicker
             id="start-location"
             label="Začetna lokacija"
@@ -337,7 +327,6 @@ function NavigationView({
               prevFromQueryRef.current = label;
             }}
           />
-
           <LocationPicker
             id="target-location"
             label="Ciljna lokacija"
@@ -359,7 +348,6 @@ function NavigationView({
               prevToQueryRef.current = label;
             }}
           />
-
           <button
             type="button"
             className={`${styles.primaryButton} ${!canRoute ? styles.disabledButton : ''}`}
