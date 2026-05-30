@@ -7,6 +7,7 @@ type StepListProps = {
   onSelectStep: (index: number) => void;
   windowStart?: number;
   windowSize?: number;
+  reserveEmptySlots?: boolean;
 };
 
 const iconByManeuver: Record<string, string> = {
@@ -25,17 +26,23 @@ const iconByManeuver: Record<string, string> = {
   building_transfer: '⇄',
 };
 
+const STEP_SLOT_COUNT = 4;
+
 function StepList({
   segment,
   activeStepIndex,
   onSelectStep,
   windowStart,
-  windowSize,
+  windowSize = STEP_SLOT_COUNT,
+  reserveEmptySlots = false,
 }: StepListProps) {
   const start = Math.max(0, windowStart ?? 0);
-  const size = Math.max(1, windowSize ?? segment.steps.length);
+  const size = Math.min(STEP_SLOT_COUNT, Math.max(1, windowSize));
   const end = Math.min(segment.steps.length, start + size);
   const visibleSteps = segment.steps.slice(start, end);
+  const placeholderCount = reserveEmptySlots
+    ? Math.max(0, STEP_SLOT_COUNT - visibleSteps.length)
+    : 0;
 
   return (
     <div className={styles.stepsBox}>
@@ -55,6 +62,9 @@ function StepList({
           </button>
         );
       })}
+      {Array.from({ length: placeholderCount }, (_, slot) => (
+        <div key={`placeholder-${start}-${slot}`} className={styles.stepPlaceholder} aria-hidden="true" />
+      ))}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { NavigationLocation } from '../../types/navigation';
 import { searchLocations } from '../../services/navigationService';
+import { rankLocations } from '../../utils/searchRank';
 
 export function useLocationSearch(query: string) {
   const [results, setResults] = useState<NavigationLocation[]>([]);
@@ -11,7 +12,7 @@ export function useLocationSearch(query: string) {
     searchLocations(query)
       .then((locations) => {
         if (!cancelled) {
-          setResults(locations);
+          setResults(rankLocations(query, locations));
         }
       })
       .catch(() => {

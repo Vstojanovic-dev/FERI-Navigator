@@ -78,7 +78,7 @@ function NavigationPage() {
   return (
     <PageShell>
       <section className={styles.page}>
-        <SubPageHeader title="Navigacija" fallbackTo="/" />
+        <SubPageHeader title="Navigacija" fallbackTo="/" compact />
 
         {isResolvingShare && (
           <p className={styles.loadingText}>Nalagam deljeno pot...</p>

@@ -1,6 +1,6 @@
 .topImageWrap {
   position: relative;
-  height: 380px;
+  height: 300px;
 }
 
 .topImage {
@@ -10,53 +10,9 @@
   object-fit: cover;
 }
 
-.backButton {
-  position: absolute;
-  top: 18px;
-  left: 16px;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--color-brand-900);
-  font-size: 22px;
-  font-weight: 900;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    transform 150ms ease,
-    background 150ms ease;
-}
-
-.backButton:active {
-  transform: scale(0.97);
-  background: rgba(255, 255, 255, 1);
-}
-
-.menuButton {
-  position: absolute;
-  top: 18px;
-  right: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  color: var(--color-brand-900);
-  font-size: 18px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
 .sheet {
   position: relative;
-  min-height: calc(100vh - 344px);
+  min-height: calc(100vh - 350px);
   margin-top: -36px;
   padding: 24px 18px 30px;
   background: var(--color-surface-canvas);
@@ -83,18 +39,25 @@
 }
 
 .description {
-  margin: 16px 0 0;
-  min-height: 24px;
+  margin: 0;
   color: var(--color-text-body);
-  font-size: 16px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.descriptionCard {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 16px;
+  background: #fff;
 }
 
 .infoRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 14px;
 }
 
 .infoItem {
@@ -119,7 +82,7 @@
 
 .primaryButton {
   width: 100%;
-  margin-top: 22px;
+  margin-top: 16px;
   padding: 16px 18px;
   border: 0;
   border-radius: 20px;
@@ -128,4 +91,11 @@
   font-size: 16px;
   font-weight: 900;
   cursor: pointer;
+}
+
+.notes {
+  margin: 10px 2px 0;
+  color: var(--color-text-subtle);
+  font-size: 13px;
+  line-height: 1.45;
 }

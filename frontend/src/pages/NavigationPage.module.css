@@ -1,6 +1,24 @@
 .page {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.page > :first-child {
+  flex-shrink: 0;
+}
+
+.loadingText,
+.errorText {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.errorText {
+  color: #9a3412;
 }

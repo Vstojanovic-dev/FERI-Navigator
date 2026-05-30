@@ -1,12 +1,45 @@
-.panel {
-  margin-top: 12px;
-  background: var(--color-surface, #f5f7fa);
-  border: 1px solid var(--color-border, #dde3ed);
-  border-radius: 12px;
-  padding: 14px 16px;
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(8, 13, 24, 0.55);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.sheet {
+  position: relative;
+  z-index: 1;
+  width: min(520px, 100%);
+  max-height: min(52dvh, 420px);
+  padding: 8px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 10px;
+  background: #fff;
+  border-top: 1px solid #d8dee8;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 40px rgba(15, 23, 42, 0.2);
+  pointer-events: auto;
+  animation: sheetUp 220ms ease;
+}
+
+.handle {
+  width: 36px;
+  height: 4px;
+  margin: 2px auto 4px;
+  border-radius: 999px;
+  background: #cfc6b6;
 }
 
 .header {
@@ -17,38 +50,34 @@
 
 .title {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary, #172033);
+  font-weight: 900;
+  color: var(--color-brand-900);
 }
 
 .closeButton {
   background: none;
-  border: none;
+  border: 0;
   font-size: 14px;
-  color: var(--color-text-secondary, #5a6a82);
+  color: #64748b;
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 6px;
-}
-
-.closeButton:hover {
-  background: var(--color-hover, #e8edf5);
 }
 
 .urlRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: var(--color-input-bg, #ffffff);
-  border: 1px solid var(--color-border, #dde3ed);
-  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
   padding: 8px 10px;
 }
 
 .urlText {
   flex: 1;
   font-size: 12px;
-  color: var(--color-text-secondary, #5a6a82);
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -56,39 +85,38 @@
 
 .copyButton {
   flex-shrink: 0;
-  background: var(--color-primary, #172033);
+  background: var(--color-brand-900);
   color: #ffffff;
-  border: none;
-  border-radius: 6px;
+  border: 0;
+  border-radius: 10px;
   padding: 5px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 900;
   cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.copyButton:hover {
-  opacity: 0.85;
 }
 
 .qrToggle {
   background: none;
-  border: 1px solid var(--color-border, #dde3ed);
-  border-radius: 8px;
+  border: 1px solid #d8dee8;
+  border-radius: 12px;
   padding: 7px 12px;
   font-size: 12px;
-  color: var(--color-text-secondary, #5a6a82);
+  color: #64748b;
   cursor: pointer;
   text-align: center;
-  transition: background 0.15s;
-}
-
-.qrToggle:hover {
-  background: var(--color-hover, #e8edf5);
 }
 
 .qrWrap {
   display: flex;
   justify-content: center;
   padding: 12px 0 4px;
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
 }

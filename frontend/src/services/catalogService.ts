@@ -1,5 +1,6 @@
 import type { BuildingSummary, CatalogSpace } from '../types/catalog';
 import type { NavigationLocation } from '../types/navigation';
+import { getLocationDisplayName } from '../utils/displayNames';
 import { apiFetch } from './api';
 
 type BuildingCatalogDto = {
@@ -58,9 +59,11 @@ export async function searchSpaces(query: string, limit = 200): Promise<CatalogS
 }
 
 function mapLocationToCatalogSpace(location: NavigationLocation): CatalogSpace {
+  const name = location.spaceName ?? location.displayName;
   return {
     id: location.spaceId ?? location.id,
-    name: location.spaceName ?? location.displayName,
+    name,
+    displayName: getLocationDisplayName(location),
     type: toDisplaySpaceType(location.locationType),
     buildingId: location.buildingId,
     buildingName: location.buildingName,

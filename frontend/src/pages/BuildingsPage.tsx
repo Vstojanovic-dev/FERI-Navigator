@@ -6,8 +6,9 @@ import SearchField from '../components/SearchField';
 import SpaceDetailsView from '../components/SpaceDetailsView';
 import SubPageHeader from '../components/SubPageHeader';
 import { resolveAssetUrl } from '../services/api';
-import { fetchBuildings, fetchBuildingSpaces } from '../services/catalogService';
+import { fetchBuildings, fetchBuildingSpaces, searchSpaces } from '../services/catalogService';
 import type { BuildingSummary, CatalogSpace } from '../types/catalog';
+import { formatSpaceCount, getSpaceDisplayName } from '../utils/displayNames';
 import styles from './BuildingsPage.module.css';
 
 type BuildingsPageState = {
@@ -26,24 +27,24 @@ const BUILDING_PLAN_MAP: Record<string, string> = {
 
 const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
   'Objekt C': [
-    { id: 9001, name: 'C-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
-    { id: 9002, name: 'C-102', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9001, name: 'C-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: 'Predavanja in vaje za manjše skupine.', imageUrl: '/feri-logo.png', code: 'C-101', purpose: 'Predavanja', capacity: 45, notes: 'Projektor in bela tabla.' },
+    { id: 9002, name: 'C-102', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: 'Laboratorijske vaje.', imageUrl: '/feri-logo.png', code: 'C-102', purpose: 'Laboratorij', capacity: 24, notes: 'Računalniška učilnica.' },
   ],
   'Objekt E': [
-    { id: 9101, name: 'E-201', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt E', floor: '1. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9101, name: 'E-201', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt E', floor: '1. nadstropje', description: 'Klasična učilnica za predavanja.', imageUrl: '/feri-logo.png', code: 'E-201', purpose: 'Predavanja', capacity: 60 },
   ],
   'Objekt F': [
-    { id: 9201, name: 'F-001', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt F', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9201, name: 'F-001', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt F', floor: 'Pritličje', description: 'Učilnica za vaje.', imageUrl: '/feri-logo.png', code: 'F-001', purpose: 'Vaje', capacity: 32 },
   ],
   'Objekt G': [
-    { id: 9301, name: 'G-001', type: 'Predavalnica', buildingId: 0, buildingName: 'Objekt G', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
-    { id: 9302, name: 'Galerija', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G', floor: '4. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9301, name: 'G-001', type: 'Predavalnica', buildingId: 0, buildingName: 'Objekt G', floor: 'Pritličje', description: 'Večja predavalnica.', imageUrl: '/feri-logo.png', code: 'G-001', purpose: 'Predavanja', capacity: 120 },
+    { id: 9302, name: 'Galerija', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G', floor: '4. nadstropje', description: 'Galerijski prostor za dogodke in predstavitve.', imageUrl: '/feri-logo.png', code: 'G-GAL', purpose: 'Dogodki', capacity: 80 },
   ],
   'Objekt G2': [
-    { id: 9401, name: 'G2-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G2', floor: '1. nadstropje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9401, name: 'G2-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G2', floor: '1. nadstropje', description: 'Srednje velika učilnica.', imageUrl: '/feri-logo.png', code: 'G2-101', purpose: 'Predavanja', capacity: 40 },
   ],
   'Objekt G3': [
-    { id: 9501, name: 'G3-301', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt G3', floor: 'Pritličje', description: null, imageUrl: '/feri-logo.png' },
+    { id: 9501, name: 'G3-301', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt G3', floor: 'Pritličje', description: 'Laboratorij za praktične vaje.', imageUrl: '/feri-logo.png', code: 'G3-301', purpose: 'Laboratorij', capacity: 20 },
   ],
 };
 
@@ -55,6 +56,7 @@ function BuildingsPage() {
   const selectedSpace = state?.selectedSpace ?? null;
   const [searchText, setSearchText] = useState('');
   const [buildings, setBuildings] = useState<BuildingSummary[]>([]);
+  const [allSpaces, setAllSpaces] = useState<CatalogSpace[]>([]);
   const [buildingSpaces, setBuildingSpaces] = useState<CatalogSpace[]>([]);
 
   useEffect(() => {
@@ -69,6 +71,26 @@ function BuildingsPage() {
       .catch(() => {
         if (!cancelled) {
           setBuildings([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    searchSpaces('')
+      .then((items) => {
+        if (!cancelled) {
+          setAllSpaces(items);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAllSpaces([]);
         }
       });
 
@@ -102,16 +124,50 @@ function BuildingsPage() {
     };
   }, [selectedBuilding]);
 
+  const spaceCountByBuildingId = useMemo(() => {
+    const counts = new Map<number, number>();
+
+    for (const space of allSpaces) {
+      if (space.buildingId > 0) {
+        counts.set(space.buildingId, (counts.get(space.buildingId) ?? 0) + 1);
+      }
+    }
+
+    for (const building of buildings) {
+      if (counts.has(building.id)) {
+        continue;
+      }
+      const demoSpaces = DEMO_SPACES_BY_BUILDING[building.name];
+      if (demoSpaces) {
+        counts.set(building.id, demoSpaces.length);
+      }
+    }
+
+    return counts;
+  }, [allSpaces, buildings]);
+
+  const getBuildingSpaceCount = (building: BuildingSummary) => {
+    const counted = spaceCountByBuildingId.get(building.id);
+    if (counted != null) {
+      return counted;
+    }
+    return building.spaceCount;
+  };
+
   const filteredBuildings = useMemo(() => {
     const query = searchText.trim().toLowerCase();
+
+    const sortBySpaceCount = (left: BuildingSummary, right: BuildingSummary) =>
+      getBuildingSpaceCount(right) - getBuildingSpaceCount(left);
+
     if (!query) {
-      return buildings;
+      return [...buildings].sort(sortBySpaceCount);
     }
 
     const scoreBuilding = (building: BuildingSummary) => {
       const name = building.name.toLowerCase();
       const description = (building.description ?? '').toLowerCase();
-      const spaceCountText = String(building.spaceCount);
+      const spaceCountText = formatSpaceCount(getBuildingSpaceCount(building)).toLowerCase();
 
       if (name.startsWith(query)) {
         return 0;
@@ -132,24 +188,19 @@ function BuildingsPage() {
         if (byScore !== 0) {
           return byScore;
         }
-        return left.name.localeCompare(right.name);
+        return sortBySpaceCount(left, right);
       });
-  }, [buildings, searchText]);
+  }, [buildings, searchText, spaceCountByBuildingId]);
 
   const openSpaceNavigation = (space: CatalogSpace) => {
-    navigate('/navigacija', { state: { initialTarget: space.name } });
+    navigate('/navigacija', { state: { initialTarget: getSpaceDisplayName(space) } });
   };
 
   if (selectedSpace) {
     return (
       <SpaceDetailsView
         space={selectedSpace}
-        onBack={() =>
-          navigate('/objekti', {
-            replace: true,
-            state: selectedBuilding ? ({ selectedBuilding } satisfies BuildingsPageState) : null,
-          })
-        }
+        onBack={() => navigate(-1)}
         onFindClassroom={openSpaceNavigation}
         showAllMenuItems
       />
@@ -188,7 +239,6 @@ function BuildingsPage() {
                   className={styles.spaceCard}
                   onClick={() =>
                     navigate('/objekti', {
-                      replace: true,
                       state: {
                         selectedBuilding,
                         selectedSpace: space,
@@ -201,7 +251,7 @@ function BuildingsPage() {
                     alt={space.name}
                     className={styles.spaceCardImage}
                   />
-                  <h3 className={styles.spaceCardTitle}>{space.name}</h3>
+                  <h3 className={styles.spaceCardTitle}>{getSpaceDisplayName(space)}</h3>
                 </article>
               ))}
             </div>
@@ -227,7 +277,6 @@ function BuildingsPage() {
                 className={styles.card}
                 onClick={() =>
                   navigate('/objekti', {
-                    replace: true,
                     state: { selectedBuilding: building } satisfies BuildingsPageState,
                   })
                 }
@@ -239,10 +288,7 @@ function BuildingsPage() {
                 />
                 <div className={styles.cardBody}>
                   <h2 className={styles.cardTitle}>{building.name}</h2>
-                  <p className={styles.cardText}>{building.description ?? ''}</p>
-                  <p className={styles.cardMeta}>
-                    {building.spaceCount === 1 ? '1 prostor' : `${building.spaceCount} prostorov`}
-                  </p>
+                  <p className={styles.cardMeta}>{formatSpaceCount(getBuildingSpaceCount(building))}</p>
                 </div>
               </article>
             ))}

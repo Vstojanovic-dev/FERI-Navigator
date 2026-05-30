@@ -1,4 +1,7 @@
+import { useState } from 'react';
 import type { NavigationLocation } from '../../types/navigation';
+import { getLocationDisplayName } from '../../utils/displayNames';
+import { isQueryMatchingSelection } from './locationSelection';
 import { isNearestTarget, type TargetSelection } from './navigationTargets';
 import styles from './NavigationView.module.css';
 
@@ -25,8 +28,13 @@ function LocationPicker({
   onQueryChange,
   onSelect,
 }: LocationPickerProps) {
-  const showResults = !selected && query.trim().length > 0;
-  const hasResults = results.length > 0 || Boolean(nearestTarget);
+  const [isFocused, setIsFocused] = useState(false);
+  const isSelectionCommitted = isQueryMatchingSelection(query, selected);
+  const showResults =
+    isFocused &&
+    !isSelectionCommitted &&
+    query.trim().length > 0 &&
+    (results.length > 0 || Boolean(nearestTarget));
 
   return (
     <div className={styles.picker}>
@@ -38,18 +46,22 @@ function LocationPicker({
         type="text"
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          window.setTimeout(() => setIsFocused(false), 120);
+        }}
         placeholder={placeholder}
-        className={styles.input}
+        className={`${styles.input} ${isSelectionCommitted ? styles.inputSelected : ''}`}
         autoComplete="off"
       />
-      {selected && (
+      {selected && isSelectionCommitted && (
         <p className={styles.selectionText}>
           {isNearestTarget(selected)
             ? selected.meta
             : `${selected.buildingCode} - ${selected.floorLabel}`}
         </p>
       )}
-      {showResults && hasResults && (
+      {showResults && (
         <div className={styles.resultsBox}>
           {nearestTarget && (
             <button
@@ -69,7 +81,7 @@ function LocationPicker({
               className={styles.resultButton}
               onClick={() => onSelect(location)}
             >
-              <span className={styles.resultName}>{location.displayName}</span>
+              <span className={styles.resultName}>{getLocationDisplayName(location)}</span>
               <span className={styles.resultMeta}>
                 {location.buildingCode} - {location.floorLabel}
               </span>

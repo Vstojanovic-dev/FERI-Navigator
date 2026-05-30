@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
+import { getLocationDisplayName } from '../../utils/displayNames';
+import { findLocationByQuery } from '../../utils/locationMatch';
+import { isSearchTypingForward } from '../../utils/searchAutofill';
+import { getTargetSelectionLabel } from './locationSelection';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
 import SharePanel from './SharePanel';
@@ -9,6 +13,26 @@ import StepList from './StepList';
 import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
 import styles from './NavigationView.module.css';
+
+const STEP_ICONS: Record<string, string> = {
+  straight: '↑',
+  slight_left: '↖',
+  left: '←',
+  slight_right: '↗',
+  right: '→',
+  turn_back: '↺',
+  stairs_up: '⇡',
+  stairs_down: '⇣',
+  elevator: '🛗',
+  elevator_exit: '⇢',
+  enter: '↪',
+  destination: '●',
+  building_transfer: '⇄',
+};
+
+function stepIcon(step: { icon: string; maneuverType: string }) {
+  return STEP_ICONS[step.icon] ?? STEP_ICONS[step.maneuverType] ?? '↑';
+}
 
 type NavigationViewProps = {
   initialTarget: string;
@@ -39,12 +63,10 @@ function NavigationView({
   const [error, setError] = useState('');
   const [isRouteVisible, setIsRouteVisible] = useState(false);
   const [transitionNonce, setTransitionNonce] = useState(0);
-
-  // Share state
-  const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [shareError, setShareError] = useState('');
-  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
+  const [routeMode, setRouteMode] = useState<'withLift' | 'withoutLift'>('withLift');
+  const prevFromQueryRef = useRef('');
+  const prevToQueryRef = useRef('');
 
   // Bootstrap iz shared linka
   useEffect(() => {
@@ -95,15 +117,84 @@ function NavigationView({
     setIsFormCollapsing(false);
     setIsRouteVisible(false);
     setTransitionNonce(0);
-    setShareUrl(null);
-    setShareError('');
-    setIsSharePanelOpen(false);
+    prevToQueryRef.current = '';
   }, [initialTarget]);
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
   const activeSegment = route?.segments[activeSegmentIndex] ?? null;
+  const activeStep = activeSegment?.steps[activeStepIndex] ?? null;
   const canRoute = Boolean(fromLocation && toTarget && !isRouting);
+
+  useEffect(() => {
+    if (!initialTarget.trim() || toTarget) {
+      return;
+    }
+
+    const normalizedInitial = initialTarget.trim().toLowerCase();
+    if (normalizedInitial === NEAREST_WC_TARGET.displayName.toLowerCase()) {
+      setToTarget(NEAREST_WC_TARGET);
+      setToQuery(NEAREST_WC_TARGET.displayName);
+      prevToQueryRef.current = NEAREST_WC_TARGET.displayName;
+      return;
+    }
+
+    const match = findLocationByQuery(initialTarget, toResults);
+    if (!match) {
+      return;
+    }
+
+    const label = getLocationDisplayName(match);
+    setToTarget(match);
+    setToQuery(label);
+    prevToQueryRef.current = label;
+  }, [initialTarget, toResults, toTarget]);
+
+  useEffect(() => {
+    const previousValue = prevFromQueryRef.current;
+    prevFromQueryRef.current = fromQuery;
+
+    const query = fromQuery.trim();
+    if (!query || fromLocation || fromResults.length !== 1) {
+      return;
+    }
+    if (!isSearchTypingForward(previousValue, fromQuery)) {
+      return;
+    }
+
+    const only = fromResults[0];
+    const label = getLocationDisplayName(only);
+    if (fromQuery === label) {
+      return;
+    }
+
+    setFromLocation(only);
+    setFromQuery(label);
+    prevFromQueryRef.current = label;
+  }, [fromQuery, fromResults, fromLocation]);
+
+  useEffect(() => {
+    const previousValue = prevToQueryRef.current;
+    prevToQueryRef.current = toQuery;
+
+    const query = toQuery.trim();
+    if (!query || toTarget || toResults.length !== 1) {
+      return;
+    }
+    if (!isSearchTypingForward(previousValue, toQuery)) {
+      return;
+    }
+
+    const only = toResults[0];
+    const label = getLocationDisplayName(only);
+    if (toQuery === label || toQuery === getTargetSelectionLabel(only)) {
+      return;
+    }
+
+    setToTarget(only);
+    setToQuery(label);
+    prevToQueryRef.current = label;
+  }, [toQuery, toResults, toTarget]);
 
   const handleRoute = async () => {
     if (!fromLocation || !toTarget) {
@@ -113,10 +204,6 @@ function NavigationView({
 
     setIsRouting(true);
     setError('');
-    setShareUrl(null);
-    setShareError('');
-    setIsSharePanelOpen(false);
-
     try {
       const nextRoute = await fetchRoute({
         fromLocationId: fromLocation.id,
@@ -140,30 +227,6 @@ function NavigationView({
       setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
     } finally {
       setIsRouting(false);
-    }
-  };
-
-  const handleShare = async () => {
-    if (!fromLocation || !toTarget) return;
-
-    setIsCreatingShare(true);
-    setShareError('');
-
-    try {
-      const response = await createShare({
-        fromLocationId: fromLocation.id,
-        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
-        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-        allowElevator: true,
-      });
-      setShareUrl(response.shareUrl);
-      setIsSharePanelOpen(true);
-    } catch (shareErr) {
-      setShareError(
-        shareErr instanceof ApiError ? shareErr.message : 'Napaka pri ustvarjanju povezave.'
-      );
-    } finally {
-      setIsCreatingShare(false);
     }
   };
 
@@ -196,10 +259,19 @@ function NavigationView({
     setActiveStepIndex(0);
   };
 
-  const compactFromLabel = fromLocation?.displayName || fromQuery || 'Začetna lokacija';
-  const compactToLabel = toTarget?.displayName || toQuery || 'Ciljna lokacija';
+  const compactFromLabel = fromLocation
+    ? getLocationDisplayName(fromLocation)
+    : fromQuery || 'Začetna lokacija';
+  const compactToLabel = toTarget
+    ? isNearestTarget(toTarget)
+      ? toTarget.displayName
+      : getLocationDisplayName(toTarget)
+    : toQuery || 'Ciljna lokacija';
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = Boolean(route && route.segments.length > 1);
+  const totalRouteSteps =
+    route?.segments.reduce((sum, segment) => sum + segment.steps.length, 0) ?? 0;
+  const showStepNav = totalRouteSteps > 1;
   const canMovePrev = Boolean(
     route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0)
   );
@@ -214,19 +286,32 @@ function NavigationView({
 
   const stepsWindowSize = 4;
   const stepsWindowStart = activeSegment
-    ? Math.max(
-        0,
-        Math.min(
-          activeSegment.steps.length - stepsWindowSize,
-          activeStepIndex - Math.floor(stepsWindowSize / 2)
-        )
-      )
+    ? Math.floor(activeStepIndex / stepsWindowSize) * stepsWindowSize
     : 0;
 
   const segmentLabel = route?.segments[activeSegmentIndex]?.floorLabel ?? '';
 
+  const handleShare = async () => {
+    if (!fromLocation || !toTarget) {
+      window.alert('Deljenje poti bo dodano kasneje.');
+      return;
+    }
+
+    try {
+      const share = await createShare({
+        fromLocationId: fromLocation.id,
+        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+        allowElevator: true,
+      });
+      setShareUrl(share.shareUrl);
+    } catch {
+      window.alert('Deljenje poti bo dodano kasneje.');
+    }
+  };
+
   return (
-    <section className={styles.content}>
+    <section className={`${styles.content} ${showRouteLayout ? styles.contentRoute : ''}`}>
       {isFormExpanded || isFormCollapsing ? (
         <div
           className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}
@@ -239,16 +324,17 @@ function NavigationView({
             selected={fromLocation}
             results={fromResults}
             onQueryChange={(value) => {
+              prevFromQueryRef.current = fromQuery;
               setFromQuery(value);
               setFromLocation(null);
               setRoute(null);
-              setShareUrl(null);
-              setIsSharePanelOpen(false);
             }}
             onSelect={(location) => {
               if (isNearestTarget(location)) return;
+              const label = getLocationDisplayName(location);
               setFromLocation(location);
-              setFromQuery(location.displayName);
+              setFromQuery(label);
+              prevFromQueryRef.current = label;
             }}
           />
 
@@ -261,15 +347,16 @@ function NavigationView({
             results={toResults}
             nearestTarget={NEAREST_WC_TARGET}
             onQueryChange={(value) => {
+              prevToQueryRef.current = toQuery;
               setToQuery(value);
               setToTarget(null);
               setRoute(null);
-              setShareUrl(null);
-              setIsSharePanelOpen(false);
             }}
             onSelect={(target) => {
+              const label = isNearestTarget(target) ? target.displayName : getLocationDisplayName(target);
               setToTarget(target);
-              setToQuery(target.displayName);
+              setToQuery(label);
+              prevToQueryRef.current = label;
             }}
           />
 
@@ -284,100 +371,136 @@ function NavigationView({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          className={`${styles.compactRouteRow} ${styles.compactRouteRowVisible}`}
-          onClick={() => {
-            setIsFormExpanded(true);
-            setIsRouteVisible(false);
-            setIsSharePanelOpen(false);
-          }}
-          aria-label="Uredi lokacije"
-        >
-          <span className={styles.compactRouteField}>{compactFromLabel}</span>
-          <span className={styles.compactRouteArrow}>→</span>
-          <span className={styles.compactRouteField}>{compactToLabel}</span>
-        </button>
+        <div className={`${styles.compactRouteBar} ${styles.compactRouteRowVisible}`}>
+          <button
+            type="button"
+            className={styles.compactRouteRow}
+            onClick={() => {
+              setIsFormExpanded(true);
+              setIsRouteVisible(false);
+            }}
+            aria-label="Uredi lokacije"
+          >
+            <span className={styles.compactRouteField}>{compactFromLabel}</span>
+            <span className={styles.compactRouteArrow}>→</span>
+            <span className={styles.compactRouteField}>{compactToLabel}</span>
+          </button>
+          {route && (
+            <button
+              type="button"
+              className={styles.shareButton}
+              onClick={handleShare}
+              aria-label="Deli pot"
+            >
+              <span className={styles.shareIcon} aria-hidden="true">
+                ✈
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
       {error && <p className={styles.errorText}>{error}</p>}
 
       {showRouteLayout && route && activeSegment && (
         <div className={`${styles.routeLayout} ${isRouteVisible ? styles.routeLayoutVisible : ''}`}>
-          {hasMultipleSegments && (
-            <div className={styles.segmentIndicator}>
+          <div className={styles.routeControlsRow}>
+            <button
+              type="button"
+              className={styles.segmentInfoButton}
+              onClick={
+                hasMultipleSegments
+                  ? () => jumpToSegment((activeSegmentIndex + 1) % route.segments.length)
+                  : undefined
+              }
+              disabled={!hasMultipleSegments}
+              aria-label={hasMultipleSegments ? 'Spremeni deonico' : segmentLabel}
+            >
+              <span className={styles.segmentMeta}>{segmentLabel}</span>
+              {hasMultipleSegments && (
+                <>
+                  <span className={styles.segmentCount}>
+                    {activeSegmentIndex + 1}/{route.segments.length}
+                  </span>
+                  <span className={styles.segmentSwitchIcon}>↻</span>
+                </>
+              )}
+            </button>
+            <div className={styles.liftToggle} role="group" aria-label="Izbira poti z liftom">
               <button
                 type="button"
-                className={styles.segmentInfoButton}
-                onClick={() => jumpToSegment((activeSegmentIndex + 1) % route.segments.length)}
-                aria-label="Spremeni deonico"
+                className={`${styles.liftOption} ${routeMode === 'withLift' ? styles.liftOptionActive : ''}`}
+                onClick={() => setRouteMode('withLift')}
               >
-                <span className={styles.segmentMeta}>{segmentLabel}</span>
-                <span className={styles.segmentCount}>
-                  {activeSegmentIndex + 1}/{route.segments.length}
-                </span>
-                <span className={styles.segmentSwitchIcon}>↻</span>
+                Z liftom
+              </button>
+              <button
+                type="button"
+                className={`${styles.liftOption} ${routeMode === 'withoutLift' ? styles.liftOptionActive : ''}`}
+                onClick={() => setRouteMode('withoutLift')}
+              >
+                Brez lifta
               </button>
             </div>
-          )}
+          </div>
           <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
             <div className={styles.mapAnimated}>
               <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
             </div>
           </div>
-          <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
-            <div className={styles.stepsAnimated}>
-              <StepList
-                segment={activeSegment}
-                activeStepIndex={activeStepIndex}
-                onSelectStep={setActiveStepIndex}
-                windowStart={stepsWindowStart}
-                windowSize={stepsWindowSize}
-              />
+          <div className={styles.stepsSection}>
+            {activeStep && (
+              <article className={styles.activeStepHero}>
+                <span className={styles.activeStepHeroIcon} aria-hidden="true">
+                  {stepIcon(activeStep)}
+                </span>
+                <div>
+                  <p className={styles.activeStepHeroLabel}>Trenutni korak</p>
+                  <p className={styles.activeStepHeroText}>{activeStep.text}</p>
+                </div>
+              </article>
+            )}
+            <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
+              <div className={styles.stepsAnimated}>
+                <StepList
+                  segment={activeSegment}
+                  activeStepIndex={activeStepIndex}
+                  onSelectStep={setActiveStepIndex}
+                  windowStart={stepsWindowStart}
+                  windowSize={stepsWindowSize}
+                />
+              </div>
             </div>
-          </div>
-
-          {/* Share dugme i panel */}
-          <div className={styles.shareRow}>
-            <button
-              type="button"
-              className={styles.shareButton}
-              onClick={handleShare}
-              disabled={isCreatingShare}
-              aria-label="Deli pot"
-            >
-              {isCreatingShare ? 'Ustvarjam...' : '↗ Podeli'}
-            </button>
-          </div>
-          {shareError && <p className={styles.errorText}>{shareError}</p>}
-          {isSharePanelOpen && shareUrl && (
-            <SharePanel shareUrl={shareUrl} onClose={() => setIsSharePanelOpen(false)} />
-          )}
-
-          <div className={styles.bottomNav}>
-            <div className={styles.navButtons}>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={() => moveRouteStep(-1)}
-                disabled={!canMovePrev}
-                aria-label="Prejšnji korak"
-              >
-                <span className={styles.navArrow}>←</span>
-              </button>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={() => moveRouteStep(1)}
-                disabled={!canMoveNext}
-                aria-label="Naprej"
-              >
-                <span className={styles.navArrow}>→</span>
-              </button>
-            </div>
+            {showStepNav && (
+              <div className={styles.bottomNav}>
+                <div className={styles.navButtons}>
+                  <button
+                    type="button"
+                    className={styles.navButton}
+                    onClick={() => moveRouteStep(-1)}
+                    disabled={!canMovePrev}
+                    aria-label="Prejšnji korak"
+                  >
+                    <span className={styles.navArrow}>←</span>
+                  </button>
+                  <div className={styles.navSpacer} aria-hidden="true" />
+                  <button
+                    type="button"
+                    className={styles.navButton}
+                    onClick={() => moveRouteStep(1)}
+                    disabled={!canMoveNext}
+                    aria-label="Naprej"
+                  >
+                    <span className={styles.navArrow}>→</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
+
+      {shareUrl && <SharePanel shareUrl={shareUrl} onClose={() => setShareUrl(null)} />}
     </section>
   );
 }
