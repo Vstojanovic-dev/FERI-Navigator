@@ -8,11 +8,11 @@ import SharePanel from './SharePanel';
 import StepList from './StepList';
 import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
+import { useRoutePdf } from './useRoutePdf';
 import styles from './NavigationView.module.css';
 
 type NavigationViewProps = {
   initialTarget: string;
-  // Opciono — predpopunjava oba polja iz shared linka
   sharedFromLocationId?: number;
   sharedToLocationId?: number;
   sharedTargetType?: string;
@@ -40,13 +40,13 @@ function NavigationView({
   const [isRouteVisible, setIsRouteVisible] = useState(false);
   const [transitionNonce, setTransitionNonce] = useState(0);
 
-  // Share state
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState('');
   const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
 
-  // Bootstrap iz shared linka
+  const { isGenerating: isGeneratingPdf, downloadPdf } = useRoutePdf();
+
   useEffect(() => {
     if (!sharedFromLocationId) return;
 
@@ -83,7 +83,6 @@ function NavigationView({
     };
 
     routeFromShare();
-    // Namerno samo ob mountu — ne ponavljamo pri svakom renderu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -110,13 +109,11 @@ function NavigationView({
       setError('Izberi začetno in ciljno lokacijo iz seznama.');
       return;
     }
-
     setIsRouting(true);
     setError('');
     setShareUrl(null);
     setShareError('');
     setIsSharePanelOpen(false);
-
     try {
       const nextRoute = await fetchRoute({
         fromLocationId: fromLocation.id,
@@ -145,10 +142,8 @@ function NavigationView({
 
   const handleShare = async () => {
     if (!fromLocation || !toTarget) return;
-
     setIsCreatingShare(true);
     setShareError('');
-
     try {
       const response = await createShare({
         fromLocationId: fromLocation.id,
@@ -167,30 +162,30 @@ function NavigationView({
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!route) return;
+    downloadPdf(route);
+  };
+
   const moveRouteStep = (direction: 1 | -1) => {
     if (!route) return;
     const segment = route.segments[activeSegmentIndex];
     if (!segment) return;
-
     const nextStepIndex = activeStepIndex + direction;
     if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
       setActiveStepIndex(nextStepIndex);
       return;
     }
-
     const nextSegmentIndex = activeSegmentIndex + direction;
     const nextSegment = route.segments[nextSegmentIndex];
     if (!nextSegment) return;
-
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(nextSegmentIndex);
     setActiveStepIndex(direction > 0 ? 0 : Math.max(nextSegment.steps.length - 1, 0));
   };
 
   const jumpToSegment = (index: number) => {
-    if (!route || index === activeSegmentIndex || index < 0 || index >= route.segments.length) {
-      return;
-    }
+    if (!route || index === activeSegmentIndex || index < 0 || index >= route.segments.length) return;
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(index);
     setActiveStepIndex(0);
@@ -211,7 +206,6 @@ function NavigationView({
         activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
       )
   );
-
   const stepsWindowSize = 4;
   const stepsWindowStart = activeSegment
     ? Math.max(
@@ -222,15 +216,12 @@ function NavigationView({
         )
       )
     : 0;
-
   const segmentLabel = route?.segments[activeSegmentIndex]?.floorLabel ?? '';
 
   return (
     <section className={styles.content}>
       {isFormExpanded || isFormCollapsing ? (
-        <div
-          className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}
-        >
+        <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
           <LocationPicker
             id="start-location"
             label="Začetna lokacija"
@@ -251,7 +242,6 @@ function NavigationView({
               setFromQuery(location.displayName);
             }}
           />
-
           <LocationPicker
             id="target-location"
             label="Ciljna lokacija"
@@ -272,7 +262,6 @@ function NavigationView({
               setToQuery(target.displayName);
             }}
           />
-
           <button
             type="button"
             className={`${styles.primaryButton} ${!canRoute ? styles.disabledButton : ''}`}
@@ -337,7 +326,6 @@ function NavigationView({
             </div>
           </div>
 
-          {/* Share dugme i panel */}
           <div className={styles.shareRow}>
             <button
               type="button"
@@ -347,6 +335,15 @@ function NavigationView({
               aria-label="Deli pot"
             >
               {isCreatingShare ? 'Ustvarjam...' : '↗ Podeli'}
+            </button>
+            <button
+              type="button"
+              className={styles.pdfButton}
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              aria-label="Prenesi PDF"
+            >
+              {isGeneratingPdf ? 'Ustvarjam PDF...' : '⬇ Natisni PDF'}
             </button>
           </div>
           {shareError && <p className={styles.errorText}>{shareError}</p>}
