@@ -10,6 +10,48 @@
 
 ---
 
+## Execution State
+
+Ovaj plan vise nije greenfield. Sledece stavke su vec implementirane i commitovane:
+
+- `fix: repair windows maven wrapper`
+- `chore: add production-ready backend profiles`
+- `feat: centralize security and disable admin by default`
+- `docs: define flyway and admin export workflow`
+- `ops: add production compose and health-ready containers`
+
+To znaci da agenti za preostale taskove moraju polaziti od sledeceg stanja:
+
+- `backend/mvnw.cmd` je popravljen i treba ga koristiti kao primarnu Maven entry tacku.
+- `SecurityConfig` vec postoji i uvodi odvojeni admin chain i public chain.
+- `NavigationController` vise nema lokalne `try/catch` blokove za `NavigationRouteException`.
+- `docker-compose.prod.yml` postoji i modeluje bundled `postgres` + `backend` + `frontend`.
+- `Flyway` skeleton postoji, ali bootstrap baze i dalje zavisi od `database/init`.
+
+## Current Failure Baseline
+
+Pre nastavka rada poznat je sledeci stvarni baseline iz `.\mvnw.cmd test`:
+
+- `AdminModeGuardTest` moze udariti u stvarni DB/Flyway path ako se test setup ne izoluje.
+- `NavigationControllerTest` je osetljiv na security/share-service wiring i mora ostati MVC slice, ne full application boot.
+- `NavigationRouteServiceTest` je vec imao `UnnecessaryStubbing` problem i ne treba ga vracati.
+
+Agenti ne treba da trosе kontekst na ponovno otkrivanje ovih signala. Ako se oni vrate, tretiraj ih kao regresiju u test harness-u ili scope-u, ne kao novu nepoznanicu.
+
+## Global Guardrails For Remaining Tasks
+
+- Ne otvaraj scope prema vec commitovanim Task 1-4 fajlovima osim ako je potreban strogo minimalan follow-up fix otkriven review-om.
+- Ako task pominje cilj koji je vec zatvoren u prethodnom tasku, tretiraj ga kao invariant koji treba sacuvati, ne kao novu implementaciju.
+- Kada menjas testove, cilj je da testovi budu stabilniji i precizniji, ne da se samo “umire” dodavanjem lenient ponasanja bez pokrivanja stvarnog buga.
+- Za frontend taskove koristi postojeci `frontend/src/services/api.ts` kao jedinstvenu fetch tacku kad god je moguce.
+- Za admin taskove zadrzi lokalni alat model. Ne uvoditi remote admin runtime ni admin deploy topologiju u ovim taskovima.
+
+## Remaining Task Handoff
+
+Sekcije ispod su prepisane tako da agent moze da uzme samo jednu sekciju i radi iz nje, bez citanja cele istorije threada.
+
+---
+
 ## File Structure Map
 
 ### Backend application and API
@@ -518,6 +560,32 @@ git commit -m "ops: add production compose and health-ready containers"
 - Create: `backend/src/test/java/com/navigator/backend/service/AStarServiceTest.java`
 - Modify: `backend/src/test/java/com/navigator/backend/controller/NavigationControllerTest.java`
 
+**Task intent in one sentence:**
+Ukloniti poznati A* bug, pretvoriti null/invalid graph podatke u stabilne backend greske i vratiti backend unit/web testove u pouzdano zeleno stanje bez sirenja scope-a na nove API feature-e.
+
+**Already true before this task starts:**
+
+- `ApiExceptionHandler` vec postoji.
+- `NavigationController` je vec ociscen od lokalnih route/share `try/catch` blokova.
+- Ovaj task ne treba da dira `SecurityConfig`, `MapEditorController`, `AdminModeGuardTest` ni Docker/deploy fajlove.
+
+**Do not do in this task:**
+
+- ne uvoditi rate limiting,
+- ne menjati `NavGraphController`,
+- ne prepravljati SQL ili JPA model,
+- ne pokusavati da resis full integration test DB/Flyway setup van navedenog file scope-a.
+
+**Success conditions:**
+
+- regression test za stale-priority A* bug postoji i prolazi,
+- `NavigationRouteService` vise ne puca na null/missing graph podatke vec vraca stabilan exception path,
+- `NavigationControllerTest` prolazi pod aktuelnim security setup-om,
+- `NavigationRouteServiceTest` nema `UnnecessaryStubbing`,
+- fokusirani test run
+  - `.\mvnw.cmd "-Dtest=AStarServiceTest,NavigationRouteServiceTest,NavigationControllerTest" test`
+  mora biti zelen.
+
 - [ ] **Step 1: Write a regression test for the A* priority queue bug**
 
 Create `AStarServiceTest.java` with a scenario where a better path is discovered after a node first enters the open set.
@@ -565,9 +633,9 @@ private double safeCoordinate(BigDecimal value, String field) {
 }
 ```
 
-- [ ] **Step 4: Normalize navigation error responses**
+- [ ] **Step 4: Preserve normalized navigation error responses**
 
-Remove per-endpoint `try/catch` duplication from `NavigationController.java` once `ApiExceptionHandler` is in place.
+Ova stavka je vec zatvorena u Task 2. U Task 5 je tretiraj kao invariant: ne vracaj lokalne `try/catch` blokove u controller layer.
 
 ```java
 @GetMapping("/route")
@@ -576,9 +644,9 @@ public RouteResponseDto getRoute(...) {
 }
 ```
 
-- [ ] **Step 5: Add request parameter validation**
+- [ ] **Step 5: Add request parameter validation when scope allows it**
 
-Constrain values in controller method signatures or request-level validation.
+Ako controller signature validation jos stvarno nedostaje i moze da se implementira bez izlaska iz ownership liste za konkretnu egzekuciju, dodaj je. Ako odgovarajuci controller fajl nije u scope-u, nemoj potajno siriti task; zabelezi da validation ostaje follow-up i zavrsi owned stability work.
 
 ```java
 public ResponseEntity<List<NavigationLocationDto>> getLocations(
@@ -593,6 +661,14 @@ Run:
 `./mvnw.cmd -Dtest=AStarServiceTest,NavigationRouteServiceTest,NavigationControllerTest test`
 
 Expected: regression coverage proves that lower-cost route refresh works, route errors remain stable, and no NPEs surface in targeted scenarios.
+
+Expected konkretno znaci:
+
+- `BUILD SUCCESS`
+- A* regression dokazuje lower-cost refresh
+- `NavigationControllerTest` startuje sa potrebnim mockovima pod trenutnim security wiring-om
+- nema `UnnecessaryStubbingException`
+- nema novih NPE-style backend failure-a u targetiranim testovima
 
 - [ ] **Step 7: Commit**
 
@@ -611,6 +687,31 @@ git commit -m "fix: harden routing and navigation API behavior"
 - Modify: `frontend/src/features/navigation/RouteMap.tsx`
 - Modify: `frontend/src/features/navigation/NavigationView.tsx`
 - Modify: `frontend/src/pages/NavigationPage.tsx`
+
+**Task intent in one sentence:**
+Ukloniti implicitne production fallback-e, smanjiti broj suvisnih search requestova i uciniti route/map prikaz otpornim na los ili nepotpun backend payload.
+
+**Already true before this task starts:**
+
+- frontend vec ima `api.ts`, ali neki tokovi jos imaju lokalni fetch/error parsing,
+- `VITE_API_BASE_URL` postoji kao env koncept,
+- backend public runtime ide iza `/api` proxy-ja u production compose modelu.
+
+**Do not do in this task:**
+
+- ne redizajnirati UI,
+- ne menjati admin frontend,
+- ne uvoditi novu global state arhitekturu,
+- ne rasipati fetch logiku na vise helpera kad vec postoji `api.ts`.
+
+**Success conditions:**
+
+- public app build failuje ili jasno signalizira kada prod nema `VITE_API_BASE_URL`,
+- prazan query ne salje mrezu,
+- search je debounce-ovan,
+- route rendering ne puca na `0/NaN/null` koordinatama ni na premalo path point-ova,
+- `npm.cmd run build` prolazi,
+- `npm.cmd run test:e2e` ostaje zelen ili pada samo na stvarni UI regresioni signal.
 
 - [ ] **Step 1: Centralize frontend runtime config and reject invalid production config**
 
@@ -664,6 +765,13 @@ const safeWidth = Number.isFinite(segment.coordinateWidth) && segment.coordinate
 
 And only render the polyline if at least 2 valid points exist.
 
+Tretiraj sledece kao first-class malformed slucajeve:
+
+- `coordinateWidth` ili `coordinateHeight` je `0`, `null` ili `NaN`
+- `segment.path` nedostaje
+- neki path point ima ne-numericke koordinate
+- backend vrati prazan `segments` niz posle nominalno uspesnog route poziva
+
 - [ ] **Step 5: Normalize route fetch error handling in `NavigationPage.tsx`**
 
 Use the shared `apiFetch`/`ApiError` path instead of open-coded JSON parsing.
@@ -685,7 +793,11 @@ Run:
 
 `npm.cmd run test:e2e`
 
-Expected: the main app builds with explicit config semantics and the smoke test still covers the primary navigation path.
+Expected:
+
+- build koristi shared runtime-config path
+- nijedan promenjeni route fetch path ne zaobilazi `api.ts`
+- smoke test i dalje dokazuje makar jedan route-related user journey, ne samo shell render
 
 - [ ] **Step 7: Commit**
 
@@ -701,6 +813,29 @@ git commit -m "fix: harden frontend runtime config and route rendering"
 - Create: `frontend/admin/src/config.ts`
 - Create: `frontend/admin/.env.example`
 - Modify: `docs/admin.md`
+
+**Task intent in one sentence:**
+Uciniti da admin frontend sam u sebi jasno komunicira da je lokalni alat za export workflow, a ne hosted control panel, bez menjanja njegovog osnovnog funkcionalnog toka.
+
+**Already true before this task starts:**
+
+- backend admin mode je po default-u ugasen u `prod`,
+- docs vec tvrde da admin export ide kroz migration workflow,
+- admin UI i dalje ima lokalni `http://localhost:8080` fallback u kodu.
+
+**Do not do in this task:**
+
+- ne uvoditi auth u admin frontend,
+- ne praviti poseban admin deployment manifest,
+- ne dirati public frontend,
+- ne menjati backend admin API.
+
+**Success conditions:**
+
+- admin API base URL je izdvojen u mali config modul,
+- UI jasno upozorava da je alat lokalni,
+- export messaging jasno kaze da hosted okruzenja dobijaju promene samo kroz migration,
+- `frontend/admin` build prolazi.
 
 - [ ] **Step 1: Extract admin API base URL into a dedicated config file**
 
@@ -756,7 +891,11 @@ Run from `frontend/admin`:
 
 `npm.cmd run build`
 
-Expected: admin app builds successfully with the extracted config and updated local-only messaging.
+Expected:
+
+- build je zelen,
+- `AdminApp.tsx` vise nema razbacani inline API base URL,
+- copy u UI ne sugerise da admin menja staging/prod direktno
 
 - [ ] **Step 7: Commit**
 
@@ -772,6 +911,28 @@ git commit -m "docs: lock admin workflow to local export usage"
 - Create: `docs/workflows/release-checklist.md`
 - Modify: `docs/pre_production_chechklist.md`
 - Modify: `frontend/tests/app-smoke.spec.ts`
+
+**Task intent in one sentence:**
+Pretvoriti pre-production hardening iz “skupa izmena” u proverljiv release gate kroz CI, dokumentovan smoke test i azuriranu checklistu statusa.
+
+**Already true before this task starts:**
+
+- `docker-compose.prod.yml` postoji,
+- `mvnw.cmd` je popravljen,
+- postoje backend i frontend build entrypoints koje CI moze direktno da pozove.
+
+**Do not do in this task:**
+
+- ne uvoditi pun CD/deploy automation,
+- ne dodavati managed cloud workflow-e,
+- ne menjati backend ili frontend product code osim ako smoke test mora minimalno da se azurira.
+
+**Success conditions:**
+
+- postoji jedan CI workflow koji proverava backend, frontend i admin build,
+- `docs/pre_production_chechklist.md` vise nije samo wish-list nego status dokument,
+- smoke test proverava makar jedan route-flow signal,
+- release checklist je dovoljna da covek ili agent moze da odradi staging gate bez dodatnog objasnjavanja.
 
 - [ ] **Step 1: Create a CI workflow that runs the release-critical checks**
 
@@ -832,6 +993,12 @@ test('user can search and open a route flow', async ({ page }) => {
 
 Add one assertion for route-related UI instead of only page load.
 
+Minimum prihvatljiv smoke signal:
+
+- page shell se ucita
+- route entry UI je vidljiv
+- bar jedan route-related state transition ili result container je asertovan
+
 - [ ] **Step 3: Convert the pre-production checklist into tracked status**
 
 Update `docs/pre_production_chechklist.md` to mark items as:
@@ -872,7 +1039,13 @@ Run:
 
 `docker compose -f docker-compose.prod.yml config`
 
-Expected: all builds and configs pass, and the repo has a documented release gate for hosting.
+Expected:
+
+- backend test suite prolazi pod trenutnim repo stanjem
+- frontend build prolazi
+- admin build prolazi
+- oba compose manifesta se parsiraju
+- checklista i release docs odgovaraju stvarnom repo stanju posle Tasks 1-7
 
 - [ ] **Step 6: Commit**
 
@@ -880,6 +1053,17 @@ Expected: all builds and configs pass, and the repo has a documented release gat
 git add .github/workflows/ci.yml frontend/tests/app-smoke.spec.ts docs/pre_production_chechklist.md docs/workflows/release-checklist.md
 git commit -m "ci: add pre-production verification pipeline"
 ```
+
+## Remaining Risks To Carry Forward
+
+I posle Tasks 5-8, ove oblasti ostaju follow-up osim ako se eksplicitno ne zatvore u posebnom radu:
+
+- potpuna Flyway zamena za `database/init` bootstrap
+- rate limiting
+- structured logging / request correlation
+- monitoring i alerting
+- dublji admin audit trail
+- siri integration test sloj sa disposable Postgres ili Testcontainers
 
 ## Self-Review Checklist
 
