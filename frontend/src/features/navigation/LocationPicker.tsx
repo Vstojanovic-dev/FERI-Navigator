@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { NavigationLocation } from '../../types/navigation';
 import { getLocationDisplayName } from '../../utils/displayNames';
 import { isQueryMatchingSelection } from './locationSelection';
@@ -28,6 +28,7 @@ function LocationPicker({
   onQueryChange,
   onSelect,
 }: LocationPickerProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const isSelectionCommitted = isQueryMatchingSelection(query, selected);
   const showResults =
@@ -36,12 +37,19 @@ function LocationPicker({
     query.trim().length > 0 &&
     (results.length > 0 || Boolean(nearestTarget));
 
+  const commitSelection = (value: TargetSelection) => {
+    onSelect(value);
+    setIsFocused(false);
+    inputRef.current?.blur();
+  };
+
   return (
     <div className={styles.picker}>
       <label className={styles.label} htmlFor={id}>
         {label}
       </label>
       <input
+        ref={inputRef}
         id={id}
         type="text"
         value={query}
@@ -68,7 +76,8 @@ function LocationPicker({
               key={nearestTarget.id}
               type="button"
               className={styles.resultButton}
-              onClick={() => onSelect(nearestTarget)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => commitSelection(nearestTarget)}
             >
               <span className={styles.resultName}>{nearestTarget.displayName}</span>
               <span className={styles.resultMeta}>{nearestTarget.meta}</span>
@@ -79,7 +88,8 @@ function LocationPicker({
               key={location.id}
               type="button"
               className={styles.resultButton}
-              onClick={() => onSelect(location)}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => commitSelection(location)}
             >
               <span className={styles.resultName}>{getLocationDisplayName(location)}</span>
               <span className={styles.resultMeta}>

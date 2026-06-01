@@ -5,35 +5,14 @@ import type { NavigationLocation, NavigationRoute } from '../../types/navigation
 import { getLocationDisplayName } from '../../utils/displayNames';
 import { findLocationByQuery } from '../../utils/locationMatch';
 import { isSearchTypingForward } from '../../utils/searchAutofill';
-import { getTargetSelectionLabel } from './locationSelection';
+import { getTargetSelectionLabel, isSameStartAndEnd } from './locationSelection';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
 import SharePanel from './SharePanel';
 import StepList from './StepList';
 import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
-import { useRoutePdf } from './useRoutePdf';
 import styles from './NavigationView.module.css';
-
-const STEP_ICONS: Record<string, string> = {
-  straight: '↑',
-  slight_left: '↖',
-  left: '←',
-  slight_right: '↗',
-  right: '→',
-  turn_back: '↺',
-  stairs_up: '⇡',
-  stairs_down: '⇣',
-  elevator: '🛗',
-  elevator_exit: '⇢',
-  enter: '↪',
-  destination: '●',
-  building_transfer: '⇄',
-};
-
-function stepIcon(step: { icon: string; maneuverType: string }) {
-  return STEP_ICONS[step.icon] ?? STEP_ICONS[step.maneuverType] ?? '↑';
-}
 
 type NavigationViewProps = {
   initialTarget: string;
@@ -122,8 +101,8 @@ function NavigationView({
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
   const activeSegment = route?.segments[activeSegmentIndex] ?? null;
-  const activeStep = activeSegment?.steps[activeStepIndex] ?? null;
-  const canRoute = Boolean(fromLocation && toTarget && !isRouting);
+  const hasSameLocations = isSameStartAndEnd(fromLocation, toTarget);
+  const canRoute = Boolean(fromLocation && toTarget && !isRouting && !hasSameLocations);
 
   useEffect(() => {
     if (!initialTarget.trim() || toTarget) {
@@ -198,6 +177,10 @@ function NavigationView({
   const handleRoute = async () => {
     if (!fromLocation || !toTarget) {
       setError('Izberi začetno in ciljno lokacijo iz seznama.');
+      return;
+    }
+    if (isSameStartAndEnd(fromLocation, toTarget)) {
+      setRoute(null);
       return;
     }
     setIsRouting(true);
@@ -321,10 +304,11 @@ function NavigationView({
             }}
             onSelect={(location) => {
               if (isNearestTarget(location)) return;
-              const label = getLocationDisplayName(location);
+              const label = getTargetSelectionLabel(location);
               setFromLocation(location);
               setFromQuery(label);
               prevFromQueryRef.current = label;
+              setRoute(null);
             }}
           />
           <LocationPicker
@@ -342,10 +326,11 @@ function NavigationView({
               setRoute(null);
             }}
             onSelect={(target) => {
-              const label = isNearestTarget(target) ? target.displayName : getLocationDisplayName(target);
+              const label = getTargetSelectionLabel(target);
               setToTarget(target);
               setToQuery(label);
               prevToQueryRef.current = label;
+              setRoute(null);
             }}
           />
           <button
@@ -388,7 +373,10 @@ function NavigationView({
         </div>
       )}
 
-      {error && <p className={styles.errorText}>{error}</p>}
+      {hasSameLocations && (
+        <p className={styles.errorText}>Začetna in ciljna lokacija ne smeta biti enaki.</p>
+      )}
+      {error && !hasSameLocations && <p className={styles.errorText}>{error}</p>}
 
       {showRouteLayout && route && activeSegment && (
         <div className={`${styles.routeLayout} ${isRouteVisible ? styles.routeLayoutVisible : ''}`}>
@@ -431,59 +419,50 @@ function NavigationView({
               </button>
             </div>
           </div>
-          <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
-            <div className={styles.mapAnimated}>
-              <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
-            </div>
-          </div>
-          <div className={styles.stepsSection}>
-            {activeStep && (
-              <article className={styles.activeStepHero}>
-                <span className={styles.activeStepHeroIcon} aria-hidden="true">
-                  {stepIcon(activeStep)}
-                </span>
-                <div>
-                  <p className={styles.activeStepHeroLabel}>Trenutni korak</p>
-                  <p className={styles.activeStepHeroText}>{activeStep.text}</p>
-                </div>
-              </article>
-            )}
-            <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
-              <div className={styles.stepsAnimated}>
-                <StepList
-                  segment={activeSegment}
-                  activeStepIndex={activeStepIndex}
-                  onSelectStep={setActiveStepIndex}
-                  windowStart={stepsWindowStart}
-                  windowSize={stepsWindowSize}
-                />
+          <div className={styles.routeMain}>
+            <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
+              <div className={styles.mapAnimated}>
+                <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
               </div>
             </div>
-            {showStepNav && (
-              <div className={styles.bottomNav}>
-                <div className={styles.navButtons}>
-                  <button
-                    type="button"
-                    className={styles.navButton}
-                    onClick={() => moveRouteStep(-1)}
-                    disabled={!canMovePrev}
-                    aria-label="Prejšnji korak"
-                  >
-                    <span className={styles.navArrow}>←</span>
-                  </button>
-                  <div className={styles.navSpacer} aria-hidden="true" />
-                  <button
-                    type="button"
-                    className={styles.navButton}
-                    onClick={() => moveRouteStep(1)}
-                    disabled={!canMoveNext}
-                    aria-label="Naprej"
-                  >
-                    <span className={styles.navArrow}>→</span>
-                  </button>
+            <div className={styles.stepsSection}>
+              <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
+                <div className={styles.stepsAnimated}>
+                  <StepList
+                    segment={activeSegment}
+                    activeStepIndex={activeStepIndex}
+                    onSelectStep={setActiveStepIndex}
+                    windowStart={stepsWindowStart}
+                    windowSize={stepsWindowSize}
+                  />
                 </div>
               </div>
-            )}
+              {showStepNav && (
+                <div className={styles.bottomNav}>
+                  <div className={styles.navButtons}>
+                    <button
+                      type="button"
+                      className={styles.navButton}
+                      onClick={() => moveRouteStep(-1)}
+                      disabled={!canMovePrev}
+                      aria-label="Prejšnji korak"
+                    >
+                      <span className={styles.navArrow}>←</span>
+                    </button>
+                    <div className={styles.navSpacer} aria-hidden="true" />
+                    <button
+                      type="button"
+                      className={styles.navButton}
+                      onClick={() => moveRouteStep(1)}
+                      disabled={!canMoveNext}
+                      aria-label="Naprej"
+                    >
+                      <span className={styles.navArrow}>→</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

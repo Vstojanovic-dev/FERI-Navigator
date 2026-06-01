@@ -282,10 +282,17 @@
   filter: brightness(0.95);
 }
 
+.mapPopupBody {
+  max-height: min(62dvh, 520px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+}
+
 .popupImage {
   display: block;
   width: 100%;
-  height: 230px;
-  border-radius: 20px;
-  object-fit: cover;
+  height: auto;
+  border-radius: 16px;
+  object-fit: contain;
 }

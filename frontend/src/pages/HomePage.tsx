@@ -221,11 +221,13 @@ function HomePage() {
 
       {isMapPopupOpen && (
         <OverlayModal title="Zemljevid FERI" onClose={() => setIsMapPopupOpen(false)}>
-          <img
-            src="https://images.unsplash.com/photo-1562774053-701939374585?w=1000"
-            alt="Zemljevid FERI"
-            className={styles.popupImage}
-          />
+          <div className={styles.mapPopupBody}>
+            <img
+              src="/images/zemljevidFERI.png"
+              alt="Zemljevid FERI"
+              className={styles.popupImage}
+            />
+          </div>
         </OverlayModal>
       )}
     </PageShell>
