@@ -34,6 +34,7 @@ Trenutno repozitorijum vec sadrzi nekoliko korisnih dubinskih dokumenata. Sledec
 
 - `admin_panel.md` - kako se koristi admin panel i kako radi SQL export workflow
 - `workflows/runtime-profiles-and-environments.md` - centralna referenca za `dev/test/prod` profile, local compose, staging/prod runtime pravila i admin model
+- `workflows/developer-cheat-sheet.md` - kratka mapa najcescih komandi za svakodnevni razvoj i verifikaciju
 - `handover.md` - dodatni radni kontekst i predaja
 - `issues.md` - poznati problemi ili radne beleške
 - `toDo.md` - otvorene stavke

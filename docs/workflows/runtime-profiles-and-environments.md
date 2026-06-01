@@ -107,8 +107,13 @@ Public frontend koristi [frontend/src/utils/runtimeConfig.ts](D:/Feri%20Navigato
 
 Pravilo:
 
-- u production buildu `VITE_API_BASE_URL` mora biti validno zadat
+- u production buildu `VITE_API_BASE_URL` je potreban samo ako frontend ne koristi isti origin kao backend proxy
 - frontend vise ne sme tiho da padne na `http://localhost:8080` u production kontekstu
+
+To znaci:
+
+- same-origin nginx proxy moze bez `VITE_API_BASE_URL`, pa frontend koristi relativne `/api/...` i `/maps/...` putanje
+- ako je API na drugom hostu ili drugom domenu, `VITE_API_BASE_URL` mora biti eksplicitno zadat
 
 To je namerno uvedeno da staging/prod ne bi slucajno radili sa lokalnim ili pogresnim API target-om.
 
