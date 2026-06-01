@@ -30,7 +30,7 @@ function NavigationPage() {
 
   // Bootstrap iz /share/<code> URL-a
   useEffect(() => {
-    const pathname = window.location.pathname;
+    const pathname = location.pathname;
     const match = pathname.match(/^\/share\/([a-zA-Z0-9]+)$/);
     if (!match) return;
 

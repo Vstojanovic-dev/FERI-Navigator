@@ -1,4 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '';
+import { getApiBaseUrl } from '../utils/runtimeConfig';
+
+const API_BASE_URL = getApiBaseUrl();
 
 export class ApiError extends Error {
   code?: string;

@@ -2,7 +2,12 @@ import type { NavigationLocation, NavigationRoute } from '../types/navigation';
 import { apiFetch } from './api';
 
 export async function searchLocations(query: string, limit = 20): Promise<NavigationLocation[]> {
-  const params = new URLSearchParams({ query: query.trim(), limit: String(limit) });
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) {
+    return [];
+  }
+
+  const params = new URLSearchParams({ query: trimmedQuery, limit: String(limit) });
   return apiFetch<NavigationLocation[]>(`/api/navigation/locations?${params}`);
 }
 

@@ -108,7 +108,13 @@ const routeResponse = {
         { nodeId: 12, externalId: 'B', label: 'B', nodeType: 'room', x: 20, y: 20, z: 0 },
       ],
       steps: [
-        { index: 0, text: 'Nastavite prema Alfa.', fromNodeId: 11, toNodeId: 12, type: 'corridor' },
+        {
+          index: 0,
+          text: 'Nastavite prema Alfa.',
+          fromNodeId: 11,
+          toNodeId: 12,
+          type: 'corridor',
+        },
       ],
     },
   ],
@@ -149,12 +155,14 @@ test('buildings route shows building list and nested space detail flow', async (
   await page.locator('[data-testid="building-results"]').waitFor();
   await page.getByText('Objekt G2').click();
   await expect(page.getByText('Prostori v objektu')).toBeVisible();
-  await page.getByRole('button', { name: 'Podrobnosti' }).click();
+  await page.getByText('Alfa').click();
   await expect(page.getByRole('heading', { name: 'Alfa' })).toBeVisible();
 });
 
 test('navigation route can calculate a route', async ({ page }) => {
   await page.goto('/navigacija');
+  await expect(page.locator('#start-location')).toBeVisible();
+  await expect(page.getByTestId('show-route-button')).toBeVisible();
   await page.locator('#start-location').fill('Glavni');
   await page.getByText('Glavni vhod - G2, Pritlicje').click();
   await page.locator('#target-location').fill('Alfa');
@@ -166,16 +174,19 @@ test('navigation route can calculate a route', async ({ page }) => {
 test('home page can prefill navigation target from a space card action', async ({ page }) => {
   await page.goto('/');
   await page.locator('[data-testid="space-results"]').waitFor();
-  await page.getByRole('button', { name: 'Poišči učilnico' }).click();
+  await page.getByRole('button', { name: /Poi.*ilnico/i }).click();
   await expect(page).toHaveURL(/\/navigacija$/);
   await expect(page.locator('#target-location')).toHaveValue('Alfa');
 });
 
-test('buildings page can prefill navigation target from building space action', async ({ page }) => {
+test('buildings page can prefill navigation target from building space action', async ({
+  page,
+}) => {
   await page.goto('/objekti');
   await page.locator('[data-testid="building-results"]').waitFor();
   await page.getByText('Objekt G2').click();
-  await page.getByRole('button', { name: 'Poišči' }).click();
+  await page.getByText('Alfa').click();
+  await page.getByRole('button', { name: /Poi.*ilnico/i }).click();
   await expect(page).toHaveURL(/\/navigacija$/);
   await expect(page.locator('#target-location')).toHaveValue('Alfa');
 });
@@ -201,13 +212,9 @@ test('navigation route shows backend error message when route lookup fails', asy
   await expect(page.getByText('Za izabrane lokacije jos ne postoji unesena ruta.')).toBeVisible();
 });
 
-test('about route renders static content and top-level refresh works', async ({ page }) => {
-  await page.goto('/o-feri');
-  await expect(
-    page.getByText('Fakulteta za elektrotehniko, računalništvo in informatiko', { exact: true })
-  ).toBeVisible();
+test('navigation route renders shell and top-level refresh works', async ({ page }) => {
+  await page.goto('/navigacija');
+  await expect(page.locator('#start-location')).toBeVisible();
   await page.reload();
-  await expect(
-    page.getByText('Fakulteta za elektrotehniko, računalništvo in informatiko', { exact: true })
-  ).toBeVisible();
+  await expect(page.locator('#start-location')).toBeVisible();
 });

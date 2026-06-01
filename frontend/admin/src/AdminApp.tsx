@@ -6,8 +6,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
+import { ADMIN_API_BASE_URL } from './config';
 
 type FloorOption = {
   floorId: number;
@@ -745,6 +744,12 @@ function AdminApp() {
         </div>
       </header>
 
+      <section className="notice-banner" aria-label="Admin workflow notice">
+        <strong>Local admin tool only.</strong> Koristi ovaj UI samo protiv lokalnog backenda,
+        pa promene prebaci dalje kroz pregledani Flyway migration. Nemoj direktno editovati
+        staging ili production.
+      </section>
+
       {(error || notice) && (
         <section className="status-row">
           {error && <p className="error-text">{error}</p>}
@@ -922,6 +927,10 @@ function AdminApp() {
               <h2>SQL export</h2>
               {exportSql ? <span>{Math.round(exportSql.length / 1024)} KB</span> : null}
             </div>
+            <p className="export-copy">
+              Export pravi SQL snapshot za pregledanu Flyway migraciju. Ne azurira hosted
+              okruzenja direktno.
+            </p>
             <div className="export-actions">
               <button
                 type="button"
@@ -1291,7 +1300,7 @@ function RoutePreviewPanel() {
           toLocationId: String(toLocation.id),
           allowElevator: 'true',
         });
-        const response = await fetch(`${API_BASE_URL}/api/navigation/route?${params}`, {
+        const response = await fetch(`${ADMIN_API_BASE_URL}/api/navigation/route?${params}`, {
           signal: controller.signal,
         });
         if (!response.ok) {
@@ -1466,7 +1475,7 @@ function useLocationSearch(query: string, setResults: (locations: NavigationLoca
     const controller = new AbortController();
     const params = new URLSearchParams({ query: query.trim(), limit: '20' });
 
-    fetch(`${API_BASE_URL}/api/navigation/locations?${params}`, { signal: controller.signal })
+    fetch(`${ADMIN_API_BASE_URL}/api/navigation/locations?${params}`, { signal: controller.signal })
       .then((response) => (response.ok ? response.json() : []))
       .then((locations: NavigationLocation[]) => setResults(locations))
       .catch((searchError) => {
@@ -1530,7 +1539,7 @@ function toNodePayload(node: EditorNode) {
 }
 
 async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${ADMIN_API_BASE_URL}${path}`, {
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
@@ -1551,7 +1560,7 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
 }
 
 async function apiFetchText(path: string): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  const response = await fetch(`${ADMIN_API_BASE_URL}${path}`);
   if (!response.ok) {
     throw new Error('Request failed.');
   }
@@ -1587,7 +1596,7 @@ function getSvgPoint(
 }
 
 function resolveAssetUrl(path: string) {
-  return path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+  return path.startsWith('http') ? path : `${ADMIN_API_BASE_URL}${path}`;
 }
 
 function emptyToNull(value: string) {

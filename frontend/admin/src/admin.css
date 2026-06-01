@@ -99,6 +99,20 @@ p {
   padding: 8px 11px;
 }
 
+.notice-banner {
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+  border-radius: 8px;
+  color: #9a3412;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 12px 14px;
+}
+
+.notice-banner strong {
+  color: #7c2d12;
+}
+
 .dirty-pill.dirty {
   background: #fff7ed;
   border-color: #fdba74;
@@ -373,6 +387,14 @@ button:disabled {
   font-size: 14px;
   font-weight: 800;
   line-height: 1.4;
+  margin: 0;
+}
+
+.export-copy {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
   margin: 0;
 }
 

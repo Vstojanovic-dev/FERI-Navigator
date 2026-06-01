@@ -44,6 +44,15 @@ Frontend admin aplikacija:
 
 Admin frontend je odvojena Vite aplikacija od glavnog korisnickog frontenda.
 
+## Local-only workflow contract
+
+Admin editor je lokalni alat, nije remote production control panel.
+
+- Pokreci ga lokalno uz lokalni backend i bazu.
+- Nemoj ga drzati stalno hostovanog.
+- Nemoj direktno menjati staging ili production kroz admin UI.
+- Hosted okruzenja dobijaju admin promene samo kroz pregledane Flyway migracije koje se commituju u git.
+
 ## 3. Kako se pokrece
 
 ### Backend i baza

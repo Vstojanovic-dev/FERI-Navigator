@@ -6,22 +6,29 @@ export function useLocationSearch(query: string) {
   const [results, setResults] = useState<NavigationLocation[]>([]);
 
   useEffect(() => {
-    let cancelled = false;
+    if (!query.trim()) {
+      setResults([]);
+      return;
+    }
 
-    searchLocations(query)
-      .then((locations) => {
-        if (!cancelled) {
-          setResults(locations);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setResults([]);
-        }
-      });
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      searchLocations(query)
+        .then((locations) => {
+          if (!cancelled) {
+            setResults(locations);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setResults([]);
+          }
+        });
+    }, 250);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
     };
   }, [query]);
 

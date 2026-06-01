@@ -57,12 +57,15 @@ function NavigationView({
       setIsRouting(true);
       setError('');
       try {
-        const nextRoute = await fetchRoute({
-          fromLocationId: sharedFromLocationId,
-          toLocationId: sharedToLocationId,
-          targetType: sharedTargetType,
-          allowElevator: sharedAllowElevator ?? true,
-        });
+        const nextRoute = requireRouteSegments(
+          await fetchRoute({
+            fromLocationId: sharedFromLocationId,
+            toLocationId: sharedToLocationId,
+            targetType: sharedTargetType,
+            allowElevator: sharedAllowElevator ?? true,
+          }),
+          'Deljena pot trenutno ni dostopna.'
+        );
         setRoute(nextRoute);
         setActiveSegmentIndex(0);
         setActiveStepIndex(0);
@@ -104,7 +107,8 @@ function NavigationView({
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
-  const activeSegment = route?.segments[activeSegmentIndex] ?? null;
+  const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
+  const activeSegment = routeSegments[activeSegmentIndex] ?? routeSegments[0] ?? null;
   const canRoute = Boolean(fromLocation && toTarget && !isRouting);
 
   const handleRoute = async () => {
@@ -118,12 +122,15 @@ function NavigationView({
     setShareError('');
     setIsSharePanelOpen(false);
     try {
-      const nextRoute = await fetchRoute({
-        fromLocationId: fromLocation.id,
-        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
-        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-        allowElevator: true,
-      });
+      const nextRoute = requireRouteSegments(
+        await fetchRoute({
+          fromLocationId: fromLocation.id,
+          toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+          targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+          allowElevator: true,
+        }),
+        'Napaka pri raÄunanju poti.'
+      );
       setRoute(nextRoute);
       setActiveSegmentIndex(0);
       setActiveStepIndex(0);
@@ -198,7 +205,7 @@ function NavigationView({
 
   const moveRouteStep = (direction: 1 | -1) => {
     if (!route) return;
-    const segment = route.segments[activeSegmentIndex];
+    const segment = routeSegments[activeSegmentIndex];
     if (!segment) return;
     const nextStepIndex = activeStepIndex + direction;
     if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
@@ -206,7 +213,7 @@ function NavigationView({
       return;
     }
     const nextSegmentIndex = activeSegmentIndex + direction;
-    const nextSegment = route.segments[nextSegmentIndex];
+    const nextSegment = routeSegments[nextSegmentIndex];
     if (!nextSegment) return;
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(nextSegmentIndex);
@@ -214,7 +221,7 @@ function NavigationView({
   };
 
   const jumpToSegment = (index: number) => {
-    if (!route || index === activeSegmentIndex || index < 0 || index >= route.segments.length) return;
+    if (!route || index === activeSegmentIndex || index < 0 || index >= routeSegments.length) return;
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(index);
     setActiveStepIndex(0);
@@ -223,7 +230,7 @@ function NavigationView({
   const compactFromLabel = fromLocation?.displayName || fromQuery || 'Začetna lokacija';
   const compactToLabel = toTarget?.displayName || toQuery || 'Ciljna lokacija';
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
-  const hasMultipleSegments = Boolean(route && route.segments.length > 1);
+  const hasMultipleSegments = routeSegments.length > 1;
   const canMovePrev = Boolean(
     route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0)
   );
@@ -231,7 +238,7 @@ function NavigationView({
     route &&
       activeSegment &&
       !(
-        activeSegmentIndex === route.segments.length - 1 &&
+        activeSegmentIndex === routeSegments.length - 1 &&
         activeStepIndex >= Math.max(activeSegment.steps.length - 1, 0)
       )
   );
@@ -245,7 +252,7 @@ function NavigationView({
         )
       )
     : 0;
-  const segmentLabel = route?.segments[activeSegmentIndex]?.floorLabel ?? '';
+  const segmentLabel = activeSegment?.floorLabel ?? '';
 
   return (
     <section className={styles.content}>
@@ -327,12 +334,12 @@ function NavigationView({
               <button
                 type="button"
                 className={styles.segmentInfoButton}
-                onClick={() => jumpToSegment((activeSegmentIndex + 1) % route.segments.length)}
+                onClick={() => jumpToSegment((activeSegmentIndex + 1) % routeSegments.length)}
                 aria-label="Spremeni deonico"
               >
                 <span className={styles.segmentMeta}>{segmentLabel}</span>
                 <span className={styles.segmentCount}>
-                  {activeSegmentIndex + 1}/{route.segments.length}
+                  {activeSegmentIndex + 1}/{routeSegments.length}
                 </span>
                 <span className={styles.segmentSwitchIcon}>↻</span>
               </button>
@@ -410,6 +417,14 @@ function NavigationView({
       )}
     </section>
   );
+}
+
+function requireRouteSegments(route: NavigationRoute, message: string) {
+  if (!Array.isArray(route.segments) || route.segments.length === 0) {
+    throw new ApiError(message, 'INVALID_ROUTE_DATA');
+  }
+
+  return route;
 }
 
 export default NavigationView;
