@@ -33,6 +33,7 @@ Trenutno repozitorijum vec sadrzi nekoliko korisnih dubinskih dokumenata. Sledec
 ### Admin i proces rada
 
 - `admin_panel.md` - kako se koristi admin panel i kako radi SQL export workflow
+- `workflows/runtime-profiles-and-environments.md` - centralna referenca za `dev/test/prod` profile, local compose, staging/prod runtime pravila i admin model
 - `handover.md` - dodatni radni kontekst i predaja
 - `issues.md` - poznati problemi ili radne beleške
 - `toDo.md` - otvorene stavke
@@ -53,6 +54,7 @@ Neki od ovih fajlova su trajna dokumentacija, a neki su vise radne beleške. Vre
 - Menjas backend API ili route DTO-je: `backend.md`, `navigation.md`
 - Menjas bazu, seed podatke ili graf: `backend.md`, `navigation.md`, `../database/init/`
 - Menjas admin panel ili export workflow: `admin_panel.md`
+- Menjas startup, env varijable, profile ili hosting ponasanje: `workflows/runtime-profiles-and-environments.md`
 - Proveravas funkcionalni korisnicki tok: `opis.md`
 
 ## Preporuceni redosled citanja za novog developera
