@@ -1,0 +1,12 @@
+/* Fallback — prethodni dizajn tokeni (bež / tamno plava) */
+:root {
+  --color-brand-900: #172033;
+  --color-surface-canvas: #f6f2ea;
+  --color-border-soft: #eadfce;
+  --color-text-body: #5f5548;
+  --color-text-subtle: #736959;
+  --color-text-muted: #8a7d6d;
+  --color-accent-500: #f09d18;
+  --shadow-card: 0 14px 28px rgba(54, 42, 27, 0.09);
+  --shadow-card-soft: 0 10px 25px rgba(54, 42, 27, 0.08);
+}

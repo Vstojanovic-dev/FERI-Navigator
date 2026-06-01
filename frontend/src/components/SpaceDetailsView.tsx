@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import type { CatalogSpace } from '../types/catalog';
+import { getSpaceDisplayName } from '../utils/displayNames';
 import { resolveAssetUrl } from '../services/api';
-import MainMenuOverlay from './MainMenuOverlay';
 import PageShell from './PageShell';
+import SubPageHeader from './SubPageHeader';
 import styles from './SpaceDetailsView.module.css';
 
 type SpaceDetailsViewProps = {
@@ -19,30 +19,26 @@ function SpaceDetailsView({
   showAllMenuItems = false,
 }: SpaceDetailsViewProps) {
   const imageUrl = resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png';
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const displayName = getSpaceDisplayName(space);
 
   return (
     <PageShell>
+      <SubPageHeader
+        title={displayName}
+        fallbackTo="/"
+        onBack={onBack}
+        showAllMenuItems={showAllMenuItems}
+      />
       <div className={styles.topImageWrap}>
         <img src={imageUrl} alt={space.name} className={styles.topImage} />
-        <button type="button" className={styles.backButton} onClick={onBack} aria-label="Nazaj">
-          ←
-        </button>
-        <button
-          type="button"
-          className={styles.menuButton}
-          onClick={() => setIsMenuOpen((value) => !value)}
-          aria-expanded={isMenuOpen}
-          aria-label="Odpri meni"
-        >
-          ☰
-        </button>
       </div>
 
       <section className={styles.sheet}>
         <p className={styles.type}>{space.type}</p>
-        <h1 className={styles.name}>{space.name}</h1>
-        <p className={styles.description}>{space.description ?? ''}</p>
+        <h1 className={styles.name}>{displayName}</h1>
+        <div className={styles.descriptionCard}>
+          <p className={styles.description}>{space.description ?? 'Opis prostora bo dodan naknadno.'}</p>
+        </div>
 
         <div className={styles.infoRow}>
           <div className={styles.infoItem}>
@@ -53,7 +49,22 @@ function SpaceDetailsView({
             <span className={styles.infoLabel}>Nadstropje</span>
             <strong className={styles.infoValue}>{space.floor}</strong>
           </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>Oznaka</span>
+            <strong className={styles.infoValue}>{space.code ?? 'Ni določeno'}</strong>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>Namen</span>
+            <strong className={styles.infoValue}>{space.purpose ?? space.type}</strong>
+          </div>
+          <div className={styles.infoItem}>
+            <span className={styles.infoLabel}>Kapaciteta</span>
+            <strong className={styles.infoValue}>
+              {space.capacity != null ? `${space.capacity} oseb` : 'Ni podatka'}
+            </strong>
+          </div>
         </div>
+        {space.notes ? <p className={styles.notes}>{space.notes}</p> : null}
 
         <button
           type="button"
@@ -63,11 +74,6 @@ function SpaceDetailsView({
           Poišči učilnico
         </button>
       </section>
-      <MainMenuOverlay
-        isOpen={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        showAllItems={showAllMenuItems}
-      />
     </PageShell>
   );
 }

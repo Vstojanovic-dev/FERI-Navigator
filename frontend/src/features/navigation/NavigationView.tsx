@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
+import { getLocationDisplayName } from '../../utils/displayNames';
+import { findLocationByQuery } from '../../utils/locationMatch';
+import { isSearchTypingForward } from '../../utils/searchAutofill';
+import { getTargetSelectionLabel, isSameStartAndEnd } from './locationSelection';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
 import SharePanel from './SharePanel';
@@ -39,44 +43,75 @@ function NavigationView({
   const [error, setError] = useState('');
   const [isRouteVisible, setIsRouteVisible] = useState(false);
   const [transitionNonce, setTransitionNonce] = useState(0);
-
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState('');
-  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
+  const [routeMode, setRouteMode] = useState<'withLift' | 'withoutLift'>(
+    sharedAllowElevator === false ? 'withoutLift' : 'withLift'
+  );
+  const prevFromQueryRef = useRef('');
+  const prevToQueryRef = useRef('');
 
   const { isGenerating: isGeneratingPdf, downloadPdf } = useRoutePdf();
 
-  // true samo če browser podpira Web Share API (vsi mobilni browseri)
-  const canNativeShare = typeof navigator !== 'undefined' && 'share' in navigator;
+  const allowElevator = routeMode === 'withLift';
 
+  const requestRoute = async ({
+    fromLocationId,
+    toLocationId,
+    targetType,
+    allowElevator: nextAllowElevator,
+    message,
+  }: {
+    fromLocationId: number;
+    toLocationId?: number;
+    targetType?: string;
+    allowElevator: boolean;
+    message: string;
+  }) =>
+    requireRouteSegments(
+      await fetchRoute({
+        fromLocationId,
+        toLocationId,
+        targetType,
+        allowElevator: nextAllowElevator,
+      }),
+      message
+    );
+
+  const applyRoute = (nextRoute: NavigationRoute) => {
+    setRoute(nextRoute);
+    setActiveSegmentIndex(0);
+    setActiveStepIndex(0);
+    setIsRouteVisible(false);
+    setTransitionNonce((value) => value + 1);
+    setIsFormCollapsing(true);
+    window.setTimeout(() => {
+      setIsFormExpanded(false);
+      setIsFormCollapsing(false);
+      setIsRouteVisible(true);
+    }, 240);
+  };
+
+  // Bootstrap iz shared linka
   useEffect(() => {
     if (!sharedFromLocationId) return;
+
+    setRouteMode(sharedAllowElevator === false ? 'withoutLift' : 'withLift');
 
     const routeFromShare = async () => {
       setIsRouting(true);
       setError('');
       try {
-        const nextRoute = requireRouteSegments(
-          await fetchRoute({
+        applyRoute(
+          await requestRoute({
             fromLocationId: sharedFromLocationId,
             toLocationId: sharedToLocationId,
             targetType: sharedTargetType,
             allowElevator: sharedAllowElevator ?? true,
-          }),
-          'Deljena pot trenutno ni dostopna.'
+            message: 'Deljena pot trenutno ni dostopna.',
+          })
         );
-        setRoute(nextRoute);
-        setActiveSegmentIndex(0);
-        setActiveStepIndex(0);
-        setIsRouteVisible(false);
-        setTransitionNonce((v) => v + 1);
-        setIsFormCollapsing(true);
-        window.setTimeout(() => {
-          setIsFormExpanded(false);
-          setIsFormCollapsing(false);
-          setIsRouteVisible(true);
-        }, 240);
       } catch (routeError) {
         setError(
           routeError instanceof ApiError
@@ -102,46 +137,110 @@ function NavigationView({
     setTransitionNonce(0);
     setShareUrl(null);
     setShareError('');
-    setIsSharePanelOpen(false);
-  }, [initialTarget]);
+    setRouteMode(sharedAllowElevator === false ? 'withoutLift' : 'withLift');
+    prevToQueryRef.current = '';
+  }, [initialTarget, sharedAllowElevator]);
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
   const activeSegment = routeSegments[activeSegmentIndex] ?? routeSegments[0] ?? null;
-  const canRoute = Boolean(fromLocation && toTarget && !isRouting);
+  const hasSameLocations = isSameStartAndEnd(fromLocation, toTarget);
+  const canRoute = Boolean(fromLocation && toTarget && !isRouting && !hasSameLocations);
+
+  useEffect(() => {
+    if (!initialTarget.trim() || toTarget) {
+      return;
+    }
+
+    const normalizedInitial = initialTarget.trim().toLowerCase();
+    if (normalizedInitial === NEAREST_WC_TARGET.displayName.toLowerCase()) {
+      setToTarget(NEAREST_WC_TARGET);
+      setToQuery(NEAREST_WC_TARGET.displayName);
+      prevToQueryRef.current = NEAREST_WC_TARGET.displayName;
+      return;
+    }
+
+    const match = findLocationByQuery(initialTarget, toResults);
+    if (!match) {
+      return;
+    }
+
+    const label = getLocationDisplayName(match);
+    setToTarget(match);
+    setToQuery(label);
+    prevToQueryRef.current = label;
+  }, [initialTarget, toResults, toTarget]);
+
+  useEffect(() => {
+    const previousValue = prevFromQueryRef.current;
+    prevFromQueryRef.current = fromQuery;
+
+    const query = fromQuery.trim();
+    if (!query || fromLocation || fromResults.length !== 1) {
+      return;
+    }
+    if (!isSearchTypingForward(previousValue, fromQuery)) {
+      return;
+    }
+
+    const only = fromResults[0];
+    const label = getLocationDisplayName(only);
+    if (fromQuery === label) {
+      return;
+    }
+
+    setFromLocation(only);
+    setFromQuery(label);
+    prevFromQueryRef.current = label;
+  }, [fromQuery, fromResults, fromLocation]);
+
+  useEffect(() => {
+    const previousValue = prevToQueryRef.current;
+    prevToQueryRef.current = toQuery;
+
+    const query = toQuery.trim();
+    if (!query || toTarget || toResults.length !== 1) {
+      return;
+    }
+    if (!isSearchTypingForward(previousValue, toQuery)) {
+      return;
+    }
+
+    const only = toResults[0];
+    const label = getLocationDisplayName(only);
+    if (toQuery === label || toQuery === getTargetSelectionLabel(only)) {
+      return;
+    }
+
+    setToTarget(only);
+    setToQuery(label);
+    prevToQueryRef.current = label;
+  }, [toQuery, toResults, toTarget]);
 
   const handleRoute = async () => {
     if (!fromLocation || !toTarget) {
       setError('Izberi začetno in ciljno lokacijo iz seznama.');
       return;
     }
+    if (isSameStartAndEnd(fromLocation, toTarget)) {
+      setRoute(null);
+      return;
+    }
     setIsRouting(true);
     setError('');
     setShareUrl(null);
     setShareError('');
-    setIsSharePanelOpen(false);
     try {
-      const nextRoute = requireRouteSegments(
-        await fetchRoute({
+      applyRoute(
+        await requestRoute({
           fromLocationId: fromLocation.id,
           toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
           targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-          allowElevator: true,
-        }),
-        'Napaka pri raÄunanju poti.'
+          allowElevator,
+          message: 'Napaka pri računanju poti.',
+        })
       );
-      setRoute(nextRoute);
-      setActiveSegmentIndex(0);
-      setActiveStepIndex(0);
-      setIsRouteVisible(false);
-      setTransitionNonce((value) => value + 1);
-      setIsFormCollapsing(true);
-      window.setTimeout(() => {
-        setIsFormExpanded(false);
-        setIsFormCollapsing(false);
-        setIsRouteVisible(true);
-      }, 240);
     } catch (routeError) {
       setRoute(null);
       setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
@@ -150,48 +249,56 @@ function NavigationView({
     }
   };
 
-  /**
-   * Najpre kreiramo share URL na serveru (isto kao i prije).
-   * Na mobilnom browseru koji podržava Web Share API odmah otvaramo
-   * native share sheet — korisnik bira aplikaciju (WhatsApp, Viber, SMS...).
-   * Na desktopu fallback na postojeći SharePanel s copy gumbom.
-   */
+  const handleRouteModeChange = async (nextMode: 'withLift' | 'withoutLift') => {
+    if (routeMode === nextMode) {
+      return;
+    }
+
+    setRouteMode(nextMode);
+    if (!fromLocation || !toTarget || isRouting) {
+      return;
+    }
+
+    setIsRouting(true);
+    setError('');
+    setShareUrl(null);
+    setShareError('');
+    try {
+      applyRoute(
+        await requestRoute({
+          fromLocationId: fromLocation.id,
+          toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+          targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+          allowElevator: nextMode === 'withLift',
+          message: 'Napaka pri računanju poti.',
+        })
+      );
+    } catch (routeError) {
+      setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
+    } finally {
+      setIsRouting(false);
+    }
+  };
+
   const handleShare = async () => {
-    if (!fromLocation || !toTarget) return;
+    if (!fromLocation || !toTarget) {
+      window.alert('Deljenje poti trenutno ni na voljo.');
+      return;
+    }
+
     setIsCreatingShare(true);
     setShareError('');
     try {
-      const response = await createShare({
+      const share = await createShare({
         fromLocationId: fromLocation.id,
         toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
         targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-        allowElevator: true,
+        allowElevator,
       });
-      setShareUrl(response.shareUrl);
-
-      if (canNativeShare) {
-        // Mobitel — otvori native share sheet
-        try {
-          await navigator.share({
-            title: `FERI Navigator: ${fromLocation.displayName} → ${toTarget.displayName}`,
-            text: 'Poglej pot na FERI Navigatorju',
-            url: response.shareUrl,
-          });
-          // Korisnik je podijelio ili zatvorio sheet — ne pokazujemo SharePanel
-        } catch (shareSheetErr) {
-          // AbortError znači da je korisnik sam zatvorio sheet — to nije greška
-          if (shareSheetErr instanceof Error && shareSheetErr.name !== 'AbortError') {
-            // Neočekivana greška — padamo na SharePanel kao rezerva
-            setIsSharePanelOpen(true);
-          }
-        }
-      } else {
-        // Desktop — stari SharePanel s copy gumbom
-        setIsSharePanelOpen(true);
-      }
-    } catch (shareErr) {
+      setShareUrl(share.shareUrl);
+    } catch (shareIssue) {
       setShareError(
-        shareErr instanceof ApiError ? shareErr.message : 'Napaka pri ustvarjanju povezave.'
+        shareIssue instanceof ApiError ? shareIssue.message : 'Napaka pri ustvarjanju povezave.'
       );
     } finally {
       setIsCreatingShare(false);
@@ -227,10 +334,19 @@ function NavigationView({
     setActiveStepIndex(0);
   };
 
-  const compactFromLabel = fromLocation?.displayName || fromQuery || 'Začetna lokacija';
-  const compactToLabel = toTarget?.displayName || toQuery || 'Ciljna lokacija';
+  const compactFromLabel = fromLocation
+    ? getLocationDisplayName(fromLocation)
+    : fromQuery || 'Začetna lokacija';
+  const compactToLabel = toTarget
+    ? isNearestTarget(toTarget)
+      ? toTarget.displayName
+      : getLocationDisplayName(toTarget)
+    : toQuery || 'Ciljna lokacija';
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = routeSegments.length > 1;
+  const totalRouteSteps =
+    routeSegments.reduce((sum, segment) => sum + segment.steps.length, 0);
+  const showStepNav = totalRouteSteps > 1;
   const canMovePrev = Boolean(
     route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0)
   );
@@ -244,18 +360,12 @@ function NavigationView({
   );
   const stepsWindowSize = 4;
   const stepsWindowStart = activeSegment
-    ? Math.max(
-        0,
-        Math.min(
-          activeSegment.steps.length - stepsWindowSize,
-          activeStepIndex - Math.floor(stepsWindowSize / 2)
-        )
-      )
+    ? Math.floor(activeStepIndex / stepsWindowSize) * stepsWindowSize
     : 0;
   const segmentLabel = activeSegment?.floorLabel ?? '';
 
   return (
-    <section className={styles.content}>
+    <section className={`${styles.content} ${showRouteLayout ? styles.contentRoute : ''}`}>
       {isFormExpanded || isFormCollapsing ? (
         <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
           <LocationPicker
@@ -266,16 +376,20 @@ function NavigationView({
             selected={fromLocation}
             results={fromResults}
             onQueryChange={(value) => {
+              prevFromQueryRef.current = fromQuery;
               setFromQuery(value);
               setFromLocation(null);
               setRoute(null);
               setShareUrl(null);
-              setIsSharePanelOpen(false);
             }}
             onSelect={(location) => {
               if (isNearestTarget(location)) return;
+              const label = getTargetSelectionLabel(location);
               setFromLocation(location);
-              setFromQuery(location.displayName);
+              setFromQuery(label);
+              prevFromQueryRef.current = label;
+              setRoute(null);
+              setShareUrl(null);
             }}
           />
           <LocationPicker
@@ -287,15 +401,19 @@ function NavigationView({
             results={toResults}
             nearestTarget={NEAREST_WC_TARGET}
             onQueryChange={(value) => {
+              prevToQueryRef.current = toQuery;
               setToQuery(value);
               setToTarget(null);
               setRoute(null);
               setShareUrl(null);
-              setIsSharePanelOpen(false);
             }}
             onSelect={(target) => {
+              const label = getTargetSelectionLabel(target);
               setToTarget(target);
-              setToQuery(target.displayName);
+              setToQuery(label);
+              prevToQueryRef.current = label;
+              setRoute(null);
+              setShareUrl(null);
             }}
           />
           <button
@@ -309,59 +427,129 @@ function NavigationView({
           </button>
         </div>
       ) : (
-        <button
-          type="button"
-          className={`${styles.compactRouteRow} ${styles.compactRouteRowVisible}`}
-          onClick={() => {
-            setIsFormExpanded(true);
-            setIsRouteVisible(false);
-            setIsSharePanelOpen(false);
-          }}
-          aria-label="Uredi lokacije"
-        >
-          <span className={styles.compactRouteField}>{compactFromLabel}</span>
-          <span className={styles.compactRouteArrow}>→</span>
-          <span className={styles.compactRouteField}>{compactToLabel}</span>
-        </button>
+        <div className={`${styles.compactRouteBar} ${styles.compactRouteRowVisible}`}>
+          <button
+            type="button"
+            className={styles.compactRouteRow}
+            onClick={() => {
+              setIsFormExpanded(true);
+              setIsRouteVisible(false);
+            }}
+            aria-label="Uredi lokacije"
+          >
+            <span className={styles.compactRouteField}>{compactFromLabel}</span>
+            <span className={styles.compactRouteArrow}>→</span>
+            <span className={styles.compactRouteField}>{compactToLabel}</span>
+          </button>
+          {route && (
+            <button
+              type="button"
+              className={styles.shareButton}
+              onClick={handleShare}
+              disabled={isCreatingShare}
+              aria-label="Deli pot"
+            >
+              <span className={styles.shareIcon} aria-hidden="true">
+                ✈
+              </span>
+            </button>
+          )}
+        </div>
       )}
 
-      {error && <p className={styles.errorText}>{error}</p>}
+      {hasSameLocations && (
+        <p className={styles.errorText}>Začetna in ciljna lokacija ne smeta biti enaki.</p>
+      )}
+      {error && !hasSameLocations && <p className={styles.errorText}>{error}</p>}
 
       {showRouteLayout && route && activeSegment && (
         <div className={`${styles.routeLayout} ${isRouteVisible ? styles.routeLayoutVisible : ''}`}>
-          {hasMultipleSegments && (
-            <div className={styles.segmentIndicator}>
+          <div className={styles.routeControlsRow}>
+            <button
+              type="button"
+              className={styles.segmentInfoButton}
+              onClick={
+                hasMultipleSegments
+                  ? () => jumpToSegment((activeSegmentIndex + 1) % routeSegments.length)
+                  : undefined
+              }
+              disabled={!hasMultipleSegments}
+              aria-label={hasMultipleSegments ? 'Spremeni deonico' : segmentLabel}
+            >
+              <span className={styles.segmentMeta}>{segmentLabel}</span>
+              {hasMultipleSegments && (
+                <>
+                  <span className={styles.segmentCount}>
+                    {activeSegmentIndex + 1}/{routeSegments.length}
+                  </span>
+                  <span className={styles.segmentSwitchIcon}>↻</span>
+                </>
+              )}
+            </button>
+            <div className={styles.liftToggle} role="group" aria-label="Izbira poti z liftom">
               <button
                 type="button"
-                className={styles.segmentInfoButton}
-                onClick={() => jumpToSegment((activeSegmentIndex + 1) % routeSegments.length)}
-                aria-label="Spremeni deonico"
+                className={`${styles.liftOption} ${routeMode === 'withLift' ? styles.liftOptionActive : ''}`}
+                onClick={() => void handleRouteModeChange('withLift')}
+                disabled={isRouting}
               >
-                <span className={styles.segmentMeta}>{segmentLabel}</span>
-                <span className={styles.segmentCount}>
-                  {activeSegmentIndex + 1}/{routeSegments.length}
-                </span>
-                <span className={styles.segmentSwitchIcon}>↻</span>
+                Z liftom
+              </button>
+              <button
+                type="button"
+                className={`${styles.liftOption} ${routeMode === 'withoutLift' ? styles.liftOptionActive : ''}`}
+                onClick={() => void handleRouteModeChange('withoutLift')}
+                disabled={isRouting}
+              >
+                Brez lifta
               </button>
             </div>
-          )}
-          <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
-            <div className={styles.mapAnimated}>
-              <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
+          </div>
+          <div className={styles.routeMain}>
+            <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
+              <div className={styles.mapAnimated}>
+                <RouteMap segment={activeSegment} activeStepIndex={activeStepIndex} />
+              </div>
+            </div>
+            <div className={styles.stepsSection}>
+              <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
+                <div className={styles.stepsAnimated}>
+                  <StepList
+                    segment={activeSegment}
+                    activeStepIndex={activeStepIndex}
+                    onSelectStep={setActiveStepIndex}
+                    windowStart={stepsWindowStart}
+                    windowSize={stepsWindowSize}
+                  />
+                </div>
+              </div>
+              {showStepNav && (
+                <div className={styles.bottomNav}>
+                  <div className={styles.navButtons}>
+                    <button
+                      type="button"
+                      className={styles.navButton}
+                      onClick={() => moveRouteStep(-1)}
+                      disabled={!canMovePrev}
+                      aria-label="Prejšnji korak"
+                    >
+                      <span className={styles.navArrow}>←</span>
+                    </button>
+                    <div className={styles.navSpacer} aria-hidden="true" />
+                    <button
+                      type="button"
+                      className={styles.navButton}
+                      onClick={() => moveRouteStep(1)}
+                      disabled={!canMoveNext}
+                      aria-label="Naprej"
+                    >
+                      <span className={styles.navArrow}>→</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
-            <div className={styles.stepsAnimated}>
-              <StepList
-                segment={activeSegment}
-                activeStepIndex={activeStepIndex}
-                onSelectStep={setActiveStepIndex}
-                windowStart={stepsWindowStart}
-                windowSize={stepsWindowSize}
-              />
-            </div>
-          </div>
-
           <div className={styles.shareRow}>
             <button
               type="button"
@@ -382,39 +570,11 @@ function NavigationView({
               {isGeneratingPdf ? 'Ustvarjam PDF...' : '⬇ Natisni PDF'}
             </button>
           </div>
-
           {shareError && <p className={styles.errorText}>{shareError}</p>}
-
-          {/* SharePanel se prikazuje samo na desktopu (canNativeShare = false)
-              ili kao rezerva kada native share ne uspije */}
-          {isSharePanelOpen && shareUrl && (
-            <SharePanel shareUrl={shareUrl} onClose={() => setIsSharePanelOpen(false)} />
-          )}
-
-          <div className={styles.bottomNav}>
-            <div className={styles.navButtons}>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={() => moveRouteStep(-1)}
-                disabled={!canMovePrev}
-                aria-label="Prejšnji korak"
-              >
-                <span className={styles.navArrow}>←</span>
-              </button>
-              <button
-                type="button"
-                className={styles.navButton}
-                onClick={() => moveRouteStep(1)}
-                disabled={!canMoveNext}
-                aria-label="Naprej"
-              >
-                <span className={styles.navArrow}>→</span>
-              </button>
-            </div>
-          </div>
         </div>
       )}
+
+      {shareUrl && <SharePanel shareUrl={shareUrl} onClose={() => setShareUrl(null)} />}
     </section>
   );
 }

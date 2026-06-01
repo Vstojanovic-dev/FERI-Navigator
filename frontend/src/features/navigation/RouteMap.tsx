@@ -30,9 +30,7 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
   const activeStep = safeSteps[activeStepIndex];
   const activeFrom = safePath.find((point) => point.nodeId === activeStep?.fromNodeId);
   const activeTo = safePath.find((point) => point.nodeId === activeStep?.toNodeId);
-  const activeFromIndex = safePath.findIndex(
-    (point) => point.nodeId === activeStep?.fromNodeId
-  );
+  const activeFromIndex = safePath.findIndex((point) => point.nodeId === activeStep?.fromNodeId);
   const activeToIndex = safePath.findIndex((point) => point.nodeId === activeStep?.toNodeId);
   const donePoints =
     activeFromIndex >= 0
@@ -41,10 +39,17 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
           .map((point) => `${point.x},${point.y}`)
           .join(' ')
       : '';
-  const remainingPoints =
-    activeFromIndex >= 0
+  const activePoints =
+    activeFromIndex >= 0 && activeToIndex >= activeFromIndex
       ? safePath
-          .slice(activeFromIndex)
+          .slice(activeFromIndex, activeToIndex + 1)
+          .map((point) => `${point.x},${point.y}`)
+          .join(' ')
+      : '';
+  const remainingPoints =
+    activeToIndex >= 0
+      ? safePath
+          .slice(activeToIndex)
           .map((point) => `${point.x},${point.y}`)
           .join(' ')
       : pathPoints;
@@ -73,34 +78,44 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
             <polyline
               points={pathPoints}
               fill="none"
-              stroke="#d6e0ec"
+              stroke="#cbd5e1"
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="14"
-              opacity="0.78"
+              strokeWidth="10"
+              opacity="0.55"
             />
           )}
-          {hasPolyline && remainingPoints && (
+          {hasPolyline && remainingPoints && activeToIndex < safePath.length - 1 && (
             <polyline
               points={remainingPoints}
               fill="none"
-              stroke="#f09d18"
+              stroke="#94a3b8"
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="11"
-              strokeDasharray="2 0"
-              opacity="0.9"
+              strokeWidth="12"
+              opacity="0.75"
             />
           )}
           {hasPolyline && donePoints && (
             <polyline
               points={donePoints}
               fill="none"
-              stroke="#172033"
+              stroke="#94a3b8"
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth="11"
-              opacity="0.56"
+              strokeWidth="14"
+              opacity="0.85"
+            />
+          )}
+          {activePoints && (
+            <polyline
+              points={activePoints}
+              fill="none"
+              stroke="#dc2626"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="20"
+              opacity="1"
             />
           )}
           {activeFrom && activeTo && (
@@ -109,32 +124,16 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
               y1={activeFrom.y}
               x2={activeTo.x}
               y2={activeTo.y}
-              stroke="#2563eb"
+              stroke="#dc2626"
               strokeLinecap="round"
-              strokeWidth="16"
-              opacity="0.98"
+              strokeWidth="22"
+              opacity="1"
             />
           )}
-          {safePath[0] && <RouteMarker point={safePath[0]} label="A" fill="#172033" />}
-          {safePath.at(-1) && (
-            <RouteMarker point={safePath.at(-1)!} label="B" fill="#f09d18" />
-          )}
-          {activeTo && <RouteMarker point={activeTo} label="" fill="#1d4ed8" radius={9} />}
-          {activeFromIndex >= 0 && safePath[activeFromIndex] && (
-            <RouteMarker point={safePath[activeFromIndex]} label="" fill="#172033" radius={8} />
-          )}
-          {activeToIndex >= 0 && safePath[activeToIndex] && (
-            <circle
-              cx={safePath[activeToIndex].x}
-              cy={safePath[activeToIndex].y}
-              r="14"
-              fill="#1d4ed8"
-              opacity="0.2"
-            />
-          )}
-          {activeTo && (
-            <circle cx={activeTo.x} cy={activeTo.y} r="18" fill="#1d4ed8" opacity="0.12" />
-          )}
+          {safePath[0] && <RouteMarker point={safePath[0]} label="A" fill="#64748b" />}
+          {safePath.at(-1) && <RouteMarker point={safePath.at(-1)!} label="B" fill="#dc2626" />}
+          {activeTo && <RouteMarker point={activeTo} label="" fill="#dc2626" radius={11} />}
+          {activeTo && <circle cx={activeTo.x} cy={activeTo.y} r="22" fill="#dc2626" opacity="0.22" />}
         </svg>
       </div>
     </div>
@@ -167,7 +166,7 @@ function RouteMarker({
 }) {
   return (
     <>
-      <circle cx={point.x} cy={point.y} r={radius} fill={fill} />
+      <circle cx={point.x} cy={point.y} r={radius} fill={fill} stroke="#fff" strokeWidth="2" />
       {label && (
         <text
           x={point.x}

@@ -7,16 +7,29 @@ type SubPageHeaderProps = {
   title: string;
   fallbackTo: string;
   showAllMenuItems?: boolean;
+  onBack?: () => void;
+  compact?: boolean;
 };
 
-function SubPageHeader({ title, fallbackTo, showAllMenuItems = false }: SubPageHeaderProps) {
+function SubPageHeader({
+  title,
+  fallbackTo,
+  showAllMenuItems = false,
+  onBack,
+  compact = false,
+}: SubPageHeaderProps) {
   const handleBack = useBackNavigation(fallbackTo);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <>
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={handleBack} aria-label="Nazaj">
+      <header className={`${styles.header} ${compact ? styles.headerCompact : ''}`}>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={onBack ?? handleBack}
+          aria-label="Nazaj"
+        >
           ←
         </button>
         <h1 className={styles.title}>{title}</h1>

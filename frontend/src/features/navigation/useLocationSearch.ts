@@ -1,22 +1,24 @@
 import { useEffect, useState } from 'react';
 import type { NavigationLocation } from '../../types/navigation';
 import { searchLocations } from '../../services/navigationService';
+import { rankLocations } from '../../utils/searchRank';
 
 export function useLocationSearch(query: string) {
   const [results, setResults] = useState<NavigationLocation[]>([]);
 
   useEffect(() => {
-    if (!query.trim()) {
+    const trimmedQuery = query.trim();
+    if (!trimmedQuery) {
       setResults([]);
       return;
     }
 
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
-      searchLocations(query)
+      searchLocations(trimmedQuery)
         .then((locations) => {
           if (!cancelled) {
-            setResults(locations);
+            setResults(rankLocations(trimmedQuery, locations));
           }
         })
         .catch(() => {

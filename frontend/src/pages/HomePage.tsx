@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
 import MainMenuOverlay from '../components/MainMenuOverlay';
@@ -9,6 +9,9 @@ import SpaceDetailsView from '../components/SpaceDetailsView';
 import { resolveAssetUrl } from '../services/api';
 import { searchSpaces } from '../services/catalogService';
 import type { CatalogSpace } from '../types/catalog';
+import { getSpaceDisplayName } from '../utils/displayNames';
+import { isSearchTypingForward } from '../utils/searchAutofill';
+import { rankSpaces } from '../utils/searchRank';
 import styles from './HomePage.module.css';
 
 type HomePageState = {
@@ -28,6 +31,7 @@ function HomePage() {
   const [spaces, setSpaces] = useState<CatalogSpace[]>([]);
   const [introDone, setIntroDone] = useState(introCompletedOnce);
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
+  const prevSearchTextRef = useRef('');
 
   useEffect(() => {
     if (introCompletedOnce) {
@@ -66,61 +70,44 @@ function HomePage() {
     };
   }, [searchText]);
 
-  const filteredSpaces = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    if (!query) {
-      return spaces;
+  const filteredSpaces = useMemo(() => rankSpaces(searchText, spaces), [spaces, searchText]);
+
+  useEffect(() => {
+    const previousValue = prevSearchTextRef.current;
+    prevSearchTextRef.current = searchText;
+
+    const query = searchText.trim();
+    if (!query || filteredSpaces.length !== 1) {
+      return;
+    }
+    if (!isSearchTypingForward(previousValue, searchText)) {
+      return;
     }
 
-    const scoreSpace = (space: CatalogSpace) => {
-      const name = space.name.toLowerCase();
-      const type = space.type.toLowerCase();
-      const building = space.buildingName.toLowerCase();
-      const floor = space.floor.toLowerCase();
-      const description = (space.description ?? '').toLowerCase();
+    const only = filteredSpaces[0];
+    const label = getSpaceDisplayName(only);
+    if (searchText === label) {
+      return;
+    }
 
-      if (name.startsWith(query)) {
-        return 0;
-      }
-      if (name.includes(query)) {
-        return 1;
-      }
-      if (
-        type.includes(query) ||
-        building.includes(query) ||
-        floor.includes(query) ||
-        description.includes(query)
-      ) {
-        return 2;
-      }
-      return 3;
-    };
-
-    return [...spaces]
-      .filter((space) => scoreSpace(space) < 3)
-      .sort((left, right) => {
-        const byScore = scoreSpace(left) - scoreSpace(right);
-        if (byScore !== 0) {
-          return byScore;
-        }
-        return left.name.localeCompare(right.name);
-      });
-  }, [spaces, searchText]);
+    setSearchText(label);
+    prevSearchTextRef.current = label;
+  }, [filteredSpaces, searchText]);
 
   const openSpace = (space: CatalogSpace) => {
-    navigate('/', { replace: true, state: { selectedSpace: space } satisfies HomePageState });
+    navigate('/', { state: { selectedSpace: space } satisfies HomePageState });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openNavigation = (space: CatalogSpace) => {
-    navigate('/navigacija', { state: { initialTarget: space.name } });
+    navigate('/navigacija', { state: { initialTarget: getSpaceDisplayName(space) } });
   };
 
   if (selectedSpace) {
     return (
       <SpaceDetailsView
         space={selectedSpace}
-        onBack={() => navigate('/', { replace: true, state: null })}
+        onBack={() => navigate(-1)}
         onFindClassroom={openNavigation}
         showAllMenuItems
       />
@@ -174,7 +161,10 @@ function HomePage() {
         <SearchField
           id="space-search"
           value={searchText}
-          onChange={setSearchText}
+          onChange={(value) => {
+            prevSearchTextRef.current = searchText;
+            setSearchText(value);
+          }}
           placeholder="Išči učilnico, laboratorij ali pisarno"
         />
 
@@ -202,7 +192,7 @@ function HomePage() {
                 <div className={styles.compactCardContent}>
                   <div>
                     <div className={styles.compactCardTopLine}>
-                      <h3 className={styles.compactCardTitle}>{space.name}</h3>
+                      <h3 className={styles.compactCardTitle}>{getSpaceDisplayName(space)}</h3>
                       <span className={styles.typeChip}>{space.type}</span>
                     </div>
                     <p className={styles.compactCardMeta}>
@@ -231,11 +221,13 @@ function HomePage() {
 
       {isMapPopupOpen && (
         <OverlayModal title="Zemljevid FERI" onClose={() => setIsMapPopupOpen(false)}>
-          <img
-            src="https://images.unsplash.com/photo-1562774053-701939374585?w=1000"
-            alt="Zemljevid FERI"
-            className={styles.popupImage}
-          />
+          <div className={styles.mapPopupBody}>
+            <img
+              src="/images/zemljevidFERI.png"
+              alt="Zemljevid FERI"
+              className={styles.popupImage}
+            />
+          </div>
         </OverlayModal>
       )}
     </PageShell>

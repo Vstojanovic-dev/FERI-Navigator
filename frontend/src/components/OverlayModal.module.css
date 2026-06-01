@@ -12,6 +12,8 @@
 .box {
   width: 100%;
   max-width: 420px;
+  max-height: min(90dvh, 640px);
+  overflow-y: auto;
   padding: 18px;
   background: #fff;
   border-radius: 28px;

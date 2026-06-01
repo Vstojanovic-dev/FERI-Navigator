@@ -28,5 +28,12 @@ Backlog:
 - Production optimizacije
 
 
-BUG : 
-Nije povezan prvi i 3 i 4 sprat
+ZA DORADJIVANJE/POPRAVLJANJE
+
+rute koje nisu okej: 1. turing-ada
+                     2. turing-alfa
+                     bilo sta iz g3
+
+
+slike g3 nisu crno bele
+treba nekako croppovati  slike

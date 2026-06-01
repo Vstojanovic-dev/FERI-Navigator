@@ -54,6 +54,9 @@ export type RouteSegment = {
   usesStairs: boolean;
   path: RoutePoint[];
   steps: RouteStep[];
+  imageScale?: number;
+  imageTranslateX?: number;
+  imageTranslateY?: number;
 };
 
 export type NavigationRoute = {
