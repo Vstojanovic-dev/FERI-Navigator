@@ -23,10 +23,14 @@ services:
       dockerfile: backend/Dockerfile
     container_name: feri-navigator-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/feri_navigator
-      SPRING_DATASOURCE_USERNAME: feri
-      SPRING_DATASOURCE_PASSWORD: feri
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8080
+      DB_URL: jdbc:postgresql://postgres:5432/feri_navigator
+      DB_USERNAME: feri
+      DB_PASSWORD: feri
+      APP_CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:5174
+      APP_SHARE_BASE_URL: http://localhost:5173
+      APP_ADMIN_ENABLED: "true"
     ports:
       - "8080:8080"
     volumes:
