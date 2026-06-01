@@ -1,31 +1,32 @@
 package com.navigator.backend.controller;
 
-import com.navigator.backend.dto.NavigationErrorDto;
 import com.navigator.backend.dto.NavigationLocationDto;
 import com.navigator.backend.dto.NavigationShareDto;
 import com.navigator.backend.dto.PathResponseDto;
 import com.navigator.backend.dto.RouteResponseDto;
 import com.navigator.backend.service.AStarService;
-import com.navigator.backend.service.NavigationRouteException;
 import com.navigator.backend.service.NavigationRouteService;
 import com.navigator.backend.service.NavigationShareService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/navigation")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*") // Za razvoj — ograniči u produkciji
 public class NavigationController {
 
   private final AStarService aStarService;
   private final NavigationRouteService navigationRouteService;
   private final NavigationShareService navigationShareService;
-
-  // ── Postojeći endpointi ──────────────────────────────────────────────────
 
   @GetMapping("/locations")
   public ResponseEntity<List<NavigationLocationDto>> getLocations(
@@ -42,23 +43,14 @@ public class NavigationController {
   }
 
   @GetMapping("/route")
-  public ResponseEntity<?> getRoute(
+  public ResponseEntity<RouteResponseDto> getRoute(
       @RequestParam Long fromLocationId,
       @RequestParam(required = false) Long toLocationId,
       @RequestParam(required = false) String targetType,
       @RequestParam(defaultValue = "true") boolean allowElevator) {
-    try {
-      RouteResponseDto route =
-          navigationRouteService.route(fromLocationId, toLocationId, targetType, allowElevator);
-      return ResponseEntity.ok(route);
-    } catch (NavigationRouteException exception) {
-      return ResponseEntity.status(exception.getStatus())
-          .body(
-              NavigationErrorDto.builder()
-                  .code(exception.getCode())
-                  .message(exception.getMessage())
-                  .build());
-    }
+    RouteResponseDto route =
+        navigationRouteService.route(fromLocationId, toLocationId, targetType, allowElevator);
+    return ResponseEntity.ok(route);
   }
 
   @GetMapping("/path")
@@ -79,78 +71,23 @@ public class NavigationController {
     return ResponseEntity.ok(result);
   }
 
-  // ── Share endpointi ──────────────────────────────────────────────────────
-
-  /**
-   * Kreira share link za rutu.
-   *
-   * <p>POST /api/navigation/share
-   * Body: { "fromLocationId": 1, "toLocationId": 2, "allowElevator": true }
-   * ili:  { "fromLocationId": 1, "targetType": "wc", "allowElevator": true }
-   *
-   * <p>Response: { "shareCode": "a3Kx9mPq", "shareUrl": "http://localhost:5173/share/a3Kx9mPq" }
-   */
   @PostMapping("/share")
-  public ResponseEntity<?> createShare(
+  public ResponseEntity<NavigationShareDto.CreateResponse> createShare(
       @Valid @RequestBody NavigationShareDto.CreateRequest request) {
-    try {
-      NavigationShareDto.CreateResponse response = navigationShareService.createShare(request);
-      return ResponseEntity.ok(response);
-    } catch (NavigationRouteException exception) {
-      return ResponseEntity.status(exception.getStatus())
-          .body(
-              NavigationErrorDto.builder()
-                  .code(exception.getCode())
-                  .message(exception.getMessage())
-                  .build());
-    }
+    NavigationShareDto.CreateResponse response = navigationShareService.createShare(request);
+    return ResponseEntity.ok(response);
   }
 
-  /**
-   * Vraća sacuvane route inpute za dati share kod.
-   *
-   * <p>GET /api/navigation/share/{shareCode}
-   *
-   * <p>Response: { "fromLocationId": 1, "toLocationId": 2, "allowElevator": true }
-   * 404 ako share kod ne postoji.
-   */
   @GetMapping("/share/{shareCode}")
-  public ResponseEntity<?> resolveShare(@PathVariable String shareCode) {
-    try {
-      NavigationShareDto.ResolveResponse response =
-          navigationShareService.resolveShare(shareCode);
-      return ResponseEntity.ok(response);
-    } catch (NavigationRouteException exception) {
-      return ResponseEntity.status(exception.getStatus())
-          .body(
-              NavigationErrorDto.builder()
-                  .code(exception.getCode())
-                  .message(exception.getMessage())
-                  .build());
-    }
+  public ResponseEntity<NavigationShareDto.ResolveResponse> resolveShare(
+      @PathVariable String shareCode) {
+    NavigationShareDto.ResolveResponse response = navigationShareService.resolveShare(shareCode);
+    return ResponseEntity.ok(response);
   }
 
-  /**
-   * Vraća jednu lokaciju po ID-u.
-   * Koristiti za prepopunjavanje prikaza iz shared linka.
-   *
-   * <p>GET /api/navigation/locations/{id}
-   *
-   * <p>Response: NavigationLocationDto
-   * 404 ako lokacija ne postoji ili nije enabled.
-   */
   @GetMapping("/locations/{id}")
-  public ResponseEntity<?> getLocation(@PathVariable Long id) {
-    try {
-      NavigationLocationDto location = navigationShareService.getLocation(id);
-      return ResponseEntity.ok(location);
-    } catch (NavigationRouteException exception) {
-      return ResponseEntity.status(exception.getStatus())
-          .body(
-              NavigationErrorDto.builder()
-                  .code(exception.getCode())
-                  .message(exception.getMessage())
-                  .build());
-    }
+  public ResponseEntity<NavigationLocationDto> getLocation(@PathVariable Long id) {
+    NavigationLocationDto location = navigationShareService.getLocation(id);
+    return ResponseEntity.ok(location);
   }
 }
