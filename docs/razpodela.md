@@ -26,3 +26,7 @@ Backlog:
 - Route export / deep links
 - Pre production checklist
 - Production optimizacije
+
+
+BUG : 
+Nije povezan prvi i 3 i 4 sprat
