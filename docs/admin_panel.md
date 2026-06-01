@@ -193,7 +193,7 @@ Ako ruta ne postoji, prikazuje se greska iz backend-a, na primer:
 
 ## 7. SQL Export
 
-Admin izmene se prvo cuvaju u lokalnu bazu. Da bi drugi developeri dobili iste izmene posle `pull`, izmene moraju da se exportuju u SQL i commituju.
+Admin izmene se prvo cuvaju u lokalnu bazu. Admin export ne menja staging ili production direktno. Da bi drugi developeri i hostovana okruzenja dobili iste izmene, export mora da se pretvori u pregledanu Flyway migraciju koja se commituje u git. Sveze baze se i dalje inicijalizuju kroz `database/init`, a Flyway sluzi za sve naredne post-bootstrap promene.
 
 Status gore desno pokazuje:
 
@@ -205,13 +205,21 @@ Status gore desno pokazuje:
 1. Klikni `Export SQL` gore desno ili `Generate` u SQL export panelu.
 2. Proveri generisani SQL u preview polju.
 3. Klikni `Download` ili `Copy`.
-4. Zameni sadrzaj fajla:
+4. Napravi novi fajl u:
 
 ```text
-database/init/006_admin_navigation_graph.sql
+backend/src/main/resources/db/migration/
 ```
 
-5. Commituj taj fajl zajedno sa kodom.
+5. Nalepi samo pregledani SQL u novi verzionisani fajl oblika:
+
+```text
+VYYYY_MM_DD_NNN__admin_graph_update.sql
+```
+
+6. Ne menjaj `V2026_06_01_002__admin_graph_snapshot_template.sql`; to je rezervisani placeholder koji ostaje netaknut u migracionom lancu.
+7. Novi admin graph export treba da krene od sledeceg slobodnog broja, na primer `003` ili kasnije.
+8. Commituj novu migraciju zajedno sa kodom.
 
 Export koristi stabilne `external_id` vrednosti za node-ove. To znaci da SQL ne zavisi od lokalnih database ID-jeva.
 
@@ -236,9 +244,11 @@ Tipican workflow za promenu grafa:
 4. Povezi node-ove edge-evima.
 5. Proveri rutu kroz `Route preview`.
 6. Klikni `Export SQL`.
-7. Upisi export u `database/init/006_admin_navigation_graph.sql`.
-8. Pokreni build/proveru.
-9. Commituj izmene.
+7. Pregledaj diff i pripremi novu Flyway migraciju u `backend/src/main/resources/db/migration/`, bez izmene rezervisanog `002` placeholder fajla.
+8. Ako podizes praznu bazu, prvo primeni `database/init` bootstrap pa tek onda Flyway-managed promene.
+9. Ako radis sa postojecim staging/production okruzenjem, uradi nameran baseline/cutover postupak pre oslanjanja na Flyway za dalje izmene.
+10. Pokreni build/proveru.
+11. Commituj izmene.
 
 ## 10. Ceste greske
 
@@ -262,7 +272,7 @@ Na mapi se prikazuju same-floor edge-evi za aktivni sprat. Cross-floor edge-evi 
 
 ### Export nije dovoljan sam po sebi
 
-Export samo generise SQL. Da bi tim dobio izmene, generisani SQL mora biti upisan u tracked fajl i commitovan.
+Export samo generise SQL. Da bi tim i hostovana okruzenja dobili izmene, generisani SQL mora biti pretvoren u novu pregledanu Flyway migraciju i commitovan. Rezervisani `002` placeholder se ne koristi za stvarne exporte.
 
 ## 11. Ogranicenja trenutne verzije
 
@@ -275,4 +285,4 @@ Trenutna verzija admin panela jos nema:
 - direktan editor za `spaces`,
 - automatsko pisanje exporta u repo fajl iz browsera.
 
-Zbog toga admin treba koristiti kao dev-only alat dok se ne doda zastita i audit.
+Zbog toga admin treba koristiti kao lokalni alat za editovanje i export, a ne kao stalno hostovan remote control panel.
