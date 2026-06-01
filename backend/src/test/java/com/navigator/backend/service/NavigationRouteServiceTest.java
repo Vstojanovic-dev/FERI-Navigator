@@ -4,13 +4,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.navigator.backend.dto.RouteResponseDto;
 import com.navigator.backend.dto.RouteSearchResult;
 import com.navigator.backend.model.Building;
+import com.navigator.backend.model.EdgeType;
 import com.navigator.backend.model.Floor;
+import com.navigator.backend.model.NavEdge;
 import com.navigator.backend.model.NavNode;
 import com.navigator.backend.model.NavigationLocation;
 import com.navigator.backend.model.NodeType;
@@ -76,17 +79,16 @@ class NavigationRouteServiceTest {
     NavigationLocation from = buildLocation(1L, "Glavni vhod", "entrance", true, 11L, "Pritlicje");
     NavigationLocation fartherWc = buildLocation(2L, "WC A", "wc", true, 21L, "1. nadstropje");
     NavigationLocation closerWc = buildLocation(3L, "WC B", "wc", true, 31L, "Pritlicje");
-    RouteSearchResult noRoute = RouteSearchResult.builder().nodes(List.of()).edges(List.of()).totalCost(0).build();
     RouteSearchResult longRoute =
         RouteSearchResult.builder()
             .nodes(List.of(from.getNode(), fartherWc.getNode()))
-            .edges(List.of())
+            .edges(List.of(routeEdge(501L, from.getNode(), fartherWc.getNode())))
             .totalCost(18)
             .build();
     RouteSearchResult shortRoute =
         RouteSearchResult.builder()
             .nodes(List.of(from.getNode(), closerWc.getNode()))
-            .edges(List.of())
+            .edges(List.of(routeEdge(502L, from.getNode(), closerWc.getNode())))
             .totalCost(6)
             .build();
 
@@ -95,7 +97,6 @@ class NavigationRouteServiceTest {
         .thenReturn(List.of(from, fartherWc, closerWc));
     when(aStarService.findPath(from.getNode(), fartherWc.getNode(), true)).thenReturn(longRoute);
     when(aStarService.findPath(from.getNode(), closerWc.getNode(), true)).thenReturn(shortRoute);
-    when(aStarService.findPath(from.getNode(), from.getNode(), true)).thenReturn(noRoute);
 
     RouteResponseDto result = service.route(1L, null, " wc ", true);
 
@@ -114,6 +115,67 @@ class NavigationRouteServiceTest {
 
     assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
     assertEquals("UNSUPPORTED_TARGET_TYPE", exception.getCode());
+  }
+
+  @Test
+  void routeNormalizesInvalidGraphDataIntoNavigationError() {
+    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
+    from.getFloor().setCoordinateWidth(null);
+
+    RouteSearchResult route =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of())
+            .totalCost(4)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true)).thenReturn(route);
+
+    NavigationRouteException exception =
+        assertThrows(NavigationRouteException.class, () -> service.route(1L, 2L, null, true));
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+    assertEquals("INVALID_ROUTE_DATA", exception.getCode());
+  }
+
+  @Test
+  void routeRejectsNullFromLocationBeforeRepositoryLookup() {
+    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+
+    NavigationRouteException exception =
+        assertThrows(NavigationRouteException.class, () -> service.route(null, 2L, null, true));
+
+    assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+    assertEquals("MISSING_LOCATION", exception.getCode());
+    verify(locationRepository, never()).findEnabledById(2L);
+  }
+
+  @Test
+  void routeNormalizesMismatchedRouteShapeIntoNavigationError() {
+    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
+
+    RouteSearchResult route =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of(NavEdge.builder().id(77L).build(), NavEdge.builder().id(78L).build()))
+            .totalCost(4)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true)).thenReturn(route);
+
+    NavigationRouteException exception =
+        assertThrows(NavigationRouteException.class, () -> service.route(1L, 2L, null, true));
+
+    assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, exception.getStatus());
+    assertEquals("INVALID_ROUTE_DATA", exception.getCode());
   }
 
   private NavigationLocation buildLocation(
@@ -162,6 +224,16 @@ class NavigationRouteServiceTest {
         .node(node)
         .spaceId(locationId)
         .isEnabled(true)
+        .build();
+  }
+
+  private NavEdge routeEdge(Long edgeId, NavNode fromNode, NavNode toNode) {
+    return NavEdge.builder()
+        .id(edgeId)
+        .fromNode(fromNode)
+        .toNode(toNode)
+        .weight(BigDecimal.ONE)
+        .edgeType(EdgeType.builder().id(1L).code("corridor").name("Corridor").build())
         .build();
   }
 }

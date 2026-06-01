@@ -26,9 +26,12 @@ import org.springframework.stereotype.Service;
 public class AStarService {
 
   private static final double STAIRS_PENALTY = 15.0;
+  private static final double DEFAULT_SCORE = Double.MAX_VALUE;
 
   private final NavNodeRepository nodeRepo;
   private final NavEdgeRepository edgeRepo;
+
+  private record QueueEntry(Long nodeId, double score) {}
 
   public PathResponseDto findPath(String fromLabel, String toLabel) {
     Optional<NavNode> startOpt = findNode(fromLabel);
@@ -60,7 +63,7 @@ public class AStarService {
   }
 
   public RouteSearchResult findPath(NavNode start, NavNode goal, boolean allowElevator) {
-    if (start.getId().equals(goal.getId())) {
+    if (requireNodeId(start).equals(requireNodeId(goal))) {
       return RouteSearchResult.builder()
           .nodes(List.of(start))
           .edges(List.of())
@@ -79,17 +82,21 @@ public class AStarService {
     gScore.put(start.getId(), 0.0);
     fScore.put(start.getId(), heuristic(start, goal));
 
-    PriorityQueue<Long> openSet =
-        new PriorityQueue<>(
-            Comparator.comparingDouble(id -> fScore.getOrDefault(id, Double.MAX_VALUE)));
-    openSet.add(start.getId());
+    PriorityQueue<QueueEntry> openSet =
+        new PriorityQueue<>(Comparator.comparingDouble(QueueEntry::score));
+    openSet.add(new QueueEntry(start.getId(), fScore.get(start.getId())));
 
     Map<Long, NavNode> nodeCache = new HashMap<>();
     nodeCache.put(start.getId(), start);
     nodeCache.put(goal.getId(), goal);
 
     while (!openSet.isEmpty()) {
-      Long currentId = openSet.poll();
+      QueueEntry current = openSet.poll();
+      if (current.score() > fScore.getOrDefault(current.nodeId(), DEFAULT_SCORE)) {
+        continue;
+      }
+
+      Long currentId = current.nodeId();
 
       if (currentId.equals(goal.getId())) {
         List<NavNode> pathNodes = reconstructPath(cameFrom, currentId, nodeCache);
@@ -110,8 +117,8 @@ public class AStarService {
           continue;
         }
 
-        NavNode neighbor = edge.getToNode();
-        Long neighborId = neighbor.getId();
+        NavNode neighbor = requireNeighbor(edge);
+        Long neighborId = requireNodeId(neighbor);
 
         if (closedSet.contains(neighborId)) {
           continue;
@@ -120,19 +127,17 @@ public class AStarService {
         nodeCache.putIfAbsent(neighborId, neighbor);
 
         double tentativeG =
-            gScore.getOrDefault(currentId, Double.MAX_VALUE)
-                + edge.getWeight().doubleValue()
+            gScore.getOrDefault(currentId, DEFAULT_SCORE)
+                + safeWeight(edge)
                 + movementPenalty(edge);
 
-        if (tentativeG < gScore.getOrDefault(neighborId, Double.MAX_VALUE)) {
+        if (tentativeG < gScore.getOrDefault(neighborId, DEFAULT_SCORE)) {
           cameFrom.put(neighborId, currentId);
           cameFromEdge.put(neighborId, edge);
           gScore.put(neighborId, tentativeG);
-          fScore.put(neighborId, tentativeG + heuristic(neighbor, goal));
-
-          if (!openSet.contains(neighborId)) {
-            openSet.add(neighborId);
-          }
+          double neighborScore = tentativeG + heuristic(neighbor, goal);
+          fScore.put(neighborId, neighborScore);
+          openSet.add(new QueueEntry(neighborId, neighborScore));
         }
       }
     }
@@ -159,8 +164,8 @@ public class AStarService {
   }
 
   private double heuristic(NavNode a, NavNode b) {
-    double dx = a.getX().doubleValue() - b.getX().doubleValue();
-    double dy = a.getY().doubleValue() - b.getY().doubleValue();
+    double dx = safeCoordinate(a.getX(), "x", a) - safeCoordinate(b.getX(), "x", b);
+    double dy = safeCoordinate(a.getY(), "y", a) - safeCoordinate(b.getY(), "y", b);
     return Math.sqrt(dx * dx + dy * dy);
   }
 
@@ -203,13 +208,42 @@ public class AStarService {
 
   private PathResponseDto.PathNode toPathNode(NavNode node) {
     return PathResponseDto.PathNode.builder()
-        .id(node.getId())
+        .id(requireNodeId(node))
         .externalId(node.getExternalId())
         .label(node.getLabel())
         .nodeType(node.getNodeTypeCode())
         .floorId(node.getFloorId())
-        .x(node.getX().doubleValue())
-        .y(node.getY().doubleValue())
+        .x(safeCoordinate(node.getX(), "x", node))
+        .y(safeCoordinate(node.getY(), "y", node))
         .build();
+  }
+
+  private Long requireNodeId(NavNode node) {
+    if (node == null || node.getId() == null) {
+      throw new IllegalStateException("Missing node id.");
+    }
+    return node.getId();
+  }
+
+  private double safeCoordinate(java.math.BigDecimal value, String field, NavNode node) {
+    if (value == null) {
+      throw new IllegalStateException(
+          "Missing coordinate: " + field + " for node " + requireNodeId(node));
+    }
+    return value.doubleValue();
+  }
+
+  private double safeWeight(NavEdge edge) {
+    if (edge.getWeight() == null) {
+      throw new IllegalStateException("Missing edge weight for edge " + edge.getId() + ".");
+    }
+    return edge.getWeight().doubleValue();
+  }
+
+  private NavNode requireNeighbor(NavEdge edge) {
+    if (edge == null || edge.getToNode() == null) {
+      throw new IllegalStateException("Missing destination node for edge.");
+    }
+    return edge.getToNode();
   }
 }

@@ -13,6 +13,7 @@ import com.navigator.backend.model.NavigationLocation;
 import com.navigator.backend.model.Space;
 import com.navigator.backend.repository.NavigationLocationRepository;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -86,21 +87,27 @@ public class NavigationRouteService {
           "Ciljna lokacija jos nije povezana sa navigacionim grafom.");
     }
 
-    RouteSearchResult searchResult =
-        aStarService.findPath(from.getNode(), to.getNode(), allowElevator);
+    try {
+      RouteSearchResult searchResult =
+          aStarService.findPath(from.getNode(), to.getNode(), allowElevator);
 
-    if (searchResult.getNodes().isEmpty()) {
-      throw new NavigationRouteException(
-          HttpStatus.NOT_FOUND, "NO_ROUTE", "Za izabrane lokacije jos ne postoji unesena ruta.");
+      if (searchResult.getNodes().isEmpty()) {
+        throw new NavigationRouteException(
+            HttpStatus.NOT_FOUND,
+            "NO_ROUTE",
+            "Za izabrane lokacije jos ne postoji unesena ruta.");
+      }
+
+      return RouteResponseDto.builder()
+          .routeId("route-" + from.getId() + "-" + to.getId())
+          .from(toLocationDto(from))
+          .to(toLocationDto(to))
+          .totalCost(searchResult.getTotalCost())
+          .segments(buildSegments(searchResult))
+          .build();
+    } catch (IllegalStateException ex) {
+      throw invalidRouteData();
     }
-
-    return RouteResponseDto.builder()
-        .routeId("route-" + from.getId() + "-" + to.getId())
-        .from(toLocationDto(from))
-        .to(toLocationDto(to))
-        .totalCost(searchResult.getTotalCost())
-        .segments(buildSegments(searchResult))
-        .build();
   }
 
   private RouteResponseDto routeToNearestTarget(
@@ -131,34 +138,39 @@ public class NavigationRouteService {
           "Najblizi WC trenutno nije dostupan u navigacionim podacima.");
     }
 
-    NavigationLocation bestLocation = null;
-    RouteSearchResult bestRoute = null;
-    for (NavigationLocation candidate : candidates) {
-      RouteSearchResult candidateRoute =
-          aStarService.findPath(from.getNode(), candidate.getNode(), allowElevator);
-      if (candidateRoute.getNodes().isEmpty()) {
-        continue;
+    try {
+      NavigationLocation bestLocation = null;
+      RouteSearchResult bestRoute = null;
+      for (NavigationLocation candidate : candidates) {
+        RouteSearchResult candidateRoute =
+            aStarService.findPath(from.getNode(), candidate.getNode(), allowElevator);
+        if (candidateRoute.getNodes().isEmpty()) {
+          continue;
+        }
+        if (bestRoute == null || candidateRoute.getTotalCost() < bestRoute.getTotalCost()) {
+          bestRoute = candidateRoute;
+          bestLocation = candidate;
+        }
       }
-      if (bestRoute == null || candidateRoute.getTotalCost() < bestRoute.getTotalCost()) {
-        bestRoute = candidateRoute;
-        bestLocation = candidate;
+
+      if (bestRoute == null || bestLocation == null) {
+        throw new NavigationRouteException(
+            HttpStatus.NOT_FOUND,
+            "NO_ROUTE_TO_TARGET_TYPE",
+            "Do najblizeg WC-a trenutno ne postoji unesena ruta.");
       }
-    }
 
-    if (bestRoute == null || bestLocation == null) {
-      throw new NavigationRouteException(
-          HttpStatus.NOT_FOUND,
-          "NO_ROUTE_TO_TARGET_TYPE",
-          "Do najblizeg WC-a trenutno ne postoji unesena ruta.");
+      return RouteResponseDto.builder()
+          .routeId(
+              "route-" + from.getId() + "-nearest-" + targetType + "-" + bestLocation.getId())
+          .from(toLocationDto(from))
+          .to(toLocationDto(bestLocation))
+          .totalCost(bestRoute.getTotalCost())
+          .segments(buildSegments(bestRoute))
+          .build();
+    } catch (IllegalStateException ex) {
+      throw invalidRouteData();
     }
-
-    return RouteResponseDto.builder()
-        .routeId("route-" + from.getId() + "-nearest-" + targetType + "-" + bestLocation.getId())
-        .from(toLocationDto(from))
-        .to(toLocationDto(bestLocation))
-        .totalCost(bestRoute.getTotalCost())
-        .segments(buildSegments(bestRoute))
-        .build();
   }
 
   private String normalizeTargetType(String targetType) {
@@ -185,22 +197,28 @@ public class NavigationRouteService {
   }
 
   private List<RouteSegmentDto> buildSegments(RouteSearchResult searchResult) {
-    List<NavNode> nodes = searchResult.getNodes();
-    List<NavEdge> edges = searchResult.getEdges();
+    List<NavNode> nodes =
+        searchResult.getNodes() != null ? searchResult.getNodes() : Collections.emptyList();
+    List<NavEdge> edges =
+        searchResult.getEdges() != null ? searchResult.getEdges() : Collections.emptyList();
+
+    if (nodes.isEmpty()) {
+      return List.of();
+    }
 
     if (nodes.size() == 1) {
       NavNode node = nodes.get(0);
       return List.of(
           buildSegment(
               0,
-              node.getFloor(),
+              requireFloor(node),
               List.of(node),
               List.of(
                   RouteStepDto.builder()
                       .index(0)
                       .text("Start i cilj su ista lokacija.")
-                      .fromNodeId(node.getId())
-                      .toNodeId(node.getId())
+                      .fromNodeId(safeNodeId(node))
+                      .toNodeId(safeNodeId(node))
                       .type("same_location")
                       .icon("destination")
                       .maneuverType("destination")
@@ -208,15 +226,17 @@ public class NavigationRouteService {
                       .build())));
     }
 
+    validateRouteShape(nodes, edges);
+
     List<SegmentDraft> drafts = new ArrayList<>();
-    SegmentDraft current = new SegmentDraft(nodes.get(0).getFloor());
+    SegmentDraft current = new SegmentDraft(requireFloor(nodes.get(0)));
     current.nodes.add(nodes.get(0));
 
     for (int edgeIndex = 0; edgeIndex < edges.size(); edgeIndex++) {
       NavEdge edge = edges.get(edgeIndex);
       NavNode fromNode = nodes.get(edgeIndex);
       NavNode toNode = nodes.get(edgeIndex + 1);
-      boolean floorChanged = !fromNode.getFloorId().equals(toNode.getFloorId());
+      boolean floorChanged = !Objects.equals(fromNode.getFloorId(), toNode.getFloorId());
 
       current.nodes.add(toNode);
       current.edges.add(edge);
@@ -224,7 +244,7 @@ public class NavigationRouteService {
       if (floorChanged) {
         drafts.add(current);
 
-        current = new SegmentDraft(toNode.getFloor());
+        current = new SegmentDraft(requireFloor(toNode));
         current.nodes.add(toNode);
         current.incomingEdge = edge;
         current.incomingFromNode = fromNode;
@@ -238,6 +258,7 @@ public class NavigationRouteService {
     List<RouteSegmentDto> segments = new ArrayList<>();
     for (int i = 0; i < drafts.size(); i++) {
       SegmentDraft draft = drafts.get(i);
+      validateDraftShape(draft);
       List<RouteStepDto> generatedSteps = new ArrayList<>();
       if (draft.incomingEdge != null && draft.incomingFromNode != null && !draft.nodes.isEmpty()) {
         generatedSteps.add(buildStep(0, draft.incomingEdge, draft.incomingFromNode, draft.nodes.get(0), true));
@@ -330,9 +351,9 @@ public class NavigationRouteService {
         .floorCode(floor.getCode())
         .floorLabel(floor.getLabel())
         .mapImageUrl(floor.getMapImageUrl())
-        .coordinateWidth(floor.getCoordinateWidth().doubleValue())
-        .coordinateHeight(floor.getCoordinateHeight().doubleValue())
-        .z(floor.getZ().doubleValue())
+        .coordinateWidth(safeDecimal(floor.getCoordinateWidth(), "coordinateWidth", "floor " + floor.getId()))
+        .coordinateHeight(safeDecimal(floor.getCoordinateHeight(), "coordinateHeight", "floor " + floor.getId()))
+        .z(safeDecimal(floor.getZ(), "z", "floor " + floor.getId()))
         .usesElevator(usesElevator)
         .usesStairs(usesStairs)
         .path(nodes.stream().map(this::toPointDto).toList())
@@ -367,8 +388,8 @@ public class NavigationRouteService {
     return RouteStepDto.builder()
         .index(index)
         .text(instruction(edge, fromNode, toNode, arrivalContext))
-        .fromNodeId(fromNode.getId())
-        .toNodeId(toNode.getId())
+        .fromNodeId(safeNodeId(fromNode))
+        .toNodeId(safeNodeId(toNode))
         .type(type)
         .icon(icon)
         .maneuverType(maneuverType)
@@ -485,10 +506,10 @@ public class NavigationRouteService {
   }
 
   private String classifyTurn(NavNode previous, NavNode current, NavNode next) {
-    double x1 = current.getX().doubleValue() - previous.getX().doubleValue();
-    double y1 = current.getY().doubleValue() - previous.getY().doubleValue();
-    double x2 = next.getX().doubleValue() - current.getX().doubleValue();
-    double y2 = next.getY().doubleValue() - current.getY().doubleValue();
+    double x1 = safeNodeCoordinate(current, "x") - safeNodeCoordinate(previous, "x");
+    double y1 = safeNodeCoordinate(current, "y") - safeNodeCoordinate(previous, "y");
+    double x2 = safeNodeCoordinate(next, "x") - safeNodeCoordinate(current, "x");
+    double y2 = safeNodeCoordinate(next, "y") - safeNodeCoordinate(current, "y");
 
     double norm1 = Math.hypot(x1, y1);
     double norm2 = Math.hypot(x2, y2);
@@ -554,13 +575,13 @@ public class NavigationRouteService {
 
   private RoutePointDto toPointDto(NavNode node) {
     return RoutePointDto.builder()
-        .nodeId(node.getId())
+        .nodeId(safeNodeId(node))
         .externalId(node.getExternalId())
         .label(readableLabel(node))
         .nodeType(node.getNodeTypeCode())
-        .x(node.getX().doubleValue())
-        .y(node.getY().doubleValue())
-        .z(node.getZ().doubleValue())
+        .x(safeNodeCoordinate(node, "x"))
+        .y(safeNodeCoordinate(node, "y"))
+        .z(safeNodeCoordinate(node, "z"))
         .build();
   }
 
@@ -598,5 +619,61 @@ public class NavigationRouteService {
     private SegmentDraft(Floor floor) {
       this.floor = floor;
     }
+  }
+
+  private NavigationRouteException invalidRouteData() {
+    return new NavigationRouteException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "INVALID_ROUTE_DATA",
+        "Navigacioni podaci su nepotpuni ili nekonzistentni.");
+  }
+
+  private void validateRouteShape(List<NavNode> nodes, List<NavEdge> edges) {
+    if (edges.size() != nodes.size() - 1) {
+      throw new IllegalStateException("Route nodes/edges shape is inconsistent.");
+    }
+  }
+
+  private void validateDraftShape(SegmentDraft draft) {
+    if (draft.nodes.isEmpty()) {
+      throw new IllegalStateException("Route segment is missing nodes.");
+    }
+    if (!draft.edges.isEmpty() && draft.nodes.size() != draft.edges.size() + 1) {
+      throw new IllegalStateException("Route segment nodes/edges shape is inconsistent.");
+    }
+  }
+
+  private Floor requireFloor(NavNode node) {
+    if (node == null || node.getFloor() == null) {
+      throw new IllegalStateException("Missing floor for node " + safeNodeId(node));
+    }
+    return node.getFloor();
+  }
+
+  private Long safeNodeId(NavNode node) {
+    if (node == null || node.getId() == null) {
+      throw new IllegalStateException("Missing node id.");
+    }
+    return node.getId();
+  }
+
+  private double safeNodeCoordinate(NavNode node, String field) {
+    if (node == null) {
+      throw new IllegalStateException("Missing node for coordinate " + field);
+    }
+
+    return switch (field) {
+      case "x" -> safeDecimal(node.getX(), field, "node " + safeNodeId(node));
+      case "y" -> safeDecimal(node.getY(), field, "node " + safeNodeId(node));
+      case "z" -> safeDecimal(node.getZ(), field, "node " + safeNodeId(node));
+      default -> throw new IllegalArgumentException("Unsupported coordinate field: " + field);
+    };
+  }
+
+  private double safeDecimal(java.math.BigDecimal value, String field, String owner) {
+    if (value == null) {
+      throw new IllegalStateException("Missing " + field + " for " + owner);
+    }
+    return value.doubleValue();
   }
 }
