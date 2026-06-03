@@ -23,25 +23,25 @@ WITH destination_input(
         -- Pritlicje
         ('pritlicje', 'G3-P1-13', 'Sejna soba', 'classroom', 430.00, 176.00, 'sejna soba meeting room classroom'),
         ('pritlicje', 'G3-P1-14', 'Sejna soba', 'classroom', 190.00, 176.00, 'sejna soba meeting room classroom'),
-        ('pritlicje', 'G3-P1-15', 'Laboratorij Turing', 'laboratory', 195.00, 540.00, 'laboratorij turing lab laboratory laboratoji'),
+        ('pritlicje', 'G3-P1-15', 'Laboratorij Turing', 'laboratory', 223.32, 317.97, 'laboratorij turing lab laboratory laboratoji'),
         ('pritlicje', 'G3-P1-16-17', 'Inkubator FERI 1', 'public_area', 520.00, 705.00, 'inkubator feri incubator public area'),
         ('pritlicje', 'G3-P1-20', 'Inkubator FERI 2', 'public_area', 890.00, 705.00, 'inkubator feri incubator public area'),
         ('pritlicje', 'G3-P1-21', 'Demo Center 2', 'public_area', 1080.00, 705.00, 'demo center demonstracijski prostor public area'),
         ('pritlicje', 'G3-P1-24', 'Demo Center 1', 'public_area', 930.00, 480.00, 'demo center demonstracijski prostor public area'),
 
         -- Nadstropje
-        ('nadstropje', 'G3-N1-33', 'Diplomska soba FERI', 'classroom', 740.00, 710.00, 'diplomska soba feri classroom project room'),
-        ('nadstropje', 'G3-N1-34', 'Laboratorij Boole', 'laboratory', 1030.00, 710.00, 'laboratorij boole lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-35', 'Laboratorij Boole', 'laboratory', 915.00, 420.00, 'laboratorij boole lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-33', 'Diplomska soba FERI', 'classroom', 603.10, 480.19, 'diplomska soba feri classroom project room'),
+        ('nadstropje', 'G3-N1-34', 'Laboratorij Boole', 'laboratory', 896.11, 480.19, 'laboratorij boole lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-35', 'Laboratorij Boole', 'laboratory', 850.60, 316.55, 'laboratorij boole lab laboratory laboratoji'),
         ('nadstropje', 'G3-N1-45', 'Kabinet', 'office', 440.00, 270.00, 'kabinet office'),
-        ('nadstropje', 'G3-N1-46', 'Laboratorij Shannon', 'laboratory', 190.00, 360.00, 'laboratorij shannon lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-47', 'Laboratorij Ada', 'laboratory', 190.00, 610.00, 'laboratorij ada lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-48', 'Sejna soba', 'classroom', 515.00, 710.00, 'sejna soba meeting room classroom'),
+        ('nadstropje', 'G3-N1-46', 'Laboratorij Shannon', 'laboratory', 163.58, 208.40, 'laboratorij shannon lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-47', 'Laboratorij Ada', 'laboratory', 160.73, 431.81, 'laboratorij ada lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-48', 'Sejna soba', 'classroom', 359.87, 467.38, 'sejna soba meeting room classroom'),
 
         -- Mansarda
         ('mansarda', 'G3-M1-50', 'Laboratorij Simon', 'laboratory', 940.00, 365.00, 'laboratorij simon lab laboratory laboratoji'),
         ('mansarda', 'G3-M1-59', 'Laboratorij Martin', 'laboratory', 390.00, 210.00, 'laboratorij martin lab laboratory laboratoji'),
-        ('mansarda', 'G3-M1-61', 'Seminarska soba Aleksander', 'classroom', 230.00, 680.00, 'seminarska soba aleksander seminar room classroom')
+        ('mansarda', 'G3-M1-61', 'Seminarska soba Aleksander', 'classroom', 156.46, 390.54, 'seminarska soba aleksander seminar room classroom')
 ),
 resolved AS (
     SELECT
@@ -151,28 +151,27 @@ WITH destination_input(
 ) AS (
     VALUES
         ('klet', 'G3-K1-01', 'Amfiteater Gauss', 'classroom', 272.00, 239.00, 'amfiteater gauss lecture hall classroom predavalnica'),
-        ('klet', 'G3-K1-03', 'Laboratorij Markova', 'laboratory', 220.00, 715.00, 'laboratorij markova lab laboratory laboratoji'),
         ('klet', 'G3-K1-04', 'Laboratorij Markova', 'laboratory', 520.00, 715.00, 'laboratorij markova lab laboratory laboratoji'),
         ('klet', 'G3-K1-05', 'Laboratorij Lumiere', 'laboratory', 845.00, 715.00, 'laboratorij lumiere lab laboratory laboratoji'),
         ('klet', 'G3-K1-AVLA', 'Avla', 'public_area', 840.00, 238.00, 'avla hall lobby'),
         ('klet', 'G3-K1-RAZSTAVNI-PROSTOR', 'Razstavni prostor', 'public_area', 980.00, 430.00, 'razstavni prostor exhibition public area'),
         ('pritlicje', 'G3-P1-13', 'Sejna soba', 'classroom', 430.00, 176.00, 'sejna soba meeting room classroom'),
         ('pritlicje', 'G3-P1-14', 'Sejna soba', 'classroom', 190.00, 176.00, 'sejna soba meeting room classroom'),
-        ('pritlicje', 'G3-P1-15', 'Laboratorij Turing', 'laboratory', 195.00, 540.00, 'laboratorij turing lab laboratory laboratoji'),
+        ('pritlicje', 'G3-P1-15', 'Laboratorij Turing', 'laboratory', 223.32, 317.97, 'laboratorij turing lab laboratory laboratoji'),
         ('pritlicje', 'G3-P1-16-17', 'Inkubator FERI 1', 'public_area', 520.00, 705.00, 'inkubator feri incubator public area'),
         ('pritlicje', 'G3-P1-20', 'Inkubator FERI 2', 'public_area', 890.00, 705.00, 'inkubator feri incubator public area'),
         ('pritlicje', 'G3-P1-21', 'Demo Center 2', 'public_area', 1080.00, 705.00, 'demo center demonstracijski prostor public area'),
         ('pritlicje', 'G3-P1-24', 'Demo Center 1', 'public_area', 930.00, 480.00, 'demo center demonstracijski prostor public area'),
-        ('nadstropje', 'G3-N1-33', 'Diplomska soba FERI', 'classroom', 740.00, 710.00, 'diplomska soba feri classroom project room'),
-        ('nadstropje', 'G3-N1-34', 'Laboratorij Boole', 'laboratory', 1030.00, 710.00, 'laboratorij boole lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-35', 'Laboratorij Boole', 'laboratory', 915.00, 420.00, 'laboratorij boole lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-33', 'Diplomska soba FERI', 'classroom', 603.10, 480.19, 'diplomska soba feri classroom project room'),
+        ('nadstropje', 'G3-N1-34', 'Laboratorij Boole', 'laboratory', 896.11, 480.19, 'laboratorij boole lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-35', 'Laboratorij Boole', 'laboratory', 850.60, 316.55, 'laboratorij boole lab laboratory laboratoji'),
         ('nadstropje', 'G3-N1-45', 'Kabinet', 'office', 440.00, 270.00, 'kabinet office'),
-        ('nadstropje', 'G3-N1-46', 'Laboratorij Shannon', 'laboratory', 190.00, 360.00, 'laboratorij shannon lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-47', 'Laboratorij Ada', 'laboratory', 190.00, 610.00, 'laboratorij ada lab laboratory laboratoji'),
-        ('nadstropje', 'G3-N1-48', 'Sejna soba', 'classroom', 515.00, 710.00, 'sejna soba meeting room classroom'),
+        ('nadstropje', 'G3-N1-46', 'Laboratorij Shannon', 'laboratory', 163.58, 208.40, 'laboratorij shannon lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-47', 'Laboratorij Ada', 'laboratory', 160.73, 431.81, 'laboratorij ada lab laboratory laboratoji'),
+        ('nadstropje', 'G3-N1-48', 'Sejna soba', 'classroom', 359.87, 467.38, 'sejna soba meeting room classroom'),
         ('mansarda', 'G3-M1-50', 'Laboratorij Simon', 'laboratory', 940.00, 365.00, 'laboratorij simon lab laboratory laboratoji'),
         ('mansarda', 'G3-M1-59', 'Laboratorij Martin', 'laboratory', 390.00, 210.00, 'laboratorij martin lab laboratory laboratoji'),
-        ('mansarda', 'G3-M1-61', 'Seminarska soba Aleksander', 'classroom', 230.00, 680.00, 'seminarska soba aleksander seminar room classroom')
+        ('mansarda', 'G3-M1-61', 'Seminarska soba Aleksander', 'classroom', 156.46, 390.54, 'seminarska soba aleksander seminar room classroom')
 ),
 resolved AS (
     SELECT
