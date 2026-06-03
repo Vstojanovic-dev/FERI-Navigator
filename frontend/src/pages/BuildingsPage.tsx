@@ -8,7 +8,15 @@ import SubPageHeader from '../components/SubPageHeader';
 import { resolveAssetUrl } from '../services/api';
 import { fetchBuildings, fetchBuildingSpaces, searchSpaces } from '../services/catalogService';
 import type { BuildingSummary, CatalogSpace } from '../types/catalog';
+import { getBuildingPlanImageUrl } from '../utils/buildingPlanImages';
 import { formatSpaceCount, getSpaceDisplayName } from '../utils/displayNames';
+import {
+  buildingToSearchable,
+  catalogSpaceToSearchable,
+  getCatalogSpaceLabel,
+  getSearchResults,
+  normalizeText,
+} from '../utils/search';
 import styles from './BuildingsPage.module.css';
 
 type BuildingsPageState = {
@@ -16,35 +24,26 @@ type BuildingsPageState = {
   selectedSpace?: CatalogSpace;
 };
 
-const BUILDING_PLAN_MAP: Record<string, string> = {
-  'Objekt C': '/maps/objekt_c.png',
-  'Objekt E': '/maps/objekt_e.png',
-  'Objekt F': '/maps/objekt_f_p.png',
-  'Objekt G': '/maps/objekt_g_p.png',
-  'Objekt G2': '/maps/objekt_g_2_n.png',
-  'Objekt G3': '/maps/g3_pritlicje.png',
-};
-
 const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
   'Objekt C': [
-    { id: 9001, name: 'C-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: 'Predavanja in vaje za manjše skupine.', imageUrl: '/feri-logo.png', code: 'C-101', purpose: 'Predavanja', capacity: 45, notes: 'Projektor in bela tabla.' },
-    { id: 9002, name: 'C-102', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: 'Laboratorijske vaje.', imageUrl: '/feri-logo.png', code: 'C-102', purpose: 'Laboratorij', capacity: 24, notes: 'Računalniška učilnica.' },
+    { id: 9001, name: 'C-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: null, code: 'C-101' },
+    { id: 9002, name: 'C-102', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt C', floor: 'Pritličje', description: null, imageUrl: null, code: 'C-102' },
   ],
   'Objekt E': [
-    { id: 9101, name: 'E-201', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt E', floor: '1. nadstropje', description: 'Klasična učilnica za predavanja.', imageUrl: '/feri-logo.png', code: 'E-201', purpose: 'Predavanja', capacity: 60 },
+    { id: 9101, name: 'E-201', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt E', floor: '1. nadstropje', description: null, imageUrl: null, code: 'E-201' },
   ],
   'Objekt F': [
-    { id: 9201, name: 'F-001', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt F', floor: 'Pritličje', description: 'Učilnica za vaje.', imageUrl: '/feri-logo.png', code: 'F-001', purpose: 'Vaje', capacity: 32 },
+    { id: 9201, name: 'F-001', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt F', floor: 'Pritličje', description: null, imageUrl: null, code: 'F-001' },
   ],
   'Objekt G': [
-    { id: 9301, name: 'G-001', type: 'Predavalnica', buildingId: 0, buildingName: 'Objekt G', floor: 'Pritličje', description: 'Večja predavalnica.', imageUrl: '/feri-logo.png', code: 'G-001', purpose: 'Predavanja', capacity: 120 },
-    { id: 9302, name: 'Galerija', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G', floor: '4. nadstropje', description: 'Galerijski prostor za dogodke in predstavitve.', imageUrl: '/feri-logo.png', code: 'G-GAL', purpose: 'Dogodki', capacity: 80 },
+    { id: 9301, name: 'G-001', type: 'Predavalnica', buildingId: 0, buildingName: 'Objekt G', floor: 'Pritličje', description: null, imageUrl: null, code: 'G-001' },
+    { id: 9302, name: 'Galerija', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G', floor: '4. nadstropje', description: null, imageUrl: null, code: 'G-GAL' },
   ],
   'Objekt G2': [
-    { id: 9401, name: 'G2-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G2', floor: '1. nadstropje', description: 'Srednje velika učilnica.', imageUrl: '/feri-logo.png', code: 'G2-101', purpose: 'Predavanja', capacity: 40 },
+    { id: 9401, name: 'G2-101', type: 'Učilnica', buildingId: 0, buildingName: 'Objekt G2', floor: '1. nadstropje', description: null, imageUrl: null, code: 'G2-101' },
   ],
   'Objekt G3': [
-    { id: 9501, name: 'G3-301', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt G3', floor: 'Pritličje', description: 'Laboratorij za praktične vaje.', imageUrl: '/feri-logo.png', code: 'G3-301', purpose: 'Laboratorij', capacity: 20 },
+    { id: 9501, name: 'G3-301', type: 'Laboratorij', buildingId: 0, buildingName: 'Objekt G3', floor: 'Pritličje', description: null, imageUrl: null, code: 'G3-301' },
   ],
 };
 
@@ -58,6 +57,7 @@ function BuildingsPage() {
   const [buildings, setBuildings] = useState<BuildingSummary[]>([]);
   const [allSpaces, setAllSpaces] = useState<CatalogSpace[]>([]);
   const [buildingSpaces, setBuildingSpaces] = useState<CatalogSpace[]>([]);
+  const [buildingSpaceSearch, setBuildingSpaceSearch] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,6 +98,10 @@ function BuildingsPage() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    setBuildingSpaceSearch('');
+  }, [selectedBuilding]);
 
   useEffect(() => {
     if (!selectedBuilding) {
@@ -155,41 +159,31 @@ function BuildingsPage() {
   };
 
   const filteredBuildings = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-
     const sortBySpaceCount = (left: BuildingSummary, right: BuildingSummary) =>
       getBuildingSpaceCount(right) - getBuildingSpaceCount(left);
 
-    if (!query) {
+    if (!normalizeText(searchText)) {
       return [...buildings].sort(sortBySpaceCount);
     }
 
-    const scoreBuilding = (building: BuildingSummary) => {
-      const name = building.name.toLowerCase();
-      const description = (building.description ?? '').toLowerCase();
-      const spaceCountText = formatSpaceCount(getBuildingSpaceCount(building)).toLowerCase();
+    const ranked = getSearchResults(buildings, searchText, (building) => {
+      const fields = buildingToSearchable(building);
+      return {
+        ...fields,
+        description: [fields.description, formatSpaceCount(getBuildingSpaceCount(building))]
+          .filter(Boolean)
+          .join(' '),
+      };
+    });
 
-      if (name.startsWith(query)) {
-        return 0;
-      }
-      if (name.includes(query)) {
-        return 1;
-      }
-      if (description.includes(query) || spaceCountText.includes(query)) {
-        return 2;
-      }
-      return 3;
-    };
-
-    return [...buildings]
-      .filter((building) => scoreBuilding(building) < 3)
+    return ranked
       .sort((left, right) => {
-        const byScore = scoreBuilding(left) - scoreBuilding(right);
-        if (byScore !== 0) {
-          return byScore;
+        if (left.rank !== right.rank) {
+          return left.rank - right.rank;
         }
-        return sortBySpaceCount(left, right);
-      });
+        return sortBySpaceCount(left.item, right.item);
+      })
+      .map((result) => result.item);
   }, [buildings, searchText, spaceCountByBuildingId]);
 
   const openSpaceNavigation = (space: CatalogSpace) => {
@@ -208,11 +202,18 @@ function BuildingsPage() {
   }
 
   if (selectedBuilding) {
-    const planImageUrl = BUILDING_PLAN_MAP[selectedBuilding.name] ?? resolveAssetUrl(selectedBuilding.imageUrl);
+    const planImageUrl =
+      getBuildingPlanImageUrl(selectedBuilding.name) ?? resolveAssetUrl(selectedBuilding.imageUrl);
     const spacesForBuilding =
       buildingSpaces.length > 0
         ? buildingSpaces
         : DEMO_SPACES_BY_BUILDING[selectedBuilding.name] ?? [];
+    const filteredBuildingSpaces = getSearchResults(
+      spacesForBuilding,
+      buildingSpaceSearch,
+      catalogSpaceToSearchable,
+      getCatalogSpaceLabel
+    ).map((result) => result.item);
 
     return (
       <PageShell>
@@ -229,11 +230,22 @@ function BuildingsPage() {
 
           <h2 className={styles.sectionTitle}>Prostori v objektu</h2>
 
+          {spacesForBuilding.length > 0 ? (
+            <SearchField
+              id="building-space-search"
+              value={buildingSpaceSearch}
+              onChange={setBuildingSpaceSearch}
+              placeholder="Išči prostor v objektu"
+            />
+          ) : null}
+
           {spacesForBuilding.length === 0 ? (
             <EmptyState title="Ni prostorov" text="Za ta objekt še ni dodanih prostorov." />
+          ) : filteredBuildingSpaces.length === 0 ? (
+            <EmptyState title="Ni rezultatov" text="Ni prostorov za izbrano iskanje." />
           ) : (
             <div className={styles.spaceCardsList}>
-              {spacesForBuilding.map((space) => (
+              {filteredBuildingSpaces.map((space) => (
                 <article
                   key={space.id}
                   className={styles.spaceCard}
@@ -246,12 +258,12 @@ function BuildingsPage() {
                     })
                   }
                 >
-                  <img
-                    src={resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png'}
-                    alt={space.name}
-                    className={styles.spaceCardImage}
-                  />
-                  <h3 className={styles.spaceCardTitle}>{getSpaceDisplayName(space)}</h3>
+                  <div className={styles.spaceCardTopLine}>
+                    <h3 className={styles.spaceCardTitle}>{getCatalogSpaceLabel(space)}</h3>
+                    {space.type ? <span className={styles.spaceCardType}>{space.type}</span> : null}
+                  </div>
+                  {space.floor ? <p className={styles.spaceCardMeta}>{space.floor}</p> : null}
+                  {space.code ? <p className={styles.spaceCardCode}>{space.code}</p> : null}
                 </article>
               ))}
             </div>
@@ -271,27 +283,38 @@ function BuildingsPage() {
           <EmptyState title="Ni rezultatov" text="Poskusi z drugim iskalnim nizom." />
         ) : (
           <div className={styles.cardsList} data-testid="building-results">
-            {filteredBuildings.map((building) => (
-              <article
-                key={building.id}
-                className={styles.card}
-                onClick={() =>
-                  navigate('/objekti', {
-                    state: { selectedBuilding: building } satisfies BuildingsPageState,
-                  })
-                }
-              >
-                <img
-                  src={resolveAssetUrl(building.imageUrl) ?? '/feri-logo.png'}
-                  alt={building.name}
-                  className={styles.cardImage}
-                />
-                <div className={styles.cardBody}>
-                  <h2 className={styles.cardTitle}>{building.name}</h2>
-                  <p className={styles.cardMeta}>{formatSpaceCount(getBuildingSpaceCount(building))}</p>
-                </div>
-              </article>
-            ))}
+            {filteredBuildings.map((building) => {
+              const buildingImageUrl =
+                getBuildingPlanImageUrl(building.name) ?? resolveAssetUrl(building.imageUrl);
+
+              return (
+                <article
+                  key={building.id}
+                  className={styles.card}
+                  onClick={() =>
+                    navigate('/objekti', {
+                      state: { selectedBuilding: building } satisfies BuildingsPageState,
+                    })
+                  }
+                >
+                  {buildingImageUrl ? (
+                    <div className={styles.cardImageWrap}>
+                      <img
+                        src={buildingImageUrl}
+                        alt={building.name}
+                        className={styles.cardImage}
+                      />
+                    </div>
+                  ) : (
+                    <div className={styles.cardImagePlaceholder}>Načrt objekta</div>
+                  )}
+                  <div className={styles.cardBody}>
+                    <h2 className={styles.cardTitle}>{building.name}</h2>
+                    <p className={styles.cardMeta}>{formatSpaceCount(getBuildingSpaceCount(building))}</p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>

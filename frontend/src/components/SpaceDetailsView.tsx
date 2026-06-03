@@ -1,6 +1,6 @@
 import type { CatalogSpace } from '../types/catalog';
 import { getSpaceDisplayName } from '../utils/displayNames';
-import { resolveAssetUrl } from '../services/api';
+import { buildSpaceDescription } from '../utils/spaceDescription';
 import PageShell from './PageShell';
 import SubPageHeader from './SubPageHeader';
 import styles from './SpaceDetailsView.module.css';
@@ -18,8 +18,13 @@ function SpaceDetailsView({
   onFindClassroom,
   showAllMenuItems = false,
 }: SpaceDetailsViewProps) {
-  const imageUrl = resolveAssetUrl(space.imageUrl) ?? '/feri-logo.png';
   const displayName = getSpaceDisplayName(space);
+  const description = buildSpaceDescription(space);
+  const infoItems = [
+    space.buildingName?.trim() ? { label: 'Objekt', value: space.buildingName } : null,
+    space.floor?.trim() ? { label: 'Nadstropje', value: space.floor } : null,
+    space.code?.trim() ? { label: 'Oznaka', value: space.code } : null,
+  ].filter((item): item is { label: string; value: string } => item != null);
 
   return (
     <PageShell>
@@ -29,42 +34,27 @@ function SpaceDetailsView({
         onBack={onBack}
         showAllMenuItems={showAllMenuItems}
       />
-      <div className={styles.topImageWrap}>
-        <img src={imageUrl} alt={space.name} className={styles.topImage} />
-      </div>
+
+      <section className={styles.hero}>
+        {space.type ? <span className={styles.typeBadge}>{space.type}</span> : null}
+        <h1 className={styles.name}>{displayName}</h1>
+      </section>
 
       <section className={styles.sheet}>
-        <p className={styles.type}>{space.type}</p>
-        <h1 className={styles.name}>{displayName}</h1>
         <div className={styles.descriptionCard}>
-          <p className={styles.description}>{space.description ?? 'Opis prostora bo dodan naknadno.'}</p>
+          <p className={styles.description}>{description}</p>
         </div>
 
-        <div className={styles.infoRow}>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Objekt</span>
-            <strong className={styles.infoValue}>{space.buildingName}</strong>
+        {infoItems.length > 0 ? (
+          <div className={styles.infoRow}>
+            {infoItems.map((item) => (
+              <div key={item.label} className={styles.infoItem}>
+                <span className={styles.infoLabel}>{item.label}</span>
+                <strong className={styles.infoValue}>{item.value}</strong>
+              </div>
+            ))}
           </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Nadstropje</span>
-            <strong className={styles.infoValue}>{space.floor}</strong>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Oznaka</span>
-            <strong className={styles.infoValue}>{space.code ?? 'Ni določeno'}</strong>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Namen</span>
-            <strong className={styles.infoValue}>{space.purpose ?? space.type}</strong>
-          </div>
-          <div className={styles.infoItem}>
-            <span className={styles.infoLabel}>Kapaciteta</span>
-            <strong className={styles.infoValue}>
-              {space.capacity != null ? `${space.capacity} oseb` : 'Ni podatka'}
-            </strong>
-          </div>
-        </div>
-        {space.notes ? <p className={styles.notes}>{space.notes}</p> : null}
+        ) : null}
 
         <button
           type="button"

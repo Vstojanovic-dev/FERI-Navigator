@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { NavigationLocation } from '../../types/navigation';
 import { searchLocations } from '../../services/navigationService';
-import { rankLocations } from '../../utils/searchRank';
+import {
+  getNavigationLocationLabel,
+  getSearchResults,
+  navigationLocationToSearchable,
+} from '../../utils/search';
 
 export function useLocationSearch(query: string) {
   const [results, setResults] = useState<NavigationLocation[]>([]);
@@ -18,7 +22,11 @@ export function useLocationSearch(query: string) {
       searchLocations(trimmedQuery)
         .then((locations) => {
           if (!cancelled) {
-            setResults(rankLocations(trimmedQuery, locations));
+            setResults(
+              getSearchResults(locations, trimmedQuery, navigationLocationToSearchable, getNavigationLocationLabel).map(
+                (result) => result.item
+              )
+            );
           }
         })
         .catch(() => {
@@ -26,7 +34,7 @@ export function useLocationSearch(query: string) {
             setResults([]);
           }
         });
-    }, 250);
+    }, 120);
 
     return () => {
       cancelled = true;

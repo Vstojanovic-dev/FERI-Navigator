@@ -1,19 +1,41 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
-import { getLocationDisplayName } from '../../utils/displayNames';
 import { findLocationByQuery } from '../../utils/locationMatch';
-import { isSearchTypingForward } from '../../utils/searchAutofill';
-import { getTargetSelectionLabel, isSameStartAndEnd } from './locationSelection';
+import {
+  getNavigationLocationLabel,
+  getSearchResults,
+  isNearestWcSearchRelevant,
+  isQueryMatchingLabel,
+  isUserDeletingInput,
+  navigationLocationToSearchable,
+  shouldAutofill,
+} from '../../utils/search';
+import {
+  getTargetSelectionLabel,
+  isSameStartAndEnd,
+} from './locationSelection';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
 import SharePanel from './SharePanel';
 import StepList from './StepList';
-import { isNearestTarget, NEAREST_WC_TARGET, type TargetSelection } from './navigationTargets';
+import {
+  isNearestTarget,
+  NEAREST_WC_TARGET,
+  targetSelectionToSuggestion,
+  targetToSearchable,
+  type TargetSelection,
+} from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
-import { useRoutePdf } from './useRoutePdf';
 import styles from './NavigationView.module.css';
+
+function isSameTarget(left: TargetSelection, right: TargetSelection): boolean {
+  if (isNearestTarget(left) || isNearestTarget(right)) {
+    return isNearestTarget(left) && isNearestTarget(right);
+  }
+  return left.id === right.id;
+}
 
 type NavigationViewProps = {
   initialTarget: string;
@@ -30,10 +52,6 @@ function NavigationView({
   sharedTargetType,
   sharedAllowElevator,
 }: NavigationViewProps) {
-  const [fromQuery, setFromQuery] = useState('');
-  const [toQuery, setToQuery] = useState(initialTarget);
-  const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
-  const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const [isFormExpanded, setIsFormExpanded] = useState(true);
   const [isFormCollapsing, setIsFormCollapsing] = useState(false);
   const [route, setRoute] = useState<NavigationRoute | null>(null);
@@ -49,12 +67,47 @@ function NavigationView({
   const [routeMode, setRouteMode] = useState<'withLift' | 'withoutLift'>(
     sharedAllowElevator === false ? 'withoutLift' : 'withLift'
   );
+  const [fromQuery, setFromQuery] = useState('');
+  const [toQuery, setToQuery] = useState(initialTarget);
+  const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
+  const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const prevFromQueryRef = useRef('');
   const prevToQueryRef = useRef('');
 
-  const { isGenerating: isGeneratingPdf, downloadPdf } = useRoutePdf();
-
   const allowElevator = routeMode === 'withLift';
+
+  const fromResults = useLocationSearch(fromQuery);
+  const toResults = useLocationSearch(toQuery);
+
+  const fromRanked = useMemo(
+    () =>
+      getSearchResults(fromResults, fromQuery, navigationLocationToSearchable, getNavigationLocationLabel),
+    [fromResults, fromQuery]
+  );
+
+  const toRanked = useMemo(() => {
+    const candidates: TargetSelection[] = [...toResults];
+    if (isNearestWcSearchRelevant(toQuery)) {
+      candidates.push(NEAREST_WC_TARGET);
+    }
+    return getSearchResults(candidates, toQuery, targetToSearchable, getTargetSelectionLabel);
+  }, [toResults, toQuery]);
+
+  const fromSuggestions = useMemo(
+    () =>
+      fromRanked.map((result) => ({
+        key: `loc-${result.item.id}`,
+        label: result.label,
+        meta: `${result.item.buildingCode} - ${result.item.floorLabel}`,
+        value: result.item as TargetSelection,
+      })),
+    [fromRanked]
+  );
+
+  const toSuggestions = useMemo(
+    () => toRanked.map((result) => targetSelectionToSuggestion(result.item)),
+    [toRanked]
+  );
 
   const requestRoute = async ({
     fromLocationId,
@@ -91,6 +144,21 @@ function NavigationView({
       setIsFormCollapsing(false);
       setIsRouteVisible(true);
     }, 240);
+  };
+
+  const updateRouteInPlace = (nextRoute: NavigationRoute) => {
+    setRoute(nextRoute);
+    setActiveSegmentIndex((segmentIndex) => {
+      const nextIndex = Math.min(segmentIndex, Math.max(nextRoute.segments.length - 1, 0));
+      setActiveStepIndex((stepIndex) => {
+        const segment = nextRoute.segments[nextIndex];
+        if (!segment) {
+          return 0;
+        }
+        return Math.min(stepIndex, Math.max(segment.steps.length - 1, 0));
+      });
+      return nextIndex;
+    });
   };
 
   // Bootstrap iz shared linka
@@ -141,8 +209,6 @@ function NavigationView({
     prevToQueryRef.current = '';
   }, [initialTarget, sharedAllowElevator]);
 
-  const fromResults = useLocationSearch(fromQuery);
-  const toResults = useLocationSearch(toQuery);
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
   const activeSegment = routeSegments[activeSegmentIndex] ?? routeSegments[0] ?? null;
   const hasSameLocations = isSameStartAndEnd(fromLocation, toTarget);
@@ -153,8 +219,7 @@ function NavigationView({
       return;
     }
 
-    const normalizedInitial = initialTarget.trim().toLowerCase();
-    if (normalizedInitial === NEAREST_WC_TARGET.displayName.toLowerCase()) {
+    if (isQueryMatchingLabel(initialTarget, NEAREST_WC_TARGET.displayName)) {
       setToTarget(NEAREST_WC_TARGET);
       setToQuery(NEAREST_WC_TARGET.displayName);
       prevToQueryRef.current = NEAREST_WC_TARGET.displayName;
@@ -166,7 +231,7 @@ function NavigationView({
       return;
     }
 
-    const label = getLocationDisplayName(match);
+    const label = getNavigationLocationLabel(match);
     setToTarget(match);
     setToQuery(label);
     prevToQueryRef.current = label;
@@ -174,49 +239,81 @@ function NavigationView({
 
   useEffect(() => {
     const previousValue = prevFromQueryRef.current;
+    const autofillItem = shouldAutofill(
+      previousValue,
+      fromQuery,
+      fromRanked,
+      fromLocation,
+      (left, right) => left.id === right.id
+    );
+
+    if (autofillItem) {
+      const label = getNavigationLocationLabel(autofillItem);
+      setFromLocation(autofillItem);
+      setFromQuery(label);
+      prevFromQueryRef.current = label;
+      return;
+    }
+
     prevFromQueryRef.current = fromQuery;
-
-    const query = fromQuery.trim();
-    if (!query || fromLocation || fromResults.length !== 1) {
-      return;
-    }
-    if (!isSearchTypingForward(previousValue, fromQuery)) {
-      return;
-    }
-
-    const only = fromResults[0];
-    const label = getLocationDisplayName(only);
-    if (fromQuery === label) {
-      return;
-    }
-
-    setFromLocation(only);
-    setFromQuery(label);
-    prevFromQueryRef.current = label;
-  }, [fromQuery, fromResults, fromLocation]);
+  }, [fromQuery, fromRanked, fromLocation]);
 
   useEffect(() => {
     const previousValue = prevToQueryRef.current;
+    const autofillItem = shouldAutofill(
+      previousValue,
+      toQuery,
+      toRanked,
+      toTarget,
+      isSameTarget
+    );
+
+    if (autofillItem) {
+      const label = getTargetSelectionLabel(autofillItem);
+      setToTarget(autofillItem);
+      setToQuery(label);
+      prevToQueryRef.current = label;
+      return;
+    }
+
     prevToQueryRef.current = toQuery;
+  }, [toQuery, toRanked, toTarget]);
 
-    const query = toQuery.trim();
-    if (!query || toTarget || toResults.length !== 1) {
-      return;
-    }
-    if (!isSearchTypingForward(previousValue, toQuery)) {
-      return;
+  const handleFromQueryChange = (value: string) => {
+    const previousValue = fromQuery;
+    prevFromQueryRef.current = previousValue;
+
+    if (fromLocation) {
+      const label = getNavigationLocationLabel(fromLocation);
+      if (isUserDeletingInput(previousValue, value) && !isQueryMatchingLabel(value, label)) {
+        setFromLocation(null);
+      } else if (!isQueryMatchingLabel(value, label)) {
+        setFromLocation(null);
+      }
     }
 
-    const only = toResults[0];
-    const label = getLocationDisplayName(only);
-    if (toQuery === label || toQuery === getTargetSelectionLabel(only)) {
-      return;
+    setFromQuery(value);
+    setRoute(null);
+    setShareUrl(null);
+  };
+
+  const handleToQueryChange = (value: string) => {
+    const previousValue = toQuery;
+    prevToQueryRef.current = previousValue;
+
+    if (toTarget) {
+      const label = getTargetSelectionLabel(toTarget);
+      if (isUserDeletingInput(previousValue, value) && !isQueryMatchingLabel(value, label)) {
+        setToTarget(null);
+      } else if (!isQueryMatchingLabel(value, label)) {
+        setToTarget(null);
+      }
     }
 
-    setToTarget(only);
-    setToQuery(label);
-    prevToQueryRef.current = label;
-  }, [toQuery, toResults, toTarget]);
+    setToQuery(value);
+    setRoute(null);
+    setShareUrl(null);
+  };
 
   const handleRoute = async () => {
     if (!fromLocation || !toTarget) {
@@ -264,15 +361,18 @@ function NavigationView({
     setShareUrl(null);
     setShareError('');
     try {
-      applyRoute(
-        await requestRoute({
-          fromLocationId: fromLocation.id,
-          toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
-          targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-          allowElevator: nextMode === 'withLift',
-          message: 'Napaka pri računanju poti.',
-        })
-      );
+      const nextRoute = await requestRoute({
+        fromLocationId: fromLocation.id,
+        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+        allowElevator: nextMode === 'withLift',
+        message: 'Napaka pri računanju poti.',
+      });
+      if (route) {
+        updateRouteInPlace(nextRoute);
+      } else {
+        applyRoute(nextRoute);
+      }
     } catch (routeError) {
       setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
     } finally {
@@ -305,11 +405,6 @@ function NavigationView({
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (!route) return;
-    downloadPdf(route);
-  };
-
   const moveRouteStep = (direction: 1 | -1) => {
     if (!route) return;
     const segment = routeSegments[activeSegmentIndex];
@@ -335,13 +430,9 @@ function NavigationView({
   };
 
   const compactFromLabel = fromLocation
-    ? getLocationDisplayName(fromLocation)
+    ? getNavigationLocationLabel(fromLocation)
     : fromQuery || 'Začetna lokacija';
-  const compactToLabel = toTarget
-    ? isNearestTarget(toTarget)
-      ? toTarget.displayName
-      : getLocationDisplayName(toTarget)
-    : toQuery || 'Ciljna lokacija';
+  const compactToLabel = toTarget ? getTargetSelectionLabel(toTarget) : toQuery || 'Ciljna lokacija';
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = routeSegments.length > 1;
   const totalRouteSteps =
@@ -374,17 +465,11 @@ function NavigationView({
             placeholder="Poišči začetno lokacijo"
             query={fromQuery}
             selected={fromLocation}
-            results={fromResults}
-            onQueryChange={(value) => {
-              prevFromQueryRef.current = fromQuery;
-              setFromQuery(value);
-              setFromLocation(null);
-              setRoute(null);
-              setShareUrl(null);
-            }}
+            suggestions={fromSuggestions}
+            onQueryChange={handleFromQueryChange}
             onSelect={(location) => {
               if (isNearestTarget(location)) return;
-              const label = getTargetSelectionLabel(location);
+              const label = getNavigationLocationLabel(location);
               setFromLocation(location);
               setFromQuery(label);
               prevFromQueryRef.current = label;
@@ -398,15 +483,8 @@ function NavigationView({
             placeholder="Poišči cilj"
             query={toQuery}
             selected={toTarget}
-            results={toResults}
-            nearestTarget={NEAREST_WC_TARGET}
-            onQueryChange={(value) => {
-              prevToQueryRef.current = toQuery;
-              setToQuery(value);
-              setToTarget(null);
-              setRoute(null);
-              setShareUrl(null);
-            }}
+            suggestions={toSuggestions}
+            onQueryChange={handleToQueryChange}
             onSelect={(target) => {
               const label = getTargetSelectionLabel(target);
               setToTarget(target);
@@ -550,26 +628,6 @@ function NavigationView({
               )}
             </div>
           </div>
-          {false && <div className={styles.shareRow}>
-            <button
-              type="button"
-              className={styles.shareButton}
-              onClick={handleShare}
-              disabled={isCreatingShare}
-              aria-label="Deli pot"
-            >
-              {isCreatingShare ? 'Ustvarjam...' : '↗ Podeli'}
-            </button>
-            <button
-              type="button"
-              className={styles.pdfButton}
-              onClick={handleDownloadPdf}
-              disabled={isGeneratingPdf}
-              aria-label="Prenesi PDF"
-            >
-              {isGeneratingPdf ? 'Ustvarjam PDF...' : '⬇ Natisni PDF'}
-            </button>
-          </div>}
           {shareError && <p className={styles.errorText}>{shareError}</p>}
         </div>
       )}
