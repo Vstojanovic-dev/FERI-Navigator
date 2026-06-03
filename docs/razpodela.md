@@ -37,3 +37,6 @@ rute koje nisu okej: 1. turing-ada
 
 slike g3 nisu crno bele
 treba nekako croppovati  slike
+
+
+PREDLOG: dodati opciju najblizi automat

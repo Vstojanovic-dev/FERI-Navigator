@@ -1,6 +1,6 @@
 import type { NavigationLocation } from '../../types/navigation';
-import { getLocationDisplayName } from '../../utils/displayNames';
-import { isNearestTarget, type TargetSelection } from './navigationTargets';
+import { isQueryMatchingLabel } from '../../utils/search';
+import { getTargetSelectionLabel, isNearestTarget, type TargetSelection } from './navigationTargets';
 
 export function isSameStartAndEnd(
   from: NavigationLocation | null,
@@ -12,12 +12,7 @@ export function isSameStartAndEnd(
   return from.id === to.id;
 }
 
-export function getTargetSelectionLabel(selection: TargetSelection): string {
-  if (isNearestTarget(selection)) {
-    return selection.displayName;
-  }
-  return getLocationDisplayName(selection);
-}
+export { getTargetSelectionLabel };
 
 export function isQueryMatchingSelection(
   query: string,
@@ -26,5 +21,5 @@ export function isQueryMatchingSelection(
   if (!selection) {
     return false;
   }
-  return query.trim() === getTargetSelectionLabel(selection);
+  return isQueryMatchingLabel(query, getTargetSelectionLabel(selection));
 }

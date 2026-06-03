@@ -1,8 +1,7 @@
 import { useRef, useState } from 'react';
-import type { NavigationLocation } from '../../types/navigation';
-import { getLocationDisplayName } from '../../utils/displayNames';
-import { isQueryMatchingSelection } from './locationSelection';
-import { isNearestTarget, type TargetSelection } from './navigationTargets';
+import { shouldShowSuggestions } from '../../utils/search';
+import { getTargetSelectionLabel, isQueryMatchingSelection } from './locationSelection';
+import { isNearestTarget, type LocationPickerSuggestion, type TargetSelection } from './navigationTargets';
 import styles from './NavigationView.module.css';
 
 type LocationPickerProps = {
@@ -11,8 +10,7 @@ type LocationPickerProps = {
   placeholder: string;
   query: string;
   selected: TargetSelection | null;
-  results: NavigationLocation[];
-  nearestTarget?: Extract<TargetSelection, { kind: 'nearest' }>;
+  suggestions: LocationPickerSuggestion[];
   onQueryChange: (value: string) => void;
   onSelect: (value: TargetSelection) => void;
 };
@@ -23,19 +21,15 @@ function LocationPicker({
   placeholder,
   query,
   selected,
-  results,
-  nearestTarget,
+  suggestions,
   onQueryChange,
   onSelect,
 }: LocationPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const isSelectionCommitted = isQueryMatchingSelection(query, selected);
-  const showResults =
-    isFocused &&
-    !isSelectionCommitted &&
-    query.trim().length > 0 &&
-    (results.length > 0 || Boolean(nearestTarget));
+  const committedLabel =
+    selected && isQueryMatchingSelection(query, selected) ? getTargetSelectionLabel(selected) : null;
+  const showResults = shouldShowSuggestions(query, committedLabel, suggestions.length, isFocused);
 
   const commitSelection = (value: TargetSelection) => {
     onSelect(value);
@@ -59,10 +53,10 @@ function LocationPicker({
           window.setTimeout(() => setIsFocused(false), 120);
         }}
         placeholder={placeholder}
-        className={`${styles.input} ${isSelectionCommitted ? styles.inputSelected : ''}`}
+        className={`${styles.input} ${committedLabel ? styles.inputSelected : ''}`}
         autoComplete="off"
       />
-      {selected && isSelectionCommitted && (
+      {selected && committedLabel && (
         <p className={styles.selectionText}>
           {isNearestTarget(selected)
             ? selected.meta
@@ -71,30 +65,16 @@ function LocationPicker({
       )}
       {showResults && (
         <div className={styles.resultsBox}>
-          {nearestTarget && (
+          {suggestions.map((suggestion) => (
             <button
-              key={nearestTarget.id}
+              key={suggestion.key}
               type="button"
               className={styles.resultButton}
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => commitSelection(nearestTarget)}
+              onClick={() => commitSelection(suggestion.value)}
             >
-              <span className={styles.resultName}>{nearestTarget.displayName}</span>
-              <span className={styles.resultMeta}>{nearestTarget.meta}</span>
-            </button>
-          )}
-          {results.map((location) => (
-            <button
-              key={location.id}
-              type="button"
-              className={styles.resultButton}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => commitSelection(location)}
-            >
-              <span className={styles.resultName}>{getLocationDisplayName(location)}</span>
-              <span className={styles.resultMeta}>
-                {location.buildingCode} - {location.floorLabel}
-              </span>
+              <span className={styles.resultName}>{suggestion.label}</span>
+              <span className={styles.resultMeta}>{suggestion.meta}</span>
             </button>
           ))}
         </div>
