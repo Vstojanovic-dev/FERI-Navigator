@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { resolveAssetUrl } from '../../services/api';
 import type { RouteSegment } from '../../types/navigation';
+import { getSegmentViewport } from './mapViewport';
 import styles from './NavigationView.module.css';
 
 type RouteMapProps = {
@@ -9,14 +10,6 @@ type RouteMapProps = {
 };
 
 function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
-  const safeWidth =
-    Number.isFinite(segment.coordinateWidth) && segment.coordinateWidth > 0
-      ? segment.coordinateWidth
-      : 1000;
-  const safeHeight =
-    Number.isFinite(segment.coordinateHeight) && segment.coordinateHeight > 0
-      ? segment.coordinateHeight
-      : 1000;
   const safePath = useMemo(
     () => (Array.isArray(segment.path) ? segment.path.filter(isValidRoutePoint) : []),
     [segment.path]
@@ -54,6 +47,7 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
           .join(' ')
       : pathPoints;
   const imageUrl = resolveAssetUrl(segment.mapImageUrl);
+  const viewport = getSegmentViewport(segment);
 
   return (
     <div className={styles.mapPanel}>
@@ -67,10 +61,17 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
             src={imageUrl}
             alt={`${segment.buildingName} ${segment.floorLabel}`}
             className={styles.mapImage}
+            style={{
+              width: `${viewport.imageScaleX * 100}%`,
+              height: `${viewport.imageScaleY * 100}%`,
+              transform: `translate(${viewport.imageTranslateXPercent}%, ${viewport.imageTranslateYPercent}%)`,
+              transformOrigin: 'top left',
+              maxWidth: 'none',
+            }}
           />
         )}
         <svg
-          viewBox={`0 0 ${safeWidth} ${safeHeight}`}
+          viewBox={`${viewport.viewBoxX} ${viewport.viewBoxY} ${viewport.viewBoxWidth} ${viewport.viewBoxHeight}`}
           className={styles.mapOverlay}
           aria-hidden="true"
         >

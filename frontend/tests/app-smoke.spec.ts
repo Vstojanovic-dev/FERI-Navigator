@@ -169,6 +169,8 @@ test('navigation route can calculate a route', async ({ page }) => {
   await page.getByText('Alfa - G2, 1. nadstropje').click();
   await page.getByTestId('show-route-button').click();
   await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
+  await expect(page.getByLabel('Deli pot')).toHaveCount(1);
+  await expect(page.getByLabel('Prenesi PDF')).toHaveCount(0);
 });
 
 test('home page can prefill navigation target from a space card action', async ({ page }) => {

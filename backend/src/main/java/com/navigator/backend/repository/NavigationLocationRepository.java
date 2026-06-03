@@ -1,6 +1,7 @@
 package com.navigator.backend.repository;
 
 import com.navigator.backend.model.NavigationLocation;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -70,4 +71,13 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
             AND l.node IS NOT NULL
           """)
   List<NavigationLocation> findEnabledByLocationType(@Param("locationType") String locationType);
+
+  @EntityGraph(attributePaths = {"building", "floor", "node", "space", "space.spaceType"})
+  @Query(
+      """
+          SELECT l FROM NavigationLocation l
+          WHERE l.isEnabled = true
+            AND l.node.id IN :nodeIds
+          """)
+  List<NavigationLocation> findEnabledByNodeIdIn(@Param("nodeIds") Collection<Long> nodeIds);
 }

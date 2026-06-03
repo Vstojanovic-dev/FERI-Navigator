@@ -25,10 +25,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class SecurityConfig {
   @Bean
   @Order(1)
-  SecurityFilterChain adminFilterChain(HttpSecurity http, AdminModeProperties adminModeProperties)
+  SecurityFilterChain adminFilterChain(
+      HttpSecurity http,
+      AdminModeProperties adminModeProperties,
+      @Qualifier("corsConfigurationSource") CorsConfigurationSource cors)
       throws Exception {
     return http.securityMatcher("/api/admin/**")
         .csrf(csrf -> csrf.disable())
+        .cors(corsSpec -> corsSpec.configurationSource(cors))
         .addFilterBefore(adminDisabledFilter(adminModeProperties), AuthorizationFilter.class)
         .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
         .build();
@@ -80,6 +84,7 @@ public class SecurityConfig {
     config.setAllowCredentials(false);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/api/admin/**", config);
     source.registerCorsConfiguration("/api/navigation/**", config);
     source.registerCorsConfiguration("/api/catalog/**", config);
     return source;

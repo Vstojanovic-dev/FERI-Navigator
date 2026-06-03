@@ -13,9 +13,12 @@ import com.navigator.backend.model.NavigationLocation;
 import com.navigator.backend.model.Space;
 import com.navigator.backend.repository.NavigationLocationRepository;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -103,7 +106,7 @@ public class NavigationRouteService {
           .from(toLocationDto(from))
           .to(toLocationDto(to))
           .totalCost(searchResult.getTotalCost())
-          .segments(buildSegments(searchResult))
+          .segments(buildSegments(searchResult, to))
           .build();
     } catch (IllegalStateException ex) {
       throw invalidRouteData();
@@ -166,7 +169,7 @@ public class NavigationRouteService {
           .from(toLocationDto(from))
           .to(toLocationDto(bestLocation))
           .totalCost(bestRoute.getTotalCost())
-          .segments(buildSegments(bestRoute))
+          .segments(buildSegments(bestRoute, bestLocation))
           .build();
     } catch (IllegalStateException ex) {
       throw invalidRouteData();
@@ -196,7 +199,8 @@ public class NavigationRouteService {
                     "Lokacija nije pronadjena: " + locationId));
   }
 
-  private List<RouteSegmentDto> buildSegments(RouteSearchResult searchResult) {
+  private List<RouteSegmentDto> buildSegments(
+      RouteSearchResult searchResult, NavigationLocation destinationLocation) {
     List<NavNode> nodes =
         searchResult.getNodes() != null ? searchResult.getNodes() : Collections.emptyList();
     List<NavEdge> edges =
@@ -223,10 +227,16 @@ public class NavigationRouteService {
                       .icon("destination")
                       .maneuverType("destination")
                       .zoneId(null)
-                      .build())));
+                      .build()),
+              Collections.emptyMap()));
     }
 
     validateRouteShape(nodes, edges);
+    Long finalDestinationNodeId =
+        destinationLocation != null && destinationLocation.hasNode()
+            ? safeNodeId(destinationLocation.getNode())
+            : safeNodeId(nodes.get(nodes.size() - 1));
+    Map<Long, String> nodeDisplayNames = resolveNodeDisplayNames(nodes, destinationLocation);
 
     List<SegmentDraft> drafts = new ArrayList<>();
     SegmentDraft current = new SegmentDraft(requireFloor(nodes.get(0)));
@@ -236,19 +246,20 @@ public class NavigationRouteService {
       NavEdge edge = edges.get(edgeIndex);
       NavNode fromNode = nodes.get(edgeIndex);
       NavNode toNode = nodes.get(edgeIndex + 1);
-      boolean floorChanged = !Objects.equals(fromNode.getFloorId(), toNode.getFloorId());
+      boolean segmentBoundary = isSegmentBoundary(fromNode, toNode);
 
-      current.nodes.add(toNode);
-      current.edges.add(edge);
-
-      if (floorChanged) {
+      if (segmentBoundary) {
         drafts.add(current);
 
         current = new SegmentDraft(requireFloor(toNode));
         current.nodes.add(toNode);
         current.incomingEdge = edge;
         current.incomingFromNode = fromNode;
+        continue;
       }
+
+      current.nodes.add(toNode);
+      current.edges.add(edge);
     }
 
     if (!drafts.contains(current)) {
@@ -261,15 +272,34 @@ public class NavigationRouteService {
       validateDraftShape(draft);
       List<RouteStepDto> generatedSteps = new ArrayList<>();
       if (draft.incomingEdge != null && draft.incomingFromNode != null && !draft.nodes.isEmpty()) {
-        generatedSteps.add(buildStep(0, draft.incomingEdge, draft.incomingFromNode, draft.nodes.get(0), true));
+        generatedSteps.add(
+            buildStep(
+                0,
+                draft.incomingEdge,
+                draft.incomingFromNode,
+                draft.nodes.get(0),
+                true,
+                false,
+                nodeDisplayNames));
       }
-      generatedSteps.addAll(generateSegmentSteps(draft));
-      segments.add(buildSegment(i, draft.floor, draft.nodes, reindexSteps(generatedSteps)));
+      generatedSteps.addAll(
+          generateSegmentSteps(
+              draft,
+              i == drafts.size() - 1,
+              finalDestinationNodeId,
+              nodeDisplayNames));
+      segments.add(
+          buildSegment(
+              i, draft.floor, draft.nodes, reindexSteps(generatedSteps), nodeDisplayNames));
     }
     return segments;
   }
 
-  private List<RouteStepDto> generateSegmentSteps(SegmentDraft draft) {
+  private List<RouteStepDto> generateSegmentSteps(
+      SegmentDraft draft,
+      boolean finalSegment,
+      Long finalDestinationNodeId,
+      Map<Long, String> nodeDisplayNames) {
     List<RouteStepDto> steps = new ArrayList<>();
     if (draft.edges.isEmpty()) {
       return steps;
@@ -287,12 +317,24 @@ public class NavigationRouteService {
       NavEdge lastEdgeInChunk = draft.edges.get(chunkEnd);
       NavNode fromNode = draft.nodes.get(chunkStart);
       NavNode toNode = draft.nodes.get(chunkEnd + 1);
+      boolean isDestination =
+          finalSegment
+              && chunkEnd == draft.edges.size() - 1
+              && Objects.equals(safeNodeId(toNode), finalDestinationNodeId);
 
-      String maneuverType = resolveManeuverTypeForChunk(draft, chunkStart, chunkEnd, toNode);
+      String maneuverType =
+          resolveManeuverTypeForChunk(draft, chunkStart, chunkEnd, toNode, isDestination);
       String icon = resolveIcon(lastEdgeInChunk, maneuverType);
       String text =
           instructionForChunk(
-              lastEdgeInChunk, fromNode, toNode, false, maneuverType, (chunkEnd - chunkStart) + 1);
+              lastEdgeInChunk,
+              fromNode,
+              toNode,
+              false,
+              maneuverType,
+              (chunkEnd - chunkStart) + 1,
+              isDestination,
+              nodeDisplayNames);
 
       steps.add(
           RouteStepDto.builder()
@@ -338,7 +380,11 @@ public class NavigationRouteService {
   }
 
   private RouteSegmentDto buildSegment(
-      int index, Floor floor, List<NavNode> nodes, List<RouteStepDto> steps) {
+      int index,
+      Floor floor,
+      List<NavNode> nodes,
+      List<RouteStepDto> steps,
+      Map<Long, String> nodeDisplayNames) {
     boolean usesElevator = steps.stream().anyMatch(step -> "elevator".equals(step.getType()));
     boolean usesStairs = steps.stream().anyMatch(step -> "stairs".equals(step.getType()));
 
@@ -356,7 +402,7 @@ public class NavigationRouteService {
         .z(safeDecimal(floor.getZ(), "z", "floor " + floor.getId()))
         .usesElevator(usesElevator)
         .usesStairs(usesStairs)
-        .path(nodes.stream().map(this::toPointDto).toList())
+        .path(nodes.stream().map(node -> toPointDto(node, nodeDisplayNames)).toList())
         .steps(steps)
         .build();
   }
@@ -381,13 +427,19 @@ public class NavigationRouteService {
   }
 
   private RouteStepDto buildStep(
-      int index, NavEdge edge, NavNode fromNode, NavNode toNode, boolean arrivalContext) {
+      int index,
+      NavEdge edge,
+      NavNode fromNode,
+      NavNode toNode,
+      boolean arrivalContext,
+      boolean isDestination,
+      Map<Long, String> nodeDisplayNames) {
     String type = edge.getEdgeTypeCode();
-    String maneuverType = resolveManeuverType(edge, toNode, arrivalContext);
+    String maneuverType = resolveManeuverType(edge, toNode, arrivalContext, isDestination);
     String icon = resolveIcon(edge, maneuverType);
     return RouteStepDto.builder()
         .index(index)
-        .text(instruction(edge, fromNode, toNode, arrivalContext))
+        .text(instruction(edge, fromNode, toNode, arrivalContext, isDestination, nodeDisplayNames))
         .fromNodeId(safeNodeId(fromNode))
         .toNodeId(safeNodeId(toNode))
         .type(type)
@@ -397,12 +449,16 @@ public class NavigationRouteService {
         .build();
   }
 
-  private String resolveManeuverType(NavEdge edge, NavNode toNode, boolean arrivalContext) {
-    if ("room".equals(toNode.getNodeTypeCode())) {
+  private String resolveManeuverType(
+      NavEdge edge, NavNode toNode, boolean arrivalContext, boolean isDestination) {
+    if (isDestination) {
       return "destination";
     }
 
     String edgeType = edge.getEdgeTypeCode();
+    if ("building_transfer".equals(edgeType)) {
+      return "building_transfer";
+    }
     if ("elevator".equals(edgeType)) {
       return arrivalContext ? "elevator_exit" : "elevator";
     }
@@ -416,9 +472,9 @@ public class NavigationRouteService {
   }
 
   private String resolveManeuverTypeForChunk(
-      SegmentDraft draft, int chunkStart, int chunkEnd, NavNode toNode) {
+      SegmentDraft draft, int chunkStart, int chunkEnd, NavNode toNode, boolean isDestination) {
     NavEdge edge = draft.edges.get(chunkEnd);
-    String base = resolveManeuverType(edge, toNode, false);
+    String base = resolveManeuverType(edge, toNode, false, isDestination);
     if (!"straight".equals(base)) {
       return base;
     }
@@ -436,6 +492,9 @@ public class NavigationRouteService {
     if ("elevator".equals(edgeType)) {
       return "elevator";
     }
+    if ("building_transfer".equals(edgeType)) {
+      return maneuverType;
+    }
     if ("stairs".equals(edgeType)) {
       return maneuverType;
     }
@@ -443,8 +502,21 @@ public class NavigationRouteService {
   }
 
   private String instruction(
-      NavEdge edge, NavNode fromNode, NavNode toNode, boolean arrivalContext) {
-    return instructionForChunk(edge, fromNode, toNode, arrivalContext, resolveManeuverType(edge, toNode, arrivalContext), 1);
+      NavEdge edge,
+      NavNode fromNode,
+      NavNode toNode,
+      boolean arrivalContext,
+      boolean isDestination,
+      Map<Long, String> nodeDisplayNames) {
+    return instructionForChunk(
+        edge,
+        fromNode,
+        toNode,
+        arrivalContext,
+        resolveManeuverType(edge, toNode, arrivalContext, isDestination),
+        1,
+        isDestination,
+        nodeDisplayNames);
   }
 
   private String instructionForChunk(
@@ -453,13 +525,15 @@ public class NavigationRouteService {
       NavNode toNode,
       boolean arrivalContext,
       String maneuverType,
-      int mergedEdgeCount) {
+      int mergedEdgeCount,
+      boolean isDestination,
+      Map<Long, String> nodeDisplayNames) {
     if (!arrivalContext && hasText(edge.getInstructionForward())) {
       return edge.getInstructionForward();
     }
 
     String edgeType = edge.getEdgeTypeCode();
-    String toLabel = readableLabel(toNode);
+    String toLabel = readableLabel(toNode, nodeDisplayNames);
 
     if ("elevator".equals(edgeType)) {
       return arrivalContext
@@ -473,7 +547,13 @@ public class NavigationRouteService {
           : "Idite stepenicama do sprata " + toNode.getFloor().getLabel() + ".";
     }
 
-    if ("room".equals(toNode.getNodeTypeCode())) {
+    if ("building_transfer".equals(edgeType)) {
+      return arrivalContext
+          ? "Usli ste u " + toNode.getFloor().getBuilding().getName() + ". Nastavite po prikazanoj putanji."
+          : "Nastavite prema " + toLabel + ".";
+    }
+
+    if (isDestination) {
       return "Stigli ste do lokacije " + toLabel + ".";
     }
 
@@ -543,9 +623,14 @@ public class NavigationRouteService {
     return value != null && !value.isBlank();
   }
 
-  private String readableLabel(NavNode node) {
+  private String readableLabel(NavNode node, Map<Long, String> nodeDisplayNames) {
+    String mappedDisplayName = nodeDisplayNames.get(safeNodeId(node));
+    if (hasText(mappedDisplayName)) {
+      return mappedDisplayName.trim();
+    }
+
     if (hasText(node.getLabel())) {
-      return node.getLabel();
+      return humanizeLabel(node.getLabel());
     }
 
     if (isTechnicalWaypoint(node)) {
@@ -553,10 +638,74 @@ public class NavigationRouteService {
     }
 
     if (hasText(node.getExternalId())) {
-      return node.getExternalId().replace('_', ' ').toLowerCase(Locale.ROOT);
+      return humanizeLabel(node.getExternalId());
     }
 
     return "cilju";
+  }
+
+  private Map<Long, String> resolveNodeDisplayNames(
+      List<NavNode> nodes, NavigationLocation destinationLocation) {
+    List<Long> nodeIds =
+        nodes.stream().map(NavNode::getId).filter(Objects::nonNull).distinct().toList();
+    if (nodeIds.isEmpty()) {
+      return Collections.emptyMap();
+    }
+
+    List<NavigationLocation> locations = locationRepository.findEnabledByNodeIdIn(nodeIds);
+    Map<Long, String> nodeDisplayNames = new LinkedHashMap<>();
+    if (locations != null) {
+      locations.stream()
+          .filter(NavigationLocation::hasNode)
+          .filter(location -> hasText(location.getDisplayName()))
+          .sorted(Comparator.comparing(NavigationLocation::getId))
+          .forEach(
+              location ->
+                  nodeDisplayNames.putIfAbsent(
+                      safeNodeId(location.getNode()), location.getDisplayName().trim()));
+    }
+
+    if (destinationLocation != null
+        && destinationLocation.hasNode()
+        && hasText(destinationLocation.getDisplayName())) {
+      nodeDisplayNames.put(
+          safeNodeId(destinationLocation.getNode()), destinationLocation.getDisplayName().trim());
+    }
+
+    return nodeDisplayNames;
+  }
+
+  private String humanizeLabel(String value) {
+    String normalized = value == null ? "" : value.trim();
+    if (normalized.isEmpty()) {
+      return normalized;
+    }
+
+    String withSpaces =
+        normalized.replace('_', ' ').replace('-', ' ').replaceAll("\\s+", " ").trim();
+    if (withSpaces.isEmpty()) {
+      return normalized;
+    }
+
+    if (!withSpaces.equals(withSpaces.toLowerCase(Locale.ROOT))) {
+      return withSpaces;
+    }
+
+    String[] parts = withSpaces.split(" ");
+    StringBuilder builder = new StringBuilder();
+    for (String part : parts) {
+      if (part.isEmpty()) {
+        continue;
+      }
+      if (builder.length() > 0) {
+        builder.append(' ');
+      }
+      builder.append(Character.toUpperCase(part.charAt(0)));
+      if (part.length() > 1) {
+        builder.append(part.substring(1));
+      }
+    }
+    return builder.toString();
   }
 
   private boolean isTechnicalWaypoint(NavNode node) {
@@ -574,15 +723,26 @@ public class NavigationRouteService {
   }
 
   private RoutePointDto toPointDto(NavNode node) {
+    return toPointDto(node, Collections.emptyMap());
+  }
+
+  private RoutePointDto toPointDto(NavNode node, Map<Long, String> nodeDisplayNames) {
     return RoutePointDto.builder()
         .nodeId(safeNodeId(node))
         .externalId(node.getExternalId())
-        .label(readableLabel(node))
+        .label(readableLabel(node, nodeDisplayNames))
         .nodeType(node.getNodeTypeCode())
         .x(safeNodeCoordinate(node, "x"))
         .y(safeNodeCoordinate(node, "y"))
         .z(safeNodeCoordinate(node, "z"))
         .build();
+  }
+
+  private boolean isSegmentBoundary(NavNode fromNode, NavNode toNode) {
+    Floor fromFloor = requireFloor(fromNode);
+    Floor toFloor = requireFloor(toNode);
+    return !Objects.equals(fromNode.getFloorId(), toNode.getFloorId())
+        || !Objects.equals(fromFloor.getBuilding().getId(), toFloor.getBuilding().getId());
   }
 
   private NavigationLocationDto toLocationDto(NavigationLocation location) {

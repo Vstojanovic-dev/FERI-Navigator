@@ -550,7 +550,7 @@ function NavigationView({
               )}
             </div>
           </div>
-          <div className={styles.shareRow}>
+          {false && <div className={styles.shareRow}>
             <button
               type="button"
               className={styles.shareButton}
@@ -569,7 +569,7 @@ function NavigationView({
             >
               {isGeneratingPdf ? 'Ustvarjam PDF...' : '⬇ Natisni PDF'}
             </button>
-          </div>
+          </div>}
           {shareError && <p className={styles.errorText}>{shareError}</p>}
         </div>
       )}

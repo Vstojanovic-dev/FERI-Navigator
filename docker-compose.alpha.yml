@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgis/postgis:17-3.5
-    container_name: feri-navigator-postgres-prod
+    container_name: feri-navigator-postgres-alpha
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-feri_navigator}
@@ -10,7 +10,7 @@ services:
     expose:
       - "5432"
     volumes:
-      - feri-db-data-prod:/var/lib/postgresql/data
+      - feri-db-data-alpha:/var/lib/postgresql/data
       - ./database/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test:
@@ -26,7 +26,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: feri-navigator-backend-prod
+    container_name: feri-navigator-backend-alpha
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
@@ -39,11 +39,11 @@ services:
       APP_ADMIN_ENABLED: "false"
     expose:
       - "8080"
+    volumes:
+      - ./database/maps:/app/database/maps:ro
     depends_on:
       postgres:
         condition: service_healthy
-    # Readiness endpoint is provided by Spring Boot Actuator:
-    # GET /actuator/health/readiness
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health/readiness"]
       interval: 30s
@@ -55,13 +55,13 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    container_name: feri-navigator-frontend-prod
+    container_name: feri-navigator-frontend-alpha
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "127.0.0.1:8081:80"
     depends_on:
       backend:
         condition: service_healthy
 
 volumes:
-  feri-db-data-prod:
+  feri-db-data-alpha:

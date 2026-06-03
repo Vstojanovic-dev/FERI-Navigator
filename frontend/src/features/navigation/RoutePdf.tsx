@@ -12,6 +12,7 @@ import {
   View,
 } from '@react-pdf/renderer';
 import type { NavigationRoute, RouteSegment, RouteStep } from '../../types/navigation';
+import { getSegmentViewport } from './mapViewport';
 
 Font.registerHyphenationCallback((word) => [word]);
 
@@ -325,9 +326,7 @@ function SegmentMapPdf({ segment, imageUrl }: { segment: RouteSegment; imageUrl:
   const allPoints = segment.path;
   const firstPoint = allPoints[0];
   const lastPoint = allPoints[allPoints.length - 1];
-
-  const vw = segment.coordinateWidth;
-  const vh = segment.coordinateHeight;
+  const viewport = getSegmentViewport(segment);
 
   // Sve točke puta kao string za Polyline
   const fullPathStr = pointsString(allPoints);
@@ -336,12 +335,22 @@ function SegmentMapPdf({ segment, imageUrl }: { segment: RouteSegment; imageUrl:
     <View style={styles.mapContainer}>
       {/* Slika tlocrta */}
       {imageUrl ? (
-        <Image style={styles.mapImage} src={imageUrl} />
+        <Image
+          style={{
+            ...styles.mapImage,
+            width: `${viewport.imageScaleX * 100}%`,
+            height: `${viewport.imageScaleY * 100}%`,
+            left: `${viewport.imageTranslateXPercent}%`,
+            top: `${viewport.imageTranslateYPercent}%`,
+            maxWidth: 'none',
+          }}
+          src={imageUrl}
+        />
       ) : null}
 
       {/* SVG overlay — isti viewBox kao koordinatni prostor segmenta */}
       <Svg
-        viewBox={`0 0 ${vw} ${vh}`}
+        viewBox={`${viewport.viewBoxX} ${viewport.viewBoxY} ${viewport.viewBoxWidth} ${viewport.viewBoxHeight}`}
         style={styles.mapSvgOverlay}
       >
         {/* Siva pozadinska linija puta */}
