@@ -81,6 +81,42 @@ const locations = [
     imageUrl: null,
     hasNode: true,
   },
+  {
+    id: 13,
+    displayName: 'Glavno stopnisce - G2, 1. nadstropje',
+    locationType: 'stairs',
+    buildingId: 1,
+    buildingCode: 'G2',
+    buildingName: 'Objekt G2',
+    floorId: 10,
+    floorCode: '1_nadstropje',
+    floorLabel: '1. nadstropje',
+    nodeId: 13,
+    spaceId: null,
+    spaceName: null,
+    spaceTypeName: null,
+    description: null,
+    imageUrl: null,
+    hasNode: true,
+  },
+  {
+    id: 14,
+    displayName: 'WC - G2, 1. nadstropje',
+    locationType: 'wc',
+    buildingId: 1,
+    buildingCode: 'G2',
+    buildingName: 'Objekt G2',
+    floorId: 10,
+    floorCode: '1_nadstropje',
+    floorLabel: '1. nadstropje',
+    nodeId: 14,
+    spaceId: null,
+    spaceName: null,
+    spaceTypeName: null,
+    description: null,
+    imageUrl: null,
+    hasNode: true,
+  },
 ];
 
 const routeResponse = {
@@ -147,7 +183,7 @@ test('home route renders spaces and opens a detail card', async ({ page }) => {
   await page.locator('[data-testid="space-results"]').waitFor();
   await expect(page.getByText('Alfa')).toBeVisible();
   await page.getByText('Alfa').click();
-  await expect(page.getByRole('heading', { name: 'Alfa' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Alfa' }).last()).toBeVisible();
 });
 
 test('buildings route shows building list and nested space detail flow', async ({ page }) => {
@@ -156,21 +192,54 @@ test('buildings route shows building list and nested space detail flow', async (
   await page.getByText('Objekt G2').click();
   await expect(page.getByText('Prostori v objektu')).toBeVisible();
   await page.getByText('Alfa').click();
-  await expect(page.getByRole('heading', { name: 'Alfa' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Alfa' }).last()).toBeVisible();
 });
 
 test('navigation route can calculate a route', async ({ page }) => {
+  let requestedAllowElevator: string | null = null;
+  await page.route('**/api/navigation/route**', async (route) => {
+    requestedAllowElevator = new URL(route.request().url()).searchParams.get('allowElevator');
+    await route.fulfill({ json: routeResponse });
+  });
+
   await page.goto('/navigacija');
   await expect(page.locator('#start-location')).toBeVisible();
+  await expect(page.locator('#allow-elevator')).toBeChecked();
   await expect(page.getByTestId('show-route-button')).toBeVisible();
   await page.locator('#start-location').fill('Glavni');
-  await page.getByText('Glavni vhod - G2, Pritlicje').click();
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
   await page.locator('#target-location').fill('Alfa');
-  await page.getByText('Alfa - G2, 1. nadstropje').click();
+  await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
   await page.getByTestId('show-route-button').click();
   await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
   await expect(page.getByLabel('Deli pot')).toHaveCount(1);
   await expect(page.getByLabel('Prenesi PDF')).toHaveCount(0);
+  expect(requestedAllowElevator).toBe('true');
+});
+
+test('navigation route filters stairs and wc from target search and lets user disable lift', async ({
+  page,
+}) => {
+  let requestedAllowElevator: string | null = null;
+  await page.route('**/api/navigation/route**', async (route) => {
+    requestedAllowElevator = new URL(route.request().url()).searchParams.get('allowElevator');
+    await route.fulfill({ json: routeResponse });
+  });
+
+  await page.goto('/navigacija');
+  await page.locator('#start-location').fill('Glavni');
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
+  await page.locator('#target-location').fill('G2');
+  await expect(page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Glavno stopnisce.*G2.*1\. nadstropje/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^WC.*G2.*1\. nadstropje/i })).toHaveCount(0);
+  await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
+  await page.locator('#allow-elevator').uncheck();
+  await expect(page.locator('#allow-elevator')).not.toBeChecked();
+  await page.getByTestId('show-route-button').click();
+
+  await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
+  expect(requestedAllowElevator).toBe('false');
 });
 
 test('home page can prefill navigation target from a space card action', async ({ page }) => {
@@ -206,9 +275,9 @@ test('navigation route shows backend error message when route lookup fails', asy
 
   await page.goto('/navigacija');
   await page.locator('#start-location').fill('Glavni');
-  await page.getByText('Glavni vhod - G2, Pritlicje').click();
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
   await page.locator('#target-location').fill('Alfa');
-  await page.getByText('Alfa - G2, 1. nadstropje').click();
+  await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
   await page.getByTestId('show-route-button').click();
 
   await expect(page.getByText('Za izabrane lokacije jos ne postoji unesena ruta.')).toBeVisible();

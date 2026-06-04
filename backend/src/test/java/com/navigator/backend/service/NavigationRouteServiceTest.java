@@ -35,10 +35,12 @@ class NavigationRouteServiceTest {
   @Mock private NavigationLocationRepository locationRepository;
 
   @Mock private AStarService aStarService;
+  @Mock private VerticalPreferenceResolver verticalPreferenceResolver;
 
   @Test
   void searchSpacesUsesSpaceRepositoryQueryAndCapsLimit() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     when(locationRepository.searchSpaces(eq("lab"), eq(PageRequest.of(0, 200))))
         .thenReturn(List.<NavigationLocation>of());
@@ -51,7 +53,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void searchLocationsTrimsQueryAndNormalizesMinimumLimit() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     when(locationRepository.searchEnabled(eq("Glavni ulaz"), eq(PageRequest.of(0, 1))))
         .thenReturn(List.of());
@@ -64,7 +67,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeRejectsRequestsThatSpecifyBothLocationAndTargetType() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     NavigationRouteException exception =
         assertThrows(
@@ -76,7 +80,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeToNearestTargetChoosesReachableCandidateWithLowestCost() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
     NavigationLocation from = buildLocation(1L, "Glavni vhod", "entrance", true, 11L, "Pritlicje");
     NavigationLocation fartherWc = buildLocation(2L, "WC A", "wc", true, 21L, "1. nadstropje");
     NavigationLocation closerWc = buildLocation(3L, "WC B", "wc", true, 31L, "Pritlicje");
@@ -96,8 +101,14 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
     when(locationRepository.findEnabledByLocationType("wc"))
         .thenReturn(List.of(from, fartherWc, closerWc));
-    when(aStarService.findPath(from.getNode(), fartherWc.getNode(), true)).thenReturn(longRoute);
-    when(aStarService.findPath(from.getNode(), closerWc.getNode(), true)).thenReturn(shortRoute);
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), fartherWc.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), closerWc.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(from.getNode(), fartherWc.getNode(), true, VerticalTraversalMode.ANY))
+        .thenReturn(longRoute);
+    when(aStarService.findPath(from.getNode(), closerWc.getNode(), true, VerticalTraversalMode.ANY))
+        .thenReturn(shortRoute);
 
     RouteResponseDto result = service.route(1L, null, " wc ", true);
 
@@ -108,7 +119,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeToNearestTargetRejectsUnsupportedTargetType() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     NavigationRouteException exception =
         assertThrows(
@@ -120,7 +132,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeNormalizesInvalidGraphDataIntoNavigationError() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
     NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
     from.getFloor().setCoordinateWidth(null);
@@ -134,7 +147,10 @@ class NavigationRouteServiceTest {
 
     when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
-    when(aStarService.findPath(from.getNode(), to.getNode(), true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.ANY))
+        .thenReturn(route);
 
     NavigationRouteException exception =
         assertThrows(NavigationRouteException.class, () -> service.route(1L, 2L, null, true));
@@ -145,7 +161,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeRejectsNullFromLocationBeforeRepositoryLookup() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     NavigationRouteException exception =
         assertThrows(NavigationRouteException.class, () -> service.route(null, 2L, null, true));
@@ -157,7 +174,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeNormalizesMismatchedRouteShapeIntoNavigationError() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
     NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
 
@@ -170,7 +188,10 @@ class NavigationRouteServiceTest {
 
     when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
-    when(aStarService.findPath(from.getNode(), to.getNode(), true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.ANY))
+        .thenReturn(route);
 
     NavigationRouteException exception =
         assertThrows(NavigationRouteException.class, () -> service.route(1L, 2L, null, true));
@@ -181,7 +202,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeKeepsSingleFloorPathInsideOneSegment() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Floor g2Floor = buildFloor(101L, g2, "pritlicje", "Pritlicje", "/maps/g2.png");
@@ -207,7 +229,9 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
     when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L, 13L)))
         .thenReturn(List.of(to));
-    when(aStarService.findPath(start, destination, true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, destination, true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(start, destination, true, VerticalTraversalMode.ANY)).thenReturn(route);
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
@@ -223,7 +247,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeSplitsCrossFloorTransferWithoutLeakingNextFloorPointIntoPreviousSegment() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Floor groundFloor = buildFloor(101L, g2, "pritlicje", "Pritlicje", "/maps/g2-p.png");
@@ -256,7 +281,10 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
     when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L, 21L, 22L)))
         .thenReturn(List.of(to));
-    when(aStarService.findPath(start, destination, true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, destination, true))
+        .thenReturn(List.of(VerticalTraversalMode.ELEVATOR_ONLY));
+    when(aStarService.findPath(start, destination, true, VerticalTraversalMode.ELEVATOR_ONLY))
+        .thenReturn(route);
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
@@ -277,7 +305,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeSplitsCrossBuildingTransferWithoutLeakingNextBuildingPointIntoPreviousSegment() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Building g3 = Building.builder().id(2L).code("G3").name("Objekt G3").description("G3").build();
@@ -326,7 +355,9 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
     when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L, 21L, 22L)))
         .thenReturn(List.of(to));
-    when(aStarService.findPath(start, destination, true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, destination, true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(start, destination, true, VerticalTraversalMode.ANY)).thenReturn(route);
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
@@ -339,7 +370,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeDoesNotTreatIntermediateRoomNodeAsFinalDestination() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Floor g2Floor = buildFloor(101L, g2, "2_nadstropje", "2. nadstropje", "/maps/g2-2.png");
@@ -369,7 +401,9 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
     when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L, 13L)))
         .thenReturn(List.of(studyRoomLocation, to));
-    when(aStarService.findPath(start, buildingExit, true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, buildingExit, true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(start, buildingExit, true, VerticalTraversalMode.ANY)).thenReturn(route);
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
@@ -384,7 +418,8 @@ class NavigationRouteServiceTest {
 
   @Test
   void routeHumanizesTransferLabelsAndAddsTransferArrivalStep() {
-    NavigationRouteService service = new NavigationRouteService(locationRepository, aStarService);
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Building g3 = Building.builder().id(2L).code("G3").name("Objekt G3").description("G3").build();
@@ -417,7 +452,9 @@ class NavigationRouteServiceTest {
     when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
     when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L, 21L, 22L)))
         .thenReturn(Collections.singletonList(to));
-    when(aStarService.findPath(start, destination, true)).thenReturn(route);
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, destination, true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(start, destination, true, VerticalTraversalMode.ANY)).thenReturn(route);
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
@@ -429,6 +466,126 @@ class NavigationRouteServiceTest {
     assertEquals(
         "Stigli ste do lokacije Seminarska Soba.",
         result.getSegments().get(1).getSteps().get(1).getText());
+  }
+
+  @Test
+  void allowElevatorTrueUsesElevatorOnlyBeforeFallback() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
+    RouteSearchResult elevatorRoute =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of(routeEdge(700L, from.getNode(), to.getNode(), "elevator")))
+            .totalCost(3)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 21L))).thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ELEVATOR_ONLY, VerticalTraversalMode.STAIRS_ONLY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.ELEVATOR_ONLY))
+        .thenReturn(elevatorRoute);
+
+    RouteResponseDto result = service.route(1L, 2L, null, true);
+
+    assertEquals(3, result.getTotalCost());
+    verify(aStarService).findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.ELEVATOR_ONLY);
+    verify(aStarService, never())
+        .findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.STAIRS_ONLY);
+  }
+
+  @Test
+  void allowElevatorTrueFallsBackToStairsWhenElevatorRouteIsMissing() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
+    RouteSearchResult stairsRoute =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of(routeEdge(701L, from.getNode(), to.getNode(), "stairs")))
+            .totalCost(5)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 21L))).thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), true))
+        .thenReturn(List.of(VerticalTraversalMode.ELEVATOR_ONLY, VerticalTraversalMode.STAIRS_ONLY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.ELEVATOR_ONLY))
+        .thenReturn(emptyRoute());
+    when(aStarService.findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.STAIRS_ONLY))
+        .thenReturn(stairsRoute);
+
+    RouteResponseDto result = service.route(1L, 2L, null, true);
+
+    assertEquals(5, result.getTotalCost());
+    verify(aStarService).findPath(from.getNode(), to.getNode(), true, VerticalTraversalMode.STAIRS_ONLY);
+  }
+
+  @Test
+  void oneFloorDifferenceWithoutElevatorPrefersStairsBeforeElevator() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
+    RouteSearchResult stairsRoute =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of(routeEdge(702L, from.getNode(), to.getNode(), "stairs")))
+            .totalCost(4)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 21L))).thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), false))
+        .thenReturn(List.of(VerticalTraversalMode.STAIRS_ONLY, VerticalTraversalMode.ELEVATOR_ONLY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.STAIRS_ONLY))
+        .thenReturn(stairsRoute);
+
+    RouteResponseDto result = service.route(1L, 2L, null, false);
+
+    assertEquals(4, result.getTotalCost());
+    verify(aStarService).findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.STAIRS_ONLY);
+    verify(aStarService, never())
+        .findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.ELEVATOR_ONLY);
+  }
+
+  @Test
+  void multiFloorDifferenceWithoutElevatorFallsBackToStairsWhenElevatorRouteMissing() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "3. nadstropje");
+    RouteSearchResult stairsRoute =
+        RouteSearchResult.builder()
+            .nodes(List.of(from.getNode(), to.getNode()))
+            .edges(List.of(routeEdge(703L, from.getNode(), to.getNode(), "stairs")))
+            .totalCost(9)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 21L))).thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(from.getNode(), to.getNode(), false))
+        .thenReturn(List.of(VerticalTraversalMode.ELEVATOR_ONLY, VerticalTraversalMode.STAIRS_ONLY));
+    when(aStarService.findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.ELEVATOR_ONLY))
+        .thenReturn(emptyRoute());
+    when(aStarService.findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.STAIRS_ONLY))
+        .thenReturn(stairsRoute);
+
+    RouteResponseDto result = service.route(1L, 2L, null, false);
+
+    assertEquals(9, result.getTotalCost());
+    verify(aStarService).findPath(from.getNode(), to.getNode(), false, VerticalTraversalMode.STAIRS_ONLY);
+  }
+
+  private RouteSearchResult emptyRoute() {
+    return RouteSearchResult.builder().nodes(List.of()).edges(List.of()).totalCost(0).build();
   }
 
   private NavigationLocation buildLocation(

@@ -87,6 +87,75 @@ class AStarServiceTest {
     assertEquals("Missing destination node for edge.", exception.getMessage());
   }
 
+  @Test
+  void stairsOnlyModeSkipsElevatorEdgesEvenWhenElevatorPathIsCheaper() {
+    AStarService service = new AStarService(nodeRepository, edgeRepository);
+
+    NavNode start = buildNode(1L, "start", BigDecimal.ZERO, BigDecimal.ZERO);
+    NavNode stairsNode = buildNode(2L, "stairs-node", BigDecimal.ONE, BigDecimal.ONE);
+    NavNode elevatorNode = buildNode(3L, "elevator-node", BigDecimal.TEN, BigDecimal.TEN);
+    NavNode goal = buildNode(4L, "goal", BigDecimal.valueOf(20), BigDecimal.valueOf(20));
+
+    when(edgeRepository.findByFromNodeId(1L))
+        .thenReturn(
+            List.of(
+                edge(start, stairsNode, "stairs", "5"),
+                edge(start, elevatorNode, "elevator", "1")));
+    when(edgeRepository.findByFromNodeId(2L))
+        .thenReturn(List.of(edge(stairsNode, goal, "corridor", "5")));
+
+    RouteSearchResult result =
+        service.findPath(start, goal, false, VerticalTraversalMode.STAIRS_ONLY);
+
+    assertEquals(List.of(start, stairsNode, goal), result.getNodes());
+  }
+
+  @Test
+  void elevatorOnlyModeSkipsStairsEdgesEvenWhenStairsPathIsCheaper() {
+    AStarService service = new AStarService(nodeRepository, edgeRepository);
+
+    NavNode start = buildNode(1L, "start", BigDecimal.ZERO, BigDecimal.ZERO);
+    NavNode stairsNode = buildNode(2L, "stairs-node", BigDecimal.ONE, BigDecimal.ONE);
+    NavNode elevatorNode = buildNode(3L, "elevator-node", BigDecimal.TEN, BigDecimal.TEN);
+    NavNode goal = buildNode(4L, "goal", BigDecimal.valueOf(20), BigDecimal.valueOf(20));
+
+    when(edgeRepository.findByFromNodeId(1L))
+        .thenReturn(
+            List.of(
+                edge(start, stairsNode, "stairs", "1"),
+                edge(start, elevatorNode, "elevator", "5")));
+    when(edgeRepository.findByFromNodeId(3L))
+        .thenReturn(List.of(edge(elevatorNode, goal, "corridor", "5")));
+
+    RouteSearchResult result =
+        service.findPath(start, goal, true, VerticalTraversalMode.ELEVATOR_ONLY);
+
+    assertEquals(List.of(start, elevatorNode, goal), result.getNodes());
+  }
+
+  @Test
+  void anyModeStillChoosesCheapestPath() {
+    AStarService service = new AStarService(nodeRepository, edgeRepository);
+
+    NavNode start = buildNode(1L, "start", BigDecimal.ZERO, BigDecimal.ZERO);
+    NavNode corridorA = buildNode(2L, "corridor-a", BigDecimal.ZERO, BigDecimal.ZERO);
+    NavNode corridorB = buildNode(3L, "corridor-b", BigDecimal.ZERO, BigDecimal.ZERO);
+    NavNode goal = buildNode(4L, "goal", BigDecimal.ZERO, BigDecimal.ZERO);
+
+    when(edgeRepository.findByFromNodeId(1L))
+        .thenReturn(
+            List.of(
+                edge(start, corridorA, "corridor", "1"),
+                edge(start, corridorB, "corridor", "5")));
+    when(edgeRepository.findByFromNodeId(2L))
+        .thenReturn(List.of(edge(corridorA, goal, "corridor", "1")));
+
+    RouteSearchResult result =
+        service.findPath(start, goal, false, VerticalTraversalMode.ANY);
+
+    assertEquals(List.of(start, corridorA, goal), result.getNodes());
+  }
+
   private NavNode buildNode(Long id, String externalId, BigDecimal x, BigDecimal y) {
     Building building = Building.builder().id(1L).code("G2").name("Objekt G2").build();
     Floor floor =
