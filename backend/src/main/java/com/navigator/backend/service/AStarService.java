@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AStarService {
 
-  private static final double STAIRS_PENALTY = 15.0;
   private static final double DEFAULT_SCORE = Double.MAX_VALUE;
 
   private final NavNodeRepository nodeRepo;
@@ -63,6 +62,14 @@ public class AStarService {
   }
 
   public RouteSearchResult findPath(NavNode start, NavNode goal, boolean allowElevator) {
+    return findPath(start, goal, allowElevator, VerticalTraversalMode.ANY);
+  }
+
+  public RouteSearchResult findPath(
+      NavNode start,
+      NavNode goal,
+      boolean allowElevator,
+      VerticalTraversalMode traversalMode) {
     if (requireNodeId(start).equals(requireNodeId(goal))) {
       return RouteSearchResult.builder()
           .nodes(List.of(start))
@@ -113,7 +120,7 @@ public class AStarService {
       closedSet.add(currentId);
 
       for (NavEdge edge : edgeRepo.findByFromNodeId(currentId)) {
-        if (!allowElevator && "elevator".equals(edge.getEdgeTypeCode())) {
+        if (!isEdgeAllowed(edge, traversalMode)) {
           continue;
         }
 
@@ -127,9 +134,7 @@ public class AStarService {
         nodeCache.putIfAbsent(neighborId, neighbor);
 
         double tentativeG =
-            gScore.getOrDefault(currentId, DEFAULT_SCORE)
-                + safeWeight(edge)
-                + movementPenalty(edge);
+            gScore.getOrDefault(currentId, DEFAULT_SCORE) + safeWeight(edge);
 
         if (tentativeG < gScore.getOrDefault(neighborId, DEFAULT_SCORE)) {
           cameFrom.put(neighborId, currentId);
@@ -155,12 +160,15 @@ public class AStarService {
     return nodeRepo.findFirstByLabelIgnoreCase(identifier);
   }
 
-  private double movementPenalty(NavEdge edge) {
-    if ("stairs".equals(edge.getEdgeTypeCode())) {
-      // Slightly prefer elevator routes when travel cost is otherwise similar.
-      return STAIRS_PENALTY;
+  private boolean isEdgeAllowed(NavEdge edge, VerticalTraversalMode traversalMode) {
+    String edgeType = edge.getEdgeTypeCode();
+    if (traversalMode == VerticalTraversalMode.STAIRS_ONLY && "elevator".equals(edgeType)) {
+      return false;
     }
-    return 0;
+    if (traversalMode == VerticalTraversalMode.ELEVATOR_ONLY && "stairs".equals(edgeType)) {
+      return false;
+    }
+    return true;
   }
 
   private double heuristic(NavNode a, NavNode b) {

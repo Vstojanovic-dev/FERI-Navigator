@@ -304,36 +304,6 @@
   font-weight: 900;
 }
 
-.liftToggle {
-  display: inline-flex;
-  flex-shrink: 0;
-  gap: 4px;
-  padding: 2px;
-  border: 1px solid #d8dee8;
-  border-radius: 999px;
-  background: #fff;
-}
-
-.liftOption {
-  padding: 5px 8px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #64748b;
-  font-size: 10px;
-  font-weight: 900;
-  white-space: nowrap;
-  cursor: pointer;
-  transition:
-    background 150ms ease,
-    color 150ms ease;
-}
-
-.liftOptionActive {
-  background: var(--color-brand-900);
-  color: #fff;
-}
-
 .mapAnimated {
   height: 100%;
   animation: contentSwap 140ms ease-out;
@@ -379,6 +349,78 @@
   color: #64748b;
   font-size: 12px;
   font-weight: 800;
+}
+
+.checkboxCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d8dee8;
+  border-radius: 16px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.checkboxCopy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.checkboxTitle {
+  color: var(--color-brand-900);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+
+.checkboxControl {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  width: 48px;
+  height: 28px;
+}
+
+.checkboxInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.checkboxTrack {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  border-radius: 999px;
+  background: #d8dee8;
+  transition: background 150ms ease;
+}
+
+.checkboxThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+  transition: transform 150ms ease;
+}
+
+.checkboxInput:checked + .checkboxTrack {
+  background: var(--color-brand-900);
+}
+
+.checkboxInput:checked + .checkboxTrack .checkboxThumb {
+  transform: translateX(20px);
 }
 
 .resultsBox {
@@ -692,3 +734,4 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+

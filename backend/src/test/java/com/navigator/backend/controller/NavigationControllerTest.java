@@ -131,4 +131,25 @@ class NavigationControllerTest {
 
     verify(navigationRouteService).route(11L, null, "wc", false);
   }
+
+  @Test
+  void getRouteStillPassesAllowElevatorFlagWithoutNewApiContract() throws Exception {
+    when(navigationRouteService.route(11L, 12L, null, false))
+        .thenReturn(
+            RouteResponseDto.builder()
+                .routeId("route-11-12")
+                .segments(List.of())
+                .build());
+
+    mockMvc
+        .perform(
+            get("/api/navigation/route")
+                .param("fromLocationId", "11")
+                .param("toLocationId", "12")
+                .param("allowElevator", "false"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.routeId").value("route-11-12"));
+
+    verify(navigationRouteService).route(11L, 12L, null, false);
+  }
 }

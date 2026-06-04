@@ -109,6 +109,7 @@ Radi dve stvari:
 
 - legacy `findPath(String fromLabel, String toLabel)`
 - glavni `findPath(NavNode start, NavNode goal, boolean allowElevator)`
+- overload `findPath(NavNode start, NavNode goal, boolean allowElevator, VerticalTraversalMode traversalMode)`
 
 Algoritam:
 
@@ -116,13 +117,18 @@ Algoritam:
 - susede cita iz `navigation_edges` preko `NavEdgeRepository.findByFromNodeId`
 - heuristika je euklidska udaljenost u `x/y`
 - ukupni cost je suma `edge.weight`
-- ako je `allowElevator=false`, preskacu se edge-ovi tipa `elevator`
+- `allowElevator` vise nije direktan filter u A*
+- vertikalno filtriranje radi se preko `VerticalTraversalMode`:
+  - `ANY`
+  - `STAIRS_ONLY`
+  - `ELEVATOR_ONLY`
 
 Vazno:
 
 - algoritam tretira graf kao usmeren
 - zato seed/import mora obezbediti oba smera ako je kretanje dvosmerno
 - servis trenutno ne koristi `z` u heuristici
+- izbor da li ce pretraga ici liftom, stepenicama ili bilo kojim putem odredjuje `NavigationRouteService` preko `VerticalPreferenceResolver`
 
 #### `NavGraphService`
 
@@ -354,16 +360,22 @@ Tok:
 3. `NavigationRouteService.route(...)` ucita obe lokacije
 4. Ako lokacija ne postoji ili je disabled, baca se `NavigationRouteException`
 5. Servis proverava da li lokacije imaju `node`
-6. Poziva `AStarService.findPath(startNode, goalNode, allowElevator)`
-7. `AStarService` vraca `RouteSearchResult` sa:
+6. `VerticalPreferenceResolver` odredjuje redosled pokusaja:
+   - isti sprat -> `ANY`
+   - razliciti spratovi + `allowElevator=true` -> `ELEVATOR_ONLY`, pa fallback `STAIRS_ONLY`
+   - jedan sprat razlike + `allowElevator=false` -> `STAIRS_ONLY`, pa fallback `ELEVATOR_ONLY`
+   - dva ili vise spratova razlike + `allowElevator=false` -> `ELEVATOR_ONLY`, pa fallback `STAIRS_ONLY`
+7. `NavigationRouteService` poziva `AStarService.findPath(...)` redom za svaki pokusaj dok ne dobije rutu
+8. Ako nijedan pokusaj ne uspe, baca se `NO_ROUTE`
+9. `AStarService` vraca `RouteSearchResult` sa:
    - listom node-ova
    - listom edge-eva
    - ukupnim cost-om
-8. `NavigationRouteService`:
+10. `NavigationRouteService`:
    - segmentira rezultat po spratu
    - generise `steps`
    - pravi `RouteResponseDto`
-9. Kontroler vraca:
+11. Kontroler vraca:
    - `200` sa rutom
    - ili status iz `NavigationRouteException` sa `NavigationErrorDto`
 
@@ -516,18 +528,24 @@ Ako budes menjao algoritam:
 
 - ne pomeraj odgovornost za tezine sa baze na frontend
 - ne koristi `displayName` za nalazenje cvorova
-- zadrzi `allowElevator` kao filtrirajuci kriterijum u grafu
+- zadrzi `allowElevator` kao korisnicki signal za preferencu vertikalnog kretanja, ne kao direktan edge filter u A*
 
 ### `allowElevator`
 
-Trenutno:
+Trenutno znacenje:
 
-- ako je `false`, `AStarService` skipuje samo edge-eve tipa `elevator`
+- ako je `true`, korisnik eksplicitno trazi lift i servis prvo pokusava `ELEVATOR_ONLY`
+- ako lift-ruta ne postoji, servis radi fallback na `STAIRS_ONLY` umesto da vrati `NO_ROUTE`
+- ako je `false`, servis koristi automatsku politiku:
+  - isti sprat -> `ANY`
+  - jedan sprat razlike -> prvo stepenice
+  - dva ili vise spratova razlike -> prvo lift
 
-To znaci:
+Prakticna posledica:
 
-- elevator node i dalje mogu postojati u path-u ako do njih vodi drugi tip veze
-- trenutno je to prihvatljivo za MVP
+- `allowElevator` vise ne znaci "zabrani lift"
+- fallback je nameran da korisnik dobije validnu rutu i kada preferirani vertikalni tip ne postoji u grafu
+- stvarno filtriranje radi `VerticalTraversalMode`, ne sirovi boolean
 
 Ako budes uvodio accessibility pravila:
 

@@ -6,7 +6,6 @@ import { findLocationByQuery } from '../../utils/locationMatch';
 import {
   getNavigationLocationLabel,
   getSearchResults,
-  isNearestWcSearchRelevant,
   isQueryMatchingLabel,
   isUserDeletingInput,
   navigationLocationToSearchable,
@@ -22,7 +21,6 @@ import SharePanel from './SharePanel';
 import StepList from './StepList';
 import {
   isNearestTarget,
-  NEAREST_WC_TARGET,
   targetSelectionToSuggestion,
   targetToSearchable,
   type TargetSelection,
@@ -64,17 +62,13 @@ function NavigationView({
   const [isCreatingShare, setIsCreatingShare] = useState(false);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState('');
-  const [routeMode, setRouteMode] = useState<'withLift' | 'withoutLift'>(
-    sharedAllowElevator === false ? 'withoutLift' : 'withLift'
-  );
+  const [allowElevator, setAllowElevator] = useState(sharedAllowElevator ?? true);
   const [fromQuery, setFromQuery] = useState('');
   const [toQuery, setToQuery] = useState(initialTarget);
   const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
   const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const prevFromQueryRef = useRef('');
   const prevToQueryRef = useRef('');
-
-  const allowElevator = routeMode === 'withLift';
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
@@ -86,10 +80,9 @@ function NavigationView({
   );
 
   const toRanked = useMemo(() => {
-    const candidates: TargetSelection[] = [...toResults];
-    if (isNearestWcSearchRelevant(toQuery)) {
-      candidates.push(NEAREST_WC_TARGET);
-    }
+    const candidates: TargetSelection[] = toResults.filter(
+      (location) => location.locationType !== 'stairs' && location.locationType !== 'wc'
+    );
     return getSearchResults(candidates, toQuery, targetToSearchable, getTargetSelectionLabel);
   }, [toResults, toQuery]);
 
@@ -146,26 +139,11 @@ function NavigationView({
     }, 240);
   };
 
-  const updateRouteInPlace = (nextRoute: NavigationRoute) => {
-    setRoute(nextRoute);
-    setActiveSegmentIndex((segmentIndex) => {
-      const nextIndex = Math.min(segmentIndex, Math.max(nextRoute.segments.length - 1, 0));
-      setActiveStepIndex((stepIndex) => {
-        const segment = nextRoute.segments[nextIndex];
-        if (!segment) {
-          return 0;
-        }
-        return Math.min(stepIndex, Math.max(segment.steps.length - 1, 0));
-      });
-      return nextIndex;
-    });
-  };
-
   // Bootstrap iz shared linka
   useEffect(() => {
     if (!sharedFromLocationId) return;
 
-    setRouteMode(sharedAllowElevator === false ? 'withoutLift' : 'withLift');
+    setAllowElevator(sharedAllowElevator ?? true);
 
     const routeFromShare = async () => {
       setIsRouting(true);
@@ -205,7 +183,7 @@ function NavigationView({
     setTransitionNonce(0);
     setShareUrl(null);
     setShareError('');
-    setRouteMode(sharedAllowElevator === false ? 'withoutLift' : 'withLift');
+    setAllowElevator(sharedAllowElevator ?? true);
     prevToQueryRef.current = '';
   }, [initialTarget, sharedAllowElevator]);
 
@@ -216,13 +194,6 @@ function NavigationView({
 
   useEffect(() => {
     if (!initialTarget.trim() || toTarget) {
-      return;
-    }
-
-    if (isQueryMatchingLabel(initialTarget, NEAREST_WC_TARGET.displayName)) {
-      setToTarget(NEAREST_WC_TARGET);
-      setToQuery(NEAREST_WC_TARGET.displayName);
-      prevToQueryRef.current = NEAREST_WC_TARGET.displayName;
       return;
     }
 
@@ -346,40 +317,6 @@ function NavigationView({
     }
   };
 
-  const handleRouteModeChange = async (nextMode: 'withLift' | 'withoutLift') => {
-    if (routeMode === nextMode) {
-      return;
-    }
-
-    setRouteMode(nextMode);
-    if (!fromLocation || !toTarget || isRouting) {
-      return;
-    }
-
-    setIsRouting(true);
-    setError('');
-    setShareUrl(null);
-    setShareError('');
-    try {
-      const nextRoute = await requestRoute({
-        fromLocationId: fromLocation.id,
-        toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
-        targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-        allowElevator: nextMode === 'withLift',
-        message: 'Napaka pri računanju poti.',
-      });
-      if (route) {
-        updateRouteInPlace(nextRoute);
-      } else {
-        applyRoute(nextRoute);
-      }
-    } catch (routeError) {
-      setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
-    } finally {
-      setIsRouting(false);
-    }
-  };
-
   const handleShare = async () => {
     if (!fromLocation || !toTarget) {
       window.alert('Deljenje poti trenutno ni na voljo.');
@@ -494,6 +431,28 @@ function NavigationView({
               setShareUrl(null);
             }}
           />
+          <label className={styles.checkboxCard} htmlFor="allow-elevator">
+            <span className={styles.checkboxCopy}>
+              <span className={styles.checkboxTitle}>Uporabi lift</span>
+            </span>
+            <span className={styles.checkboxControl}>
+              <input
+                id="allow-elevator"
+                type="checkbox"
+                checked={allowElevator}
+                onChange={(event) => {
+                  setAllowElevator(event.target.checked);
+                  setRoute(null);
+                  setShareUrl(null);
+                  setShareError('');
+                }}
+                className={styles.checkboxInput}
+              />
+              <span className={styles.checkboxTrack} aria-hidden="true">
+                <span className={styles.checkboxThumb} />
+              </span>
+            </span>
+          </label>
           <button
             type="button"
             className={`${styles.primaryButton} ${!canRoute ? styles.disabledButton : ''}`}
@@ -564,24 +523,6 @@ function NavigationView({
                 </>
               )}
             </button>
-            <div className={styles.liftToggle} role="group" aria-label="Izbira poti z liftom">
-              <button
-                type="button"
-                className={`${styles.liftOption} ${routeMode === 'withLift' ? styles.liftOptionActive : ''}`}
-                onClick={() => void handleRouteModeChange('withLift')}
-                disabled={isRouting}
-              >
-                Z liftom
-              </button>
-              <button
-                type="button"
-                className={`${styles.liftOption} ${routeMode === 'withoutLift' ? styles.liftOptionActive : ''}`}
-                onClick={() => void handleRouteModeChange('withoutLift')}
-                disabled={isRouting}
-              >
-                Brez lifta
-              </button>
-            </div>
           </div>
           <div className={styles.routeMain}>
             <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
@@ -646,3 +587,5 @@ function requireRouteSegments(route: NavigationRoute, message: string) {
 }
 
 export default NavigationView;
+
+

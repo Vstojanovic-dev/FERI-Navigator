@@ -32,6 +32,7 @@ public class NavigationRouteService {
 
   private final NavigationLocationRepository locationRepository;
   private final AStarService aStarService;
+  private final VerticalPreferenceResolver verticalPreferenceResolver;
 
   @Transactional(readOnly = true)
   public List<NavigationLocationDto> searchLocations(String query, int limit) {
@@ -92,7 +93,7 @@ public class NavigationRouteService {
 
     try {
       RouteSearchResult searchResult =
-          aStarService.findPath(from.getNode(), to.getNode(), allowElevator);
+          findPreferredRoute(from.getNode(), to.getNode(), allowElevator);
 
       if (searchResult.getNodes().isEmpty()) {
         throw new NavigationRouteException(
@@ -146,7 +147,7 @@ public class NavigationRouteService {
       RouteSearchResult bestRoute = null;
       for (NavigationLocation candidate : candidates) {
         RouteSearchResult candidateRoute =
-            aStarService.findPath(from.getNode(), candidate.getNode(), allowElevator);
+            findPreferredRoute(from.getNode(), candidate.getNode(), allowElevator);
         if (candidateRoute.getNodes().isEmpty()) {
           continue;
         }
@@ -181,6 +182,19 @@ public class NavigationRouteService {
       return null;
     }
     return targetType.trim().toLowerCase(Locale.ROOT);
+  }
+
+  private RouteSearchResult findPreferredRoute(
+      NavNode start, NavNode goal, boolean allowElevator) {
+    for (VerticalTraversalMode attempt :
+        verticalPreferenceResolver.resolveAttemptOrder(start, goal, allowElevator)) {
+      RouteSearchResult result = aStarService.findPath(start, goal, allowElevator, attempt);
+      if (result.getNodes() != null && !result.getNodes().isEmpty()) {
+        return result;
+      }
+    }
+
+    return RouteSearchResult.builder().nodes(List.of()).edges(List.of()).totalCost(0).build();
   }
 
   private NavigationLocation findLocation(Long locationId, String fieldName) {
