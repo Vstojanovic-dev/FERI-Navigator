@@ -1,7 +1,9 @@
 import type { CatalogSpace } from '../types/catalog';
 import { getSpaceDisplayName } from '../utils/displayNames';
 import { buildSpaceDescription } from '../utils/spaceDescription';
+import { getSpaceMapLocation } from '../utils/spaceMapLocation';
 import PageShell from './PageShell';
+import SpaceMapPreview from './SpaceMapPreview';
 import SubPageHeader from './SubPageHeader';
 import styles from './SpaceDetailsView.module.css';
 
@@ -20,6 +22,7 @@ function SpaceDetailsView({
 }: SpaceDetailsViewProps) {
   const displayName = getSpaceDisplayName(space);
   const description = buildSpaceDescription(space);
+  const mapLocation = getSpaceMapLocation(space);
   const infoItems = [
     space.buildingName?.trim() ? { label: 'Objekt', value: space.buildingName } : null,
     space.floor?.trim() ? { label: 'Nadstropje', value: space.floor } : null,
@@ -63,6 +66,20 @@ function SpaceDetailsView({
         >
           Poišči učilnico
         </button>
+
+        {mapLocation ? (
+          <section className={styles.locationSection} aria-label="Lokacija prostora">
+            <h2 className={styles.locationTitle}>Lokacija prostora</h2>
+            <div className={styles.locationCard}>
+              <SpaceMapPreview
+                mapImageUrl={mapLocation.mapImageUrl}
+                markerX={mapLocation.markerX}
+                markerY={mapLocation.markerY}
+                alt={`Lokacija prostora ${displayName} na načrtu objekta`}
+              />
+            </div>
+          </section>
+        ) : null}
       </section>
     </PageShell>
   );

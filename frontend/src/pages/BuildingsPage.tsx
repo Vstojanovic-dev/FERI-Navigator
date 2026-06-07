@@ -311,7 +311,11 @@ function BuildingsPage() {
                   <div className={styles.cardBody}>
                     <h2 className={styles.cardTitle}>{building.name}</h2>
                     <p className={styles.cardMeta}>{formatSpaceCount(getBuildingSpaceCount(building))}</p>
+                    <p className={styles.cardHint}>Načrt in prostori</p>
                   </div>
+                  <span className={styles.cardChevron} aria-hidden="true">
+                    ›
+                  </span>
                 </article>
               );
             })}
