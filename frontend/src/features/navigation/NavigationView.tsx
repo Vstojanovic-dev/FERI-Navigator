@@ -70,6 +70,7 @@ function NavigationView({
   const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const prevFromQueryRef = useRef('');
   const prevToQueryRef = useRef('');
+  const userEditedTargetRef = useRef(false);
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
@@ -194,6 +195,7 @@ function NavigationView({
     setShareError('');
     setAllowElevator(sharedAllowElevator ?? true);
     prevToQueryRef.current = '';
+    userEditedTargetRef.current = false;
   }, [initialTarget, sharedAllowElevator]);
 
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
@@ -202,7 +204,7 @@ function NavigationView({
   const canRoute = Boolean(fromLocation && toTarget && !isRouting && !hasSameLocations);
 
   useEffect(() => {
-    if (!initialTarget.trim() || toTarget) {
+    if (!initialTarget.trim() || toTarget || userEditedTargetRef.current) {
       return;
     }
 
@@ -272,6 +274,7 @@ function NavigationView({
   };
 
   const handleToQueryChange = (value: string) => {
+    userEditedTargetRef.current = true;
     const previousValue = toQuery;
     prevToQueryRef.current = previousValue;
 

@@ -2,7 +2,9 @@ import { useI18n } from '../i18n/useI18n';
 import type { CatalogSpace } from '../types/catalog';
 import { getSpaceDisplayName, localizeFloorLabel } from '../utils/displayNames';
 import { buildSpaceDescription, getLocalizedSpaceType } from '../utils/spaceDescription';
+import { getSpaceMapLocation } from '../utils/spaceMapLocation';
 import PageShell from './PageShell';
+import SpaceMapPreview from './SpaceMapPreview';
 import SubPageHeader from './SubPageHeader';
 import styles from './SpaceDetailsView.module.css';
 
@@ -22,6 +24,7 @@ function SpaceDetailsView({
   const { language, t } = useI18n();
   const displayName = getSpaceDisplayName(space);
   const description = buildSpaceDescription(space, language, t);
+  const mapLocation = getSpaceMapLocation(space);
   const infoItems = [
     space.buildingName?.trim() ? { label: t('details.building'), value: space.buildingName } : null,
     space.floor?.trim()
@@ -69,6 +72,20 @@ function SpaceDetailsView({
         >
           {t('details.findClassroom')}
         </button>
+
+        {mapLocation ? (
+          <section className={styles.locationSection} aria-label="Lokacija prostora">
+            <h2 className={styles.locationTitle}>Lokacija prostora</h2>
+            <div className={styles.locationCard}>
+              <SpaceMapPreview
+                mapImageUrl={mapLocation.mapImageUrl}
+                markerX={mapLocation.markerX}
+                markerY={mapLocation.markerY}
+                alt={`Lokacija prostora ${displayName} na načrtu objekta`}
+              />
+            </div>
+          </section>
+        ) : null}
       </section>
     </PageShell>
   );

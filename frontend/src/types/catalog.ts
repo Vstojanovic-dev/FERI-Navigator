@@ -20,4 +20,9 @@ export type CatalogSpace = {
   purpose?: string | null;
   capacity?: number | null;
   notes?: string | null;
+  /** Frontend demo / optional floor plan for space location preview */
+  mapImageUrl?: string | null;
+  /** Marker position on plan image, 0–100 percent */
+  markerX?: number | null;
+  markerY?: number | null;
 };

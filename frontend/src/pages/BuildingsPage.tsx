@@ -417,6 +417,9 @@ function BuildingsPage() {
                       {formatSpaceCount(getBuildingSpaceCount(building), language)}
                     </p>
                   </div>
+                  <span className={styles.cardChevron} aria-hidden="true">
+                    ›
+                  </span>
                 </article>
               );
             })}
