@@ -375,14 +375,14 @@ public class MapEditorService {
       throw new MapEditorException(
           HttpStatus.BAD_REQUEST,
           "FLOOR_MISMATCH",
-          "Ako edge nije cross-floor, oba node-a moraju biti na istom spratu.");
+          "Če povezava ni cross-floor, morata biti obe vozlišči v istem nadstropju.");
     }
 
     if (!isCrossBuilding && !sameBuilding) {
       throw new MapEditorException(
           HttpStatus.BAD_REQUEST,
           "BUILDING_MISMATCH",
-          "Ako edge nije cross-building, oba node-a moraju biti u istom objektu.");
+          "Če povezava ni cross-building, morata biti obe vozlišči v istem objektu.");
     }
   }
 

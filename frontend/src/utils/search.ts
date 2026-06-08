@@ -210,29 +210,22 @@ export function shouldAutofill<T>(
   return only.item;
 }
 
-export const NEAREST_WC_SEARCHABLE: SearchableFields = {
-  displayName: 'Najbližji WC',
-  keywords: ['wc', 'najblizji wc', 'najbližji wc', 'sanitarije', 'stranisce', 'stranišče', 'toaleta'],
-};
-
-/** Najbližji WC samo za smislene upite — ne za npr. "al". */
-export function isNearestWcSearchRelevant(query: string): boolean {
-  const normalizedQuery = normalizeText(query);
-  if (!normalizedQuery) {
-    return false;
-  }
-
-  const displayName = normalizeText(NEAREST_WC_SEARCHABLE.displayName ?? '');
-  if (displayName.startsWith(normalizedQuery)) {
-    return true;
-  }
-
-  const queryPrefixes = ['najb', 'najbli', 'wc', 'san', 'stran'];
-  if (queryPrefixes.some((prefix) => normalizedQuery.startsWith(prefix))) {
-    return true;
-  }
-
-  return getSearchRank(NEAREST_WC_SEARCHABLE, query) < NO_MATCH_RANK;
+export function getNearestWcSearchable(displayName: string) {
+  return {
+    displayName,
+    keywords: [
+      'wc',
+      'najblizji wc',
+      'najbližji wc',
+      'sanitarije',
+      'stranisce',
+      'stranišče',
+      'toaleta',
+      'nearest wc',
+      'toilet',
+      'restroom',
+    ],
+  } satisfies SearchableFields;
 }
 
 export function catalogSpaceToSearchable(space: CatalogSpace): SearchableFields {

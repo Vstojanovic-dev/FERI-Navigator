@@ -35,45 +35,45 @@ class NavigationControllerTest {
 
   @Test
   void getLocationsReturnsSearchResultsUsingProvidedQueryAndLimit() throws Exception {
-    when(navigationRouteService.searchLocations("glavni", 5))
+    when(navigationRouteService.searchLocations("glavni", 5, null))
         .thenReturn(
             List.of(
                 NavigationLocationDto.builder()
                     .id(11L)
-                    .displayName("Glavni vhod - G2, Pritlicje")
+                    .displayName("Glavni vhod - G2, Pritličje")
                     .locationType("entrance")
                     .buildingId(1L)
                     .buildingCode("G2")
                     .buildingName("Objekt G2")
                     .floorId(1L)
                     .floorCode("pritlicje")
-                    .floorLabel("Pritlicje")
+                    .floorLabel("Pritličje")
                     .hasNode(true)
                     .build()));
 
     mockMvc
         .perform(get("/api/navigation/locations").param("query", "glavni").param("limit", "5"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].displayName").value("Glavni vhod - G2, Pritlicje"))
+        .andExpect(jsonPath("$[0].displayName").value("Glavni vhod - G2, Pritličje"))
         .andExpect(jsonPath("$[0].buildingCode").value("G2"));
 
-    verify(navigationRouteService).searchLocations("glavni", 5);
+    verify(navigationRouteService).searchLocations("glavni", 5, null);
   }
 
   @Test
   void getRouteReturnsStructuredErrorWhenServiceThrowsNavigationRouteException() throws Exception {
-    when(navigationRouteService.route(11L, 12L, null, true))
+    when(navigationRouteService.route(11L, 12L, null, true, null))
         .thenThrow(
             new NavigationRouteException(
-                HttpStatus.NOT_FOUND, "NO_ROUTE", "Za izabrane lokacije jos ne postoji unesena ruta."));
+                HttpStatus.NOT_FOUND, "NO_ROUTE", "Za izbrani lokaciji še ni vnesene poti."));
 
     mockMvc
         .perform(get("/api/navigation/route").param("fromLocationId", "11").param("toLocationId", "12"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.code").value("NO_ROUTE"))
-        .andExpect(jsonPath("$.message").value("Za izabrane lokacije jos ne postoji unesena ruta."));
+        .andExpect(jsonPath("$.message").value("Za izbrani lokaciji še ni vnesene poti."));
 
-    verify(navigationRouteService).route(11L, 12L, null, true);
+    verify(navigationRouteService).route(11L, 12L, null, true, null);
   }
 
   @Test
@@ -81,7 +81,7 @@ class NavigationControllerTest {
     mockMvc
         .perform(get("/api/navigation/path").param("from", "   ").param("to", "alfa"))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.message").value("Parametar 'from' je obavezan."));
+        .andExpect(jsonPath("$.message").value("Parameter 'from' je obvezen."));
   }
 
   @Test
@@ -89,21 +89,21 @@ class NavigationControllerTest {
     when(aStarService.findPath("referat", "alfa"))
         .thenReturn(
             PathResponseDto.builder()
-                .message("Put nije pronadjen.")
+                .message("Pot ni bila najdena.")
                 .path(Collections.emptyList())
                 .build());
 
     mockMvc
         .perform(get("/api/navigation/path").param("from", "referat").param("to", "alfa"))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Put nije pronadjen."));
+        .andExpect(jsonPath("$.message").value("Pot ni bila najdena."));
 
     verify(aStarService).findPath("referat", "alfa");
   }
 
   @Test
   void getRouteReturnsRoutePayloadOnSuccess() throws Exception {
-    when(navigationRouteService.route(11L, null, "wc", false))
+    when(navigationRouteService.route(11L, null, "wc", false, null))
         .thenReturn(
             RouteResponseDto.builder()
                 .routeId("route-11-nearest-wc-30")
@@ -113,7 +113,7 @@ class NavigationControllerTest {
                         RouteResponseDto.RouteSegmentDto.builder()
                             .index(0)
                             .buildingCode("G2")
-                            .floorLabel("Pritlicje")
+                            .floorLabel("Pritličje")
                             .path(List.of())
                             .steps(List.of())
                             .build()))
@@ -129,12 +129,12 @@ class NavigationControllerTest {
         .andExpect(jsonPath("$.routeId").value("route-11-nearest-wc-30"))
         .andExpect(jsonPath("$.segments[0].buildingCode").value("G2"));
 
-    verify(navigationRouteService).route(11L, null, "wc", false);
+    verify(navigationRouteService).route(11L, null, "wc", false, null);
   }
 
   @Test
   void getRouteStillPassesAllowElevatorFlagWithoutNewApiContract() throws Exception {
-    when(navigationRouteService.route(11L, 12L, null, false))
+    when(navigationRouteService.route(11L, 12L, null, false, null))
         .thenReturn(
             RouteResponseDto.builder()
                 .routeId("route-11-12")
@@ -150,6 +150,23 @@ class NavigationControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.routeId").value("route-11-12"));
 
-    verify(navigationRouteService).route(11L, 12L, null, false);
+    verify(navigationRouteService).route(11L, 12L, null, false, null);
+  }
+
+  @Test
+  void getRouteForwardsAcceptLanguageHeaderToService() throws Exception {
+    when(navigationRouteService.route(11L, 12L, null, true, "en-US"))
+        .thenReturn(RouteResponseDto.builder().routeId("route-11-12").segments(List.of()).build());
+
+    mockMvc
+        .perform(
+            get("/api/navigation/route")
+                .param("fromLocationId", "11")
+                .param("toLocationId", "12")
+                .header("Accept-Language", "en-US"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.routeId").value("route-11-12"));
+
+    verify(navigationRouteService).route(11L, 12L, null, true, "en-US");
   }
 }

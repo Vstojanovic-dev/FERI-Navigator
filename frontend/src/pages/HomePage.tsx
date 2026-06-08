@@ -6,17 +6,20 @@ import OverlayModal from '../components/OverlayModal';
 import PageShell from '../components/PageShell';
 import SearchField from '../components/SearchField';
 import SpaceDetailsView from '../components/SpaceDetailsView';
+import { useI18n } from '../i18n/useI18n';
 import { searchSpaces } from '../services/catalogService';
 import type { CatalogSpace } from '../types/catalog';
+import { localizeFloorLabel } from '../utils/displayNames';
 import {
   catalogSpaceToSearchable,
   getCatalogSpaceLabel,
   getSearchResults,
   shouldAutofill,
 } from '../utils/search';
+import { getLocalizedSpaceType } from '../utils/spaceDescription';
 import {
   filterSpacesByType,
-  SPACE_TYPE_FILTERS,
+  getSpaceTypeFilters,
   type SpaceTypeFilterKey,
 } from '../utils/spaceTypeFilter';
 import styles from './HomePage.module.css';
@@ -40,6 +43,7 @@ function HomePage() {
   const [introDone, setIntroDone] = useState(introCompletedOnce);
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
   const prevSearchTextRef = useRef('');
+  const { language, t } = useI18n();
 
   useEffect(() => {
     if (introCompletedOnce) {
@@ -78,27 +82,17 @@ function HomePage() {
     };
   }, [searchText]);
 
-  const spacesByType = useMemo(
-    () => filterSpacesByType(spaces, typeFilter),
-    [spaces, typeFilter]
-  );
-
+  const typeFilters = useMemo(() => getSpaceTypeFilters(t), [t]);
+  const spacesByType = useMemo(() => filterSpacesByType(spaces, typeFilter), [spaces, typeFilter]);
   const rankedSpaces = useMemo(
     () => getSearchResults(spacesByType, searchText, catalogSpaceToSearchable, getCatalogSpaceLabel),
     [spacesByType, searchText]
   );
-
   const filteredSpaces = useMemo(() => rankedSpaces.map((result) => result.item), [rankedSpaces]);
 
   useEffect(() => {
     const previousValue = prevSearchTextRef.current;
-    const autofillItem = shouldAutofill(
-      previousValue,
-      searchText,
-      rankedSpaces,
-      null,
-      () => false
-    );
+    const autofillItem = shouldAutofill(previousValue, searchText, rankedSpaces, null, () => false);
 
     if (autofillItem) {
       const label = getCatalogSpaceLabel(autofillItem);
@@ -108,7 +102,7 @@ function HomePage() {
     }
 
     prevSearchTextRef.current = searchText;
-  }, [searchText, rankedSpaces]);
+  }, [rankedSpaces, searchText]);
 
   const handleSearchChange = (value: string) => {
     prevSearchTextRef.current = searchText;
@@ -144,7 +138,7 @@ function HomePage() {
             className={introDone ? styles.roundButton : styles.roundButtonHidden}
             onClick={() => setIsMenuOpen((value) => !value)}
             aria-expanded={isMenuOpen}
-            aria-label="Odpri meni"
+            aria-label={t('common.openMenu')}
           >
             ☰
           </button>
@@ -163,14 +157,16 @@ function HomePage() {
               alt="FERI"
               className={introDone ? styles.feriLogo : styles.introFeriLogo}
             />
-            <h1 className={introDone ? styles.mainTitle : styles.introMainTitle}>Navigator</h1>
+            <h1 className={introDone ? styles.mainTitle : styles.introMainTitle}>
+              {t('common.appTitle')}
+            </h1>
           </div>
 
           <button
             type="button"
             className={introDone ? styles.roundButton : styles.roundButtonHidden}
             onClick={() => setIsMapPopupOpen(true)}
-            aria-label="Odpri zemljevid"
+            aria-label={t('home.openMap')}
           >
             🗺️
           </button>
@@ -183,11 +179,11 @@ function HomePage() {
           id="space-search"
           value={searchText}
           onChange={handleSearchChange}
-          placeholder="Išči učilnico, laboratorij ali pisarno"
+          placeholder={t('home.searchPlaceholder')}
         />
 
-        <div className={styles.typeFilters} role="group" aria-label="Filter po tipu prostora">
-          {SPACE_TYPE_FILTERS.map((filter) => (
+        <div className={styles.typeFilters} role="group" aria-label={t('home.filterBySpaceType')}>
+          {typeFilters.map((filter) => (
             <button
               key={filter.key}
               type="button"
@@ -203,12 +199,12 @@ function HomePage() {
         </div>
 
         <div className={styles.resultsTitleRow}>
-          <h2 className={styles.resultsTitle}>Prostori</h2>
+          <h2 className={styles.resultsTitle}>{t('home.resultsTitle')}</h2>
           <span className={styles.resultBadge}>{filteredSpaces.length}</span>
         </div>
 
         {filteredSpaces.length === 0 ? (
-          <EmptyState title="Ni rezultatov" text="Poskusi z drugim nazivom prostora." />
+          <EmptyState title={t('home.noResultsTitle')} text={t('home.noResultsText')} />
         ) : (
           <div className={styles.compactCardsList} data-testid="space-results">
             {filteredSpaces.map((space) => (
@@ -220,18 +216,20 @@ function HomePage() {
                 <div className={styles.compactCardContent}>
                   <div className={styles.compactCardTopLine}>
                     <h3 className={styles.compactCardTitle}>{getCatalogSpaceLabel(space)}</h3>
-                    {space.type ? <span className={styles.typeChip}>{space.type}</span> : null}
+                    {space.type ? (
+                      <span className={styles.typeChip}>{getLocalizedSpaceType(space.type, language)}</span>
+                    ) : null}
                   </div>
                   {space.buildingName ? (
                     <p className={styles.compactCardMeta}>
-                      <span className={styles.compactCardMetaLabel}>Objekt</span>
+                      <span className={styles.compactCardMetaLabel}>{t('home.buildingLabel')}</span>
                       {space.buildingName}
                     </p>
                   ) : null}
                   {space.floor ? (
                     <p className={styles.compactCardMeta}>
-                      <span className={styles.compactCardMetaLabel}>Nadstropje</span>
-                      {space.floor}
+                      <span className={styles.compactCardMetaLabel}>{t('home.floorLabel')}</span>
+                      {localizeFloorLabel(space.floor, language)}
                     </p>
                   ) : null}
 
@@ -243,7 +241,7 @@ function HomePage() {
                       openNavigation(space);
                     }}
                   >
-                    Poišči učilnico
+                    {t('home.findClassroom')}
                   </button>
                 </div>
               </article>
@@ -255,11 +253,11 @@ function HomePage() {
       <MainMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
 
       {isMapPopupOpen && (
-        <OverlayModal title="Zemljevid FERI" onClose={() => setIsMapPopupOpen(false)}>
+        <OverlayModal title={t('home.mapTitle')} onClose={() => setIsMapPopupOpen(false)}>
           <div className={styles.mapPopupBody}>
             <img
               src="/images/zemljevidFERI.png"
-              alt="Zemljevid FERI"
+              alt={t('home.mapTitle')}
               className={styles.popupImage}
             />
           </div>

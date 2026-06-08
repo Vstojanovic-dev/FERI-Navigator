@@ -3,12 +3,12 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: 'http://127.0.0.1:4273',
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    port: 4173,
+    command: 'npm run dev -- --host 127.0.0.1 --port 4273 --strictPort',
+    port: 4273,
     reuseExistingServer: !process.env.CI,
   },
 });

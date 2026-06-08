@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useI18n } from '../../i18n/useI18n';
 import styles from './SharePanel.module.css';
 
 type SharePanelProps = {
@@ -8,6 +9,7 @@ type SharePanelProps = {
 };
 
 function SharePanel({ shareUrl, onClose }: SharePanelProps) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [shareHint, setShareHint] = useState('');
   const [isQrOpen, setIsQrOpen] = useState(false);
@@ -37,8 +39,8 @@ function SharePanel({ shareUrl, onClose }: SharePanelProps) {
     if (canNativeShare) {
       try {
         await navigator.share({
-          title: 'FERI Navigator',
-          text: 'Pot po FERI',
+          title: t('share.nativeTitle'),
+          text: t('share.nativeText'),
           url: shareUrl,
         });
         return;
@@ -50,21 +52,21 @@ function SharePanel({ shareUrl, onClose }: SharePanelProps) {
     }
 
     await handleCopy();
-    setShareHint('Povezava je kopirana v odložišče.');
+    setShareHint(t('share.clipboardHint'));
     window.setTimeout(() => setShareHint(''), 2500);
   };
 
   return (
     <div className={styles.overlay} role="presentation">
-      <button type="button" className={styles.backdrop} onClick={onClose} aria-label="Zapri" />
-      <div className={styles.modal} role="dialog" aria-label="Deli pot">
+      <button type="button" className={styles.backdrop} onClick={onClose} aria-label={t('common.close')} />
+      <div className={styles.modal} role="dialog" aria-label={t('share.title')}>
         <div className={styles.header}>
-          <span className={styles.title}>Deli pot</span>
+          <span className={styles.title}>{t('share.title')}</span>
           <button
             type="button"
             className={styles.closeButton}
             onClick={onClose}
-            aria-label="Zapri"
+            aria-label={t('common.close')}
           >
             ✕
           </button>
@@ -76,15 +78,15 @@ function SharePanel({ shareUrl, onClose }: SharePanelProps) {
             type="text"
             readOnly
             value={shareUrl}
-            aria-label="Povezava do poti"
+            aria-label={t('share.linkAria')}
           />
           <button
             type="button"
             className={styles.copyButton}
             onClick={handleCopy}
-            aria-label="Kopiraj povezavo"
+            aria-label={t('share.copyLink')}
           >
-            {copied ? '✓ Kopirano' : 'Kopiraj'}
+            {copied ? t('share.copySuccess') : t('share.copyLink')}
           </button>
         </div>
 
@@ -92,7 +94,7 @@ function SharePanel({ shareUrl, onClose }: SharePanelProps) {
           <span className={styles.shareButtonIcon} aria-hidden="true">
             ↗
           </span>
-          Deli
+          {t('share.share')}
         </button>
 
         {shareHint && <p className={styles.shareHint}>{shareHint}</p>}
@@ -102,7 +104,7 @@ function SharePanel({ shareUrl, onClose }: SharePanelProps) {
           className={styles.qrToggle}
           onClick={() => setIsQrOpen((value) => !value)}
         >
-          {isQrOpen ? 'Skrij QR kodo' : 'Prikaži QR kodo'}
+          {isQrOpen ? t('share.hideQr') : t('share.showQr')}
         </button>
 
         {isQrOpen && (

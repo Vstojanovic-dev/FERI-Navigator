@@ -33,9 +33,16 @@ public class NavigationShareService {
 
   @Transactional
   public NavigationShareDto.CreateResponse createShare(NavigationShareDto.CreateRequest request) {
-    validateRequest(request);
+    return createShare(request, null);
+  }
 
-    String shareCode = generateUniqueCode();
+  @Transactional
+  public NavigationShareDto.CreateResponse createShare(
+      NavigationShareDto.CreateRequest request, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
+    validateRequest(request, language);
+
+    String shareCode = generateUniqueCode(language);
 
     NavigationRouteShare share =
         NavigationRouteShare.builder()
@@ -48,13 +55,13 @@ public class NavigationShareService {
 
     shareRepository.save(share);
     log.info(
-        "Share kreiran: {} (from={}, to={}, targetType={})",
+        "Povezava za deljenje je ustvarjena: {} (from={}, to={}, targetType={})",
         shareCode,
         request.getFromLocationId(),
         request.getToLocationId(),
         request.getTargetType());
 
-    String shareUrl = normalizedBaseUrl() + "/share/" + shareCode;
+    String shareUrl = normalizedBaseUrl(language) + "/share/" + shareCode;
     return NavigationShareDto.CreateResponse.builder()
         .shareCode(shareCode)
         .shareUrl(shareUrl)
@@ -63,15 +70,21 @@ public class NavigationShareService {
 
   @Transactional(readOnly = true)
   public NavigationShareDto.ResolveResponse resolveShare(String shareCode) {
+    return resolveShare(shareCode, null);
+  }
+
+  @Transactional(readOnly = true)
+  public NavigationShareDto.ResolveResponse resolveShare(String shareCode, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     NavigationRouteShare share =
         shareRepository
-            .findByShareCode(normalizeShareCode(shareCode))
+            .findByShareCode(normalizeShareCode(shareCode, language))
             .orElseThrow(
                 () ->
                     new NavigationRouteException(
                         HttpStatus.NOT_FOUND,
                         "SHARE_NOT_FOUND",
-                        "Share link nije pronadjen ili je istekao."));
+                        NavigationTexts.shareNotFound(language)));
 
     return NavigationShareDto.ResolveResponse.builder()
         .fromLocationId(share.getFromLocationId())
@@ -83,11 +96,15 @@ public class NavigationShareService {
 
   @Transactional(readOnly = true)
   public NavigationLocationDto getLocation(Long locationId) {
+    return getLocation(locationId, null);
+  }
+
+  @Transactional(readOnly = true)
+  public NavigationLocationDto getLocation(Long locationId, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     if (locationId == null) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST,
-          "MISSING_LOCATION",
-          "Parametar 'id' je obavezan.");
+          HttpStatus.BAD_REQUEST, "MISSING_LOCATION", NavigationTexts.missingLocation("id", language));
     }
 
     return locationRepository
@@ -97,20 +114,30 @@ public class NavigationShareService {
               Space space = location.getSpace();
               return NavigationLocationDto.builder()
                   .id(location.getId())
-                  .displayName(location.getDisplayName())
+                  .displayName(
+                      NavigationLocalization.localizeDisplayName(
+                          location.getDisplayName(), language))
                   .locationType(location.getLocationType())
                   .buildingId(location.getBuilding().getId())
                   .buildingCode(location.getBuilding().getCode())
-                  .buildingName(location.getBuilding().getName())
+                  .buildingName(
+                      NavigationLocalization.localizeBuildingName(
+                          location.getBuilding().getName(), language))
                   .floorId(location.getFloor().getId())
                   .floorCode(location.getFloor().getCode())
-                  .floorLabel(location.getFloor().getLabel())
+                  .floorLabel(
+                      NavigationLocalization.localizeFloorLabel(
+                          location.getFloor().getLabel(), language))
                   .nodeId(location.getNode() != null ? location.getNode().getId() : null)
                   .spaceId(space != null ? space.getId() : location.getSpaceId())
-                  .spaceName(space != null ? space.getName() : null)
+                  .spaceName(
+                      space != null
+                          ? NavigationLocalization.localizeDisplayName(space.getName(), language)
+                          : null)
                   .spaceTypeName(
                       space != null && space.getSpaceType() != null
-                          ? space.getSpaceType().getName()
+                          ? NavigationLocalization.localizeSpaceTypeName(
+                              space.getSpaceType().getName(), language)
                           : null)
                   .description(space != null ? space.getDescription() : null)
                   .imageUrl(space != null ? space.getImageUrl() : null)
@@ -122,21 +149,20 @@ public class NavigationShareService {
                 new NavigationRouteException(
                     HttpStatus.NOT_FOUND,
                     "LOCATION_NOT_FOUND",
-                    "Lokacija nije pronadjena: " + locationId));
+                    NavigationTexts.locationNotFound(locationId, language)));
   }
 
-  private void validateRequest(NavigationShareDto.CreateRequest request) {
+  private void validateRequest(
+      NavigationShareDto.CreateRequest request, NavigationLanguage language) {
     if (request == null) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST,
-          "INVALID_REQUEST",
-          "Telo zahteva je obavezno.");
+          HttpStatus.BAD_REQUEST, "INVALID_REQUEST", NavigationTexts.requestBodyRequired(language));
     }
     if (request.getFromLocationId() == null) {
       throw new NavigationRouteException(
           HttpStatus.BAD_REQUEST,
           "MISSING_LOCATION",
-          "Parametar 'fromLocationId' je obavezan.");
+          NavigationTexts.missingLocation("fromLocationId", language));
     }
 
     boolean hasLocation = request.getToLocationId() != null;
@@ -145,34 +171,32 @@ public class NavigationShareService {
 
     if (hasLocation == hasTargetType) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST,
-          "INVALID_TARGET",
-          "Posaljite tacno jedan cilj: toLocationId ili targetType.");
+          HttpStatus.BAD_REQUEST, "INVALID_TARGET", NavigationTexts.exactlyOneTarget(language));
     }
 
     if (!locationRepository.existsEnabledById(request.getFromLocationId())) {
       throw new NavigationRouteException(
           HttpStatus.NOT_FOUND,
           "LOCATION_NOT_FOUND",
-          "Pocetna lokacija nije pronadjena: " + request.getFromLocationId());
+          NavigationTexts.startLocationNotFound(request.getFromLocationId(), language));
     }
 
     if (hasLocation && !locationRepository.existsEnabledById(request.getToLocationId())) {
       throw new NavigationRouteException(
           HttpStatus.NOT_FOUND,
           "LOCATION_NOT_FOUND",
-          "Ciljna lokacija nije pronadjena: " + request.getToLocationId());
+          NavigationTexts.targetLocationNotFound(request.getToLocationId(), language));
     }
 
     if (hasTargetType && !"wc".equals(normalizedTargetType)) {
       throw new NavigationRouteException(
           HttpStatus.BAD_REQUEST,
           "UNSUPPORTED_TARGET_TYPE",
-          "Podrzan je samo targetType=wc.");
+          NavigationTexts.supportedTargetTypeOnlyWc(language));
     }
   }
 
-  private String generateUniqueCode() {
+  private String generateUniqueCode(NavigationLanguage language) {
     SecureRandom random = new SecureRandom();
     for (int attempt = 0; attempt < MAX_RETRIES; attempt++) {
       StringBuilder sb = new StringBuilder(CODE_LENGTH);
@@ -187,7 +211,7 @@ public class NavigationShareService {
     throw new NavigationRouteException(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "SHARE_CODE_GENERATION_FAILED",
-        "Nije moguce generisati jedinstveni share kod. Pokusajte ponovo.");
+        NavigationTexts.shareCodeGenerationFailed(language));
   }
 
   private String normalizeTargetType(String targetType) {
@@ -197,23 +221,21 @@ public class NavigationShareService {
     return targetType.trim().toLowerCase(Locale.ROOT);
   }
 
-  private String normalizeShareCode(String shareCode) {
+  private String normalizeShareCode(String shareCode, NavigationLanguage language) {
     if (shareCode == null || shareCode.isBlank()) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST,
-          "INVALID_SHARE_CODE",
-          "Share kod je obavezan.");
+          HttpStatus.BAD_REQUEST, "INVALID_SHARE_CODE", NavigationTexts.shareCodeRequired(language));
     }
     return shareCode.trim();
   }
 
-  private String normalizedBaseUrl() {
+  private String normalizedBaseUrl(NavigationLanguage language) {
     String normalized = baseUrl == null ? "" : baseUrl.trim();
     if (normalized.isEmpty()) {
       throw new NavigationRouteException(
           HttpStatus.INTERNAL_SERVER_ERROR,
           "INVALID_SHARE_CONFIGURATION",
-          "Share URL konfiguracija nije postavljena.");
+          NavigationTexts.invalidShareConfiguration(language));
     }
     return normalized.endsWith("/")
         ? normalized.substring(0, normalized.length() - 1)

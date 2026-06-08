@@ -163,7 +163,7 @@ class AStarServiceTest {
             .id(10L)
             .building(building)
             .code("pritlicje")
-            .label("Pritlicje")
+            .label("Pritličje")
             .levelNumber(BigDecimal.ZERO)
             .z(BigDecimal.ZERO)
             .mapImageUrl("/maps/test.png")

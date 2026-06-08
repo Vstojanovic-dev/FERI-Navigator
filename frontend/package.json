@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build --configLoader runner --emptyOutDir false",
     "lint": "eslint .",
     "test:e2e": "playwright test",
+    "test:e2e:agent": "playwright test tests/agent-frontend-audit.spec.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check \"**/*\" --ignore-unknown",
     "preview": "vite preview"

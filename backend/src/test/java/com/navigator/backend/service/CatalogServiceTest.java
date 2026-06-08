@@ -55,7 +55,7 @@ class CatalogServiceTest {
     CatalogSpaceDto space = result.getFirst();
     assertEquals(44L, space.id());
     assertEquals("Alfa", space.name());
-    assertEquals("Ucilnica", space.type());
+    assertEquals("Učilnica", space.type());
     assertEquals("Objekt G2", space.buildingName());
     assertEquals("1. nadstropje", space.floor());
     assertEquals("Opis prostora", space.description());
@@ -78,7 +78,7 @@ class CatalogServiceTest {
             .coordinateWidth(BigDecimal.valueOf(100))
             .coordinateHeight(BigDecimal.valueOf(100))
             .build();
-    SpaceType spaceType = SpaceType.builder().id(5L).code("classroom").name("Ucilnica").build();
+    SpaceType spaceType = SpaceType.builder().id(5L).code("classroom").name("Učilnica").build();
     Space space =
         Space.builder()
             .id(44L)

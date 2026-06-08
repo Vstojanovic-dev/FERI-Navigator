@@ -26,6 +26,6 @@ public class NavGraphController {
   @PostMapping("/cross-floor")
   public ResponseEntity<String> importCrossFloor(@RequestBody List<FloorGraphDto.EdgeDto> edges) {
     int count = navGraphService.importCrossFloorEdges(edges);
-    return ResponseEntity.ok("Uvezeno " + count + " veza između spratova");
+    return ResponseEntity.ok("Uvoženih je " + count + " povezav med nadstropji.");
   }
 }

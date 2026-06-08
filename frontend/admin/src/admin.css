@@ -89,6 +89,27 @@ p {
   gap: 10px;
 }
 
+.language-switch {
+  display: flex;
+  gap: 6px;
+}
+
+.language-button {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  padding: 8px 10px;
+}
+
+.language-button.active {
+  background: #172033;
+  border-color: #172033;
+  color: #ffffff;
+}
+
 .dirty-pill {
   background: #e2e8f0;
   border: 1px solid #cbd5e1;

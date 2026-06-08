@@ -44,7 +44,7 @@ class CatalogControllerTest {
   void getBuildingSpacesReturnsSpaceCardsForRequestedBuilding() throws Exception {
     when(catalogService.listBuildingSpaces(3L))
         .thenReturn(
-            List.of(new CatalogSpaceDto(9L, "Alfa", "Ucilnica", 3L, "Objekt G2", "1. nadstropje", "Opis", null)));
+            List.of(new CatalogSpaceDto(9L, "Alfa", "Učilnica", 3L, "Objekt G2", "1. nadstropje", "Opis", null)));
 
     mockMvc
         .perform(get("/api/catalog/buildings/3/spaces"))

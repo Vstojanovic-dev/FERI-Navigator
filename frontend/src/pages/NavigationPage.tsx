@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import PageShell from '../components/PageShell';
 import SubPageHeader from '../components/SubPageHeader';
+import { useI18n } from '../i18n/useI18n';
 import NavigationView from '../features/navigation/NavigationView';
-import { resolveShare, fetchLocation } from '../services/navigationService';
 import { ApiError } from '../services/api';
+import { fetchLocation, resolveShare } from '../services/navigationService';
 import styles from './NavigationPage.module.css';
 
 type NavigationPageState = {
@@ -21,6 +22,7 @@ type SharedRouteState = {
 function NavigationPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const state = location.state as NavigationPageState | null;
 
   const [sharedRoute, setSharedRoute] = useState<SharedRouteState | null>(null);
@@ -28,11 +30,12 @@ function NavigationPage() {
   const [shareError, setShareError] = useState('');
   const [isResolvingShare, setIsResolvingShare] = useState(false);
 
-  // Bootstrap iz /share/<code> URL-a
   useEffect(() => {
     const pathname = location.pathname;
     const match = pathname.match(/^\/share\/([a-zA-Z0-9]+)$/);
-    if (!match) return;
+    if (!match) {
+      return;
+    }
 
     const shareCode = match[1];
     setIsResolvingShare(true);
@@ -41,52 +44,43 @@ function NavigationPage() {
       try {
         const shareData = await resolveShare(shareCode);
 
-        // Povuci naziv ciljne lokacije za prikaz u polju
         let toLabel = '';
         if (shareData.toLocationId) {
           try {
             const toLoc = await fetchLocation(shareData.toLocationId);
             toLabel = toLoc.displayName;
           } catch {
-            // Ako lokacija nije dostupna, nastavljamo bez labela
+            toLabel = '';
           }
         } else if (shareData.targetType === 'wc') {
-          toLabel = 'Najbližji WC';
+          toLabel = t('navigation.nearestWc');
         }
 
         setSharedRoute(shareData);
         setSharedInitialTarget(toLabel);
-
-        // Promeni URL na /navigacija bez osvježavanja
         navigate('/navigacija', { replace: true, state: null });
-      } catch (err) {
-        if (err instanceof ApiError && err.code === 'SHARE_NOT_FOUND') {
-          setShareError('Ta povezava ni veljavna ali je potekla.');
+      } catch (error) {
+        if (error instanceof ApiError && error.code === 'SHARE_NOT_FOUND') {
+          setShareError(t('navigation.invalidShare'));
         } else {
-          setShareError('Napaka pri nalaganju deljene poti.');
+          setShareError(t('navigation.sharedRouteLoadError'));
         }
       } finally {
         setIsResolvingShare(false);
       }
     };
 
-    resolve();
-    // Namerno samo ob mountu
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void resolve();
+  }, [location.pathname, navigate, t]);
 
   return (
     <PageShell>
       <section className={styles.page}>
-        <SubPageHeader title="Navigacija" fallbackTo="/" compact />
+        <SubPageHeader title={t('navigation.title')} fallbackTo="/" compact />
 
-        {isResolvingShare && (
-          <p className={styles.loadingText}>Nalagam deljeno pot...</p>
-        )}
+        {isResolvingShare && <p className={styles.loadingText}>{t('navigation.loadingSharedRoute')}</p>}
 
-        {shareError && (
-          <p className={styles.errorText}>{shareError}</p>
-        )}
+        {shareError && <p className={styles.errorText}>{shareError}</p>}
 
         {!isResolvingShare && (
           <NavigationView

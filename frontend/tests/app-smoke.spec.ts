@@ -14,7 +14,7 @@ const spaces = [
     nodeId: 101,
     spaceId: 1,
     spaceName: 'Alfa',
-    spaceTypeName: 'Classroom',
+    spaceTypeName: 'Učilnica',
     description: 'Opis prostora Alfa',
     imageUrl: null,
     hasNode: true,
@@ -35,7 +35,7 @@ const buildingSpaces = [
   {
     id: 1,
     name: 'Alfa',
-    type: 'Classroom',
+    type: 'Učilnica',
     buildingId: 1,
     buildingName: 'Objekt G2',
     floor: '1. nadstropje',
@@ -47,14 +47,14 @@ const buildingSpaces = [
 const locations = [
   {
     id: 11,
-    displayName: 'Glavni vhod - G2, Pritlicje',
+    displayName: 'Glavni vhod - G2, Pritličje',
     locationType: 'entrance',
     buildingId: 1,
     buildingCode: 'G2',
     buildingName: 'Objekt G2',
     floorId: 1,
     floorCode: 'pritlicje',
-    floorLabel: 'Pritlicje',
+    floorLabel: 'Pritličje',
     nodeId: 11,
     spaceId: null,
     spaceName: null,
@@ -76,14 +76,14 @@ const locations = [
     nodeId: 12,
     spaceId: 1,
     spaceName: 'Alfa',
-    spaceTypeName: 'Classroom',
+    spaceTypeName: 'Učilnica',
     description: 'Opis prostora Alfa',
     imageUrl: null,
     hasNode: true,
   },
   {
     id: 13,
-    displayName: 'Glavno stopnisce - G2, 1. nadstropje',
+    displayName: 'Glavno stopnišče - G2, 1. nadstropje',
     locationType: 'stairs',
     buildingId: 1,
     buildingCode: 'G2',
@@ -132,7 +132,7 @@ const routeResponse = {
       buildingName: 'Objekt G2',
       floorId: 1,
       floorCode: 'pritlicje',
-      floorLabel: 'Pritlicje',
+      floorLabel: 'Pritličje',
       mapImageUrl: '/maps/1_pritlicje.png',
       coordinateWidth: 1190,
       coordinateHeight: 842,
@@ -146,7 +146,7 @@ const routeResponse = {
       steps: [
         {
           index: 0,
-          text: 'Nastavite prema Alfa.',
+          text: 'Nadaljujte proti Alfa.',
           fromNodeId: 11,
           toNodeId: 12,
           type: 'corridor',
@@ -207,11 +207,11 @@ test('navigation route can calculate a route', async ({ page }) => {
   await expect(page.locator('#allow-elevator')).toBeChecked();
   await expect(page.getByTestId('show-route-button')).toBeVisible();
   await page.locator('#start-location').fill('Glavni');
-  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritličje/i }).click();
   await page.locator('#target-location').fill('Alfa');
   await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
   await page.getByTestId('show-route-button').click();
-  await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
+  await expect(page.getByText('Nadaljujte proti Alfa.')).toBeVisible();
   await expect(page.getByLabel('Deli pot')).toHaveCount(1);
   await expect(page.getByLabel('Prenesi PDF')).toHaveCount(0);
   expect(requestedAllowElevator).toBe('true');
@@ -228,17 +228,17 @@ test('navigation route filters stairs and wc from target search and lets user di
 
   await page.goto('/navigacija');
   await page.locator('#start-location').fill('Glavni');
-  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritličje/i }).click();
   await page.locator('#target-location').fill('G2');
   await expect(page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Glavno stopnisce.*G2.*1\. nadstropje/i })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Glavno stopnišče.*G2.*1\. nadstropje/i })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^WC.*G2.*1\. nadstropje/i })).toHaveCount(0);
   await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
   await page.locator('#allow-elevator').uncheck();
   await expect(page.locator('#allow-elevator')).not.toBeChecked();
   await page.getByTestId('show-route-button').click();
 
-  await expect(page.getByText('Nastavite prema Alfa.')).toBeVisible();
+  await expect(page.getByText('Nadaljujte proti Alfa.')).toBeVisible();
   expect(requestedAllowElevator).toBe('false');
 });
 
@@ -268,19 +268,19 @@ test('navigation route shows backend error message when route lookup fails', asy
       status: 404,
       json: {
         code: 'NO_ROUTE',
-        message: 'Za izabrane lokacije jos ne postoji unesena ruta.',
+        message: 'Za izbrani lokaciji še ni vnesene poti.',
       },
     });
   });
 
   await page.goto('/navigacija');
   await page.locator('#start-location').fill('Glavni');
-  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritlicje/i }).click();
+  await page.getByRole('button', { name: /Glavni vhod.*G2.*Pritličje/i }).click();
   await page.locator('#target-location').fill('Alfa');
   await page.getByRole('button', { name: /Alfa.*G2.*1\. nadstropje/i }).click();
   await page.getByTestId('show-route-button').click();
 
-  await expect(page.getByText('Za izabrane lokacije jos ne postoji unesena ruta.')).toBeVisible();
+  await expect(page.getByText('Za izbrani lokaciji še ni vnesene poti.')).toBeVisible();
 });
 
 test('navigation route renders shell and top-level refresh works', async ({ page }) => {
@@ -288,4 +288,30 @@ test('navigation route renders shell and top-level refresh works', async ({ page
   await expect(page.locator('#start-location')).toBeVisible();
   await page.reload();
   await expect(page.locator('#start-location')).toBeVisible();
+});
+
+test('language switch defaults to sl, switches to en, and persists after reload', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(() => {
+    window.localStorage.removeItem('feri.navigator.language');
+  });
+  await page.reload();
+  await expect(page.locator('#space-search')).toHaveAttribute(
+    'placeholder',
+    /Išči|I.*či učilnico/i
+  );
+
+  await page.getByLabel(/Odpri meni/i).click();
+  await page.getByRole('button', { name: 'English' }).click();
+
+  await expect(page.locator('#space-search')).toHaveAttribute(
+    'placeholder',
+    /Search for a classroom, laboratory, or office/i
+  );
+
+  await page.reload();
+  await expect(page.locator('#space-search')).toHaveAttribute(
+    'placeholder',
+    /Search for a classroom, laboratory, or office/i
+  );
 });

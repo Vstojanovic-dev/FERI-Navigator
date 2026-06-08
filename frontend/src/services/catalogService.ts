@@ -22,20 +22,6 @@ type CatalogSpaceDto = {
   imageUrl: string | null;
 };
 
-const SPACE_TYPE_LABELS: Record<string, string> = {
-  classroom: 'Učilnica',
-  laboratory: 'Laboratorij',
-  office: 'Pisarna',
-  public_area: 'Javni prostor',
-  service: 'Servis',
-  wc: 'WC',
-  Classroom: 'Učilnica',
-  Laboratory: 'Laboratorij',
-  Office: 'Pisarna',
-  'Public area': 'Javni prostor',
-  Service: 'Servis',
-};
-
 export async function fetchBuildings(): Promise<BuildingSummary[]> {
   const buildings = await apiFetch<BuildingCatalogDto[]>('/api/catalog/buildings');
   return buildings.map((building) => ({
@@ -48,7 +34,7 @@ export async function fetchBuildingSpaces(buildingId: number): Promise<CatalogSp
   const spaces = await apiFetch<CatalogSpaceDto[]>(`/api/catalog/buildings/${buildingId}/spaces`);
   return spaces.map((space) => ({
     ...space,
-    type: toDisplaySpaceType(space.type),
+    type: space.type ?? '',
   }));
 }
 
@@ -64,19 +50,11 @@ function mapLocationToCatalogSpace(location: NavigationLocation): CatalogSpace {
     id: location.spaceId ?? location.id,
     name,
     displayName: getLocationDisplayName(location),
-    type: toDisplaySpaceType(location.locationType),
+    type: location.spaceTypeName ?? location.locationType,
     buildingId: location.buildingId,
     buildingName: location.buildingName,
     floor: location.floorLabel,
     description: location.description,
     imageUrl: location.imageUrl,
   };
-}
-
-function toDisplaySpaceType(value: string | null | undefined) {
-  if (!value) {
-    return '';
-  }
-
-  return SPACE_TYPE_LABELS[value] ?? value;
 }

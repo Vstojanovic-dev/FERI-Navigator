@@ -1,29 +1,33 @@
+import type { Translator } from '../i18n/translate';
 import type { CatalogSpace } from '../types/catalog';
 
 export type SpaceTypeFilterKey = 'all' | 'classroom' | 'laboratory' | 'office' | 'other';
 
-export const SPACE_TYPE_FILTERS: { key: SpaceTypeFilterKey; label: string }[] = [
-  { key: 'all', label: 'Vsi' },
-  { key: 'classroom', label: 'Učilnice' },
-  { key: 'laboratory', label: 'Laboratoriji' },
-  { key: 'office', label: 'Pisarne' },
-  { key: 'other', label: 'Ostalo' },
-];
+export function getSpaceTypeFilters(t: Translator): { key: SpaceTypeFilterKey; label: string }[] {
+  return [
+    { key: 'all', label: t('spaceType.all') },
+    { key: 'classroom', label: t('spaceType.classroom') },
+    { key: 'laboratory', label: t('spaceType.laboratory') },
+    { key: 'office', label: t('spaceType.office') },
+    { key: 'other', label: t('spaceType.other') },
+  ];
+}
 
 export function getSpaceTypeFilterKey(type: string): Exclude<SpaceTypeFilterKey, 'all'> {
   const normalized = type.trim().toLowerCase();
 
   if (
+    normalized === 'classroom' ||
     normalized.includes('učilnica') ||
     normalized.includes('ucilnica') ||
     normalized.includes('predavalnica')
   ) {
     return 'classroom';
   }
-  if (normalized.includes('laboratorij')) {
+  if (normalized === 'laboratory' || normalized.includes('laboratorij')) {
     return 'laboratory';
   }
-  if (normalized.includes('pisarna')) {
+  if (normalized === 'office' || normalized.includes('pisarna')) {
     return 'office';
   }
 

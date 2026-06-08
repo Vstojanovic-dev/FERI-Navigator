@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { SUPPORTED_LANGUAGES } from '../i18n/language';
+import { useI18n } from '../i18n/useI18n';
 import styles from './MainMenuOverlay.module.css';
 
 type MainMenuOverlayProps = {
@@ -8,17 +10,21 @@ type MainMenuOverlayProps = {
   showAllItems?: boolean;
 };
 
-const MENU_ITEMS = [
-  { path: '/', label: 'Domov' },
-  { path: '/objekti', label: 'Vsi objekti' },
-  { path: '/navigacija', label: 'Navigacija' },
-];
-
 function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOverlayProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { language, setLanguage, t } = useI18n();
   const [isVisible, setIsVisible] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
+
+  const menuItems = useMemo(
+    () => [
+      { path: '/', label: t('menu.home') },
+      { path: '/objekti', label: t('buildings.title') },
+      { path: '/navigacija', label: t('navigation.title') },
+    ],
+    [t]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -45,8 +51,8 @@ function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOver
   }
 
   const items = showAllItems
-    ? MENU_ITEMS
-    : MENU_ITEMS.filter((item) => item.path !== location.pathname);
+    ? menuItems
+    : menuItems.filter((item) => item.path !== location.pathname);
 
   return (
     <div
@@ -56,7 +62,7 @@ function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOver
     >
       <nav
         className={`${styles.menuPanel} ${isClosing ? styles.menuPanelClosing : ''}`}
-        aria-label="Glavni meni"
+        aria-label={t('common.mainMenu')}
         onClick={(event) => event.stopPropagation()}
       >
         {items.map((item) => (
@@ -70,6 +76,17 @@ function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOver
             }}
           >
             {item.label}
+          </button>
+        ))}
+        {SUPPORTED_LANGUAGES.map((option) => (
+          <button
+            key={option}
+            type="button"
+            className={styles.menuItem}
+            aria-pressed={language === option}
+            onClick={() => setLanguage(option)}
+          >
+            {t(option === 'sl' ? 'language.sl' : 'language.en')}
           </button>
         ))}
       </nav>

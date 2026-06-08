@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useBackNavigation } from '../hooks/useBackNavigation';
+import { useI18n } from '../i18n/useI18n';
 import MainMenuOverlay from './MainMenuOverlay';
 import styles from './SubPageHeader.module.css';
 
@@ -20,6 +21,7 @@ function SubPageHeader({
 }: SubPageHeaderProps) {
   const handleBack = useBackNavigation(fallbackTo);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { t } = useI18n();
 
   return (
     <>
@@ -28,7 +30,7 @@ function SubPageHeader({
           type="button"
           className={styles.backButton}
           onClick={onBack ?? handleBack}
-          aria-label="Nazaj"
+          aria-label={t('common.back')}
         >
           ←
         </button>
@@ -38,7 +40,7 @@ function SubPageHeader({
           className={styles.menuButton}
           onClick={() => setIsMenuOpen((value) => !value)}
           aria-expanded={isMenuOpen}
-          aria-label="Odpri meni"
+          aria-label={t('common.openMenu')}
         >
           ☰
         </button>

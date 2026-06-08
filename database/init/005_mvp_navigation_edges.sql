@@ -15,8 +15,8 @@ WITH edge_input(
     VALUES
         ('G2_pritlicje_lift', 'G2_pritlicje_wp18', 'corridor', FALSE, FALSE, 'Pojdi od lifta proti hodniku.', 'Pojdi iz hodnika proti liftu.', 'Lift'),
         ('G2_pritlicje_wp18', 'G2_pritlicje_wp19', 'corridor', FALSE, FALSE, 'Nadaljuj po hodniku proti predavalnicama Alfa in Beta.', 'Nadaljuj po hodniku proti liftu.', NULL),
-        ('G2_pritlicje_wp19', 'G2_pritlicje_g2_p1_alfa', 'virtual', FALSE, FALSE, 'Ucilnica Alfa je ob hodniku.', 'Vrni se iz ucilnice Alfa na hodnik.', 'G2-P1 Alfa'),
-        ('G2_pritlicje_wp19', 'G2_pritlicje_g2_p2_beta', 'virtual', FALSE, FALSE, 'Ucilnica Beta je ob hodniku.', 'Vrni se iz ucilnice Beta na hodnik.', 'G2-P2 Beta'),
+        ('G2_pritlicje_wp19', 'G2_pritlicje_g2_p1_alfa', 'virtual', FALSE, FALSE, 'Učilnica Alfa je ob hodniku.', 'Vrni se iz učilnice Alfa na hodnik.', 'G2-P1 Alfa'),
+        ('G2_pritlicje_wp19', 'G2_pritlicje_g2_p2_beta', 'virtual', FALSE, FALSE, 'Učilnica Beta je ob hodniku.', 'Vrni se iz učilnice Beta na hodnik.', 'G2-P2 Beta'),
         ('G2_pritlicje_lift', 'G2_2_nadstropje_lift', 'elevator', TRUE, FALSE, 'Z liftom pojdi v 2. nadstropje.', 'Z liftom pojdi v pritlicje.', 'Lift'),
         ('G2_pritlicje_stepenice_lift', 'G2_2_nadstropje_stepeniste_lift', 'stairs', TRUE, FALSE, 'Po stopnicah pojdi v 2. nadstropje.', 'Po stopnicah pojdi v pritlicje.', 'Stopnisce'),
         ('G2_2_nadstropje_lift', 'G2_2_nadstropje_wp8', 'corridor', FALSE, FALSE, 'Pojdi od lifta do hodnika.', 'Pojdi iz hodnika proti liftu.', 'Lift'),

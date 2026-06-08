@@ -63,7 +63,11 @@ function StepList({
         );
       })}
       {Array.from({ length: placeholderCount }, (_, slot) => (
-        <div key={`placeholder-${start}-${slot}`} className={styles.stepPlaceholder} aria-hidden="true" />
+        <div
+          key={`placeholder-${start}-${slot}`}
+          className={styles.stepPlaceholder}
+          aria-hidden="true"
+        />
       ))}
     </div>
   );

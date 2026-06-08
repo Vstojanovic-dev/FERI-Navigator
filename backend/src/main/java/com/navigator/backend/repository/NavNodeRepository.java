@@ -17,10 +17,10 @@ public interface NavNodeRepository extends JpaRepository<NavNode, Long> {
   // A* — traži čvor po labelu (case-insensitive), uzmi prvi rezultat
   Optional<NavNode> findFirstByLabelIgnoreCase(String label);
 
-  // Briše sve čvorove za određeni sprat — korisno za re-import
+  // Izbriše vsa vozlišča za izbrano nadstropje - uporabno za ponovni uvoz
   void deleteAllByFloorId(Long floorId);
 
-  // PostGIS — nađi najbliži čvor na određenom spratu
+  // PostGIS - poišči najbližje vozlišče na izbranem nadstropju
   @Query(
       value =
           """

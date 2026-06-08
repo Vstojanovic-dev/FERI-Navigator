@@ -1,12 +1,17 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
 import { ADMIN_API_BASE_URL } from './config';
+import { SUPPORTED_LANGUAGES } from './i18n/language';
+import { getCurrentLanguage } from './i18n/runtimeLanguage';
+import { translate } from './i18n/translate';
+import { useI18n } from './i18n/useI18n';
 
 type FloorOption = {
   floorId: number;
@@ -194,14 +199,19 @@ const nodeColors: Record<string, string> = {
   building_transfer: '#be123c',
 };
 
-const tools: Array<{ id: EditorTool; label: string; icon: string }> = [
-  { id: 'select', label: 'Select / move', icon: 'V' },
-  { id: 'add-node', label: 'Add node', icon: '+' },
-  { id: 'connect', label: 'Connect', icon: '-' },
-  { id: 'delete', label: 'Delete', icon: 'X' },
-];
+function buildTools(
+  t: ReturnType<typeof useI18n>['t']
+): Array<{ id: EditorTool; label: string; icon: string }> {
+  return [
+    { id: 'select', label: t('admin.tool.select'), icon: 'V' },
+    { id: 'add-node', label: t('admin.tool.addNode'), icon: '+' },
+    { id: 'connect', label: t('admin.tool.connect'), icon: '-' },
+    { id: 'delete', label: t('admin.tool.delete'), icon: 'X' },
+  ];
+}
 
 function AdminApp() {
+  const { language, setLanguage, t } = useI18n();
   const [floors, setFloors] = useState<FloorOption[]>([]);
   const [nodeTypes, setNodeTypes] = useState<LookupOption[]>([]);
   const [edgeTypes, setEdgeTypes] = useState<LookupOption[]>([]);
@@ -227,6 +237,8 @@ function AdminApp() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportSql, setExportSql] = useState('');
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const noticeId = useId();
+  const tools = useMemo(() => buildTools(t), [t]);
 
   const buildingOptions = useMemo(() => {
     const seen = new Map<number, { id: number; code: string; name: string }>();
@@ -298,14 +310,14 @@ function AdminApp() {
           await loadGraph(nextFloors[0].floorId);
         }
       } catch (bootstrapError) {
-        setError(asMessage(bootstrapError, 'Ne mogu da ucitam admin editor.'));
+        setError(asMessage(bootstrapError, t('errors.adminLoad')));
       } finally {
         setIsLoading(false);
       }
     };
 
     void bootstrap();
-  }, [loadGraph]);
+  }, [loadGraph, t]);
 
   useEffect(() => {
     if (selectedBuildingId == null || availableFloors.length === 0) {
@@ -321,9 +333,9 @@ function AdminApp() {
       return;
     }
     void loadGraph(selectedFloorId).catch((loadError) => {
-      setError(asMessage(loadError, 'Ne mogu da ucitam graf sprata.'));
+      setError(asMessage(loadError, t('errors.floorGraphLoad')));
     });
-  }, [loadGraph, selectedFloorId]);
+  }, [loadGraph, selectedFloorId, t]);
 
   useEffect(() => {
     if (!selectedNode) {
@@ -366,12 +378,12 @@ function AdminApp() {
         );
         setConnectTargetNodes(targetGraph.nodes);
       } catch (targetError) {
-        setError(asMessage(targetError, 'Ne mogu da ucitam node-ove ciljnog sprata.'));
+        setError(asMessage(targetError, t('errors.targetNodesLoad')));
       }
     };
 
     void loadTargetNodes();
-  }, [connectSourceNodeId, connectTargetFloorId, graph]);
+  }, [connectSourceNodeId, connectTargetFloorId, graph, t]);
 
   useEffect(() => {
     if (!dragState || !graph) {
@@ -418,10 +430,10 @@ function AdminApp() {
           }),
         });
         setDirtySinceExport(true);
-        setNotice('Pozicija node-a je sacuvana.');
+        setNotice(t('notice.nodeDragged'));
         await loadGraph(graph.floor.floorId);
       } catch (saveError) {
-        setError(asMessage(saveError, 'Ne mogu da sacuvam pomeranje node-a.'));
+        setError(asMessage(saveError, t('errors.dragSave')));
       } finally {
         setIsSaving(false);
         setDragPreview({});
@@ -434,7 +446,7 @@ function AdminApp() {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [dragPreview, dragState, graph, loadGraph]);
+  }, [dragPreview, dragState, graph, loadGraph, t]);
 
   const clearSelection = () => {
     setSelectedNodeId(null);
@@ -527,7 +539,7 @@ function AdminApp() {
     if (connectSourceNodeId == null) {
       setConnectSourceNodeId(node.id);
       setConnectTargetFloorId(graph.floor.floorId);
-      setNotice(`Izabran source node ${node.externalId}.`);
+      setNotice(t('notice.sourceNodeSelected', { id: node.externalId }));
       return;
     }
 
@@ -602,31 +614,31 @@ function AdminApp() {
         }
       );
       setDirtySinceExport(true);
-      setNotice(nodeForm.kind === 'create' ? 'Node je dodat.' : 'Node je sacuvan.');
+      setNotice(t(nodeForm.kind === 'create' ? 'notice.nodeCreated' : 'notice.nodeSaved'));
       setSelectedNodeId(response.id);
       await loadGraph(graph.floor.floorId);
     } catch (saveError) {
-      setError(asMessage(saveError, 'Ne mogu da sacuvam node.'));
+      setError(asMessage(saveError, t('errors.nodeSave')));
     } finally {
       setIsSaving(false);
     }
   };
 
   const deleteNode = async (node: EditorNode | null = selectedNode) => {
-    if (!node || !window.confirm(`Obrisi node ${node.externalId}?`)) {
+    if (!node || !window.confirm(t('confirm.deleteNode', { id: node.externalId }))) {
       return;
     }
     try {
       setIsSaving(true);
       await apiFetch(`/api/admin/map-editor/nodes/${node.id}`, { method: 'DELETE' });
       setDirtySinceExport(true);
-      setNotice('Node je obrisan.');
+      setNotice(t('notice.nodeDeleted'));
       clearSelection();
       if (graph) {
         await loadGraph(graph.floor.floorId);
       }
     } catch (deleteError) {
-      setError(asMessage(deleteError, 'Ne mogu da obrisem node.'));
+      setError(asMessage(deleteError, t('errors.nodeDelete')));
     } finally {
       setIsSaving(false);
     }
@@ -658,11 +670,11 @@ function AdminApp() {
         }
       );
       setDirtySinceExport(true);
-      setNotice(edgeForm.kind === 'create' ? 'Veza je dodata.' : 'Veza je sacuvana.');
+      setNotice(t(edgeForm.kind === 'create' ? 'notice.edgeCreated' : 'notice.edgeSaved'));
       setSelectedEdgeId(response.id);
       await loadGraph(graph.floor.floorId);
     } catch (saveError) {
-      setError(asMessage(saveError, 'Ne mogu da sacuvam vezu.'));
+      setError(asMessage(saveError, t('errors.edgeSave')));
     } finally {
       setIsSaving(false);
     }
@@ -671,7 +683,12 @@ function AdminApp() {
   const deleteEdge = async (edge: EditorEdge | null = selectedEdge) => {
     if (
       !edge ||
-      !window.confirm(`Obrisi vezu ${edge.fromNodeExternalId} -> ${edge.toNodeExternalId}?`)
+      !window.confirm(
+        t('confirm.deleteEdge', {
+          from: edge.fromNodeExternalId,
+          to: edge.toNodeExternalId,
+        })
+      )
     ) {
       return;
     }
@@ -679,13 +696,13 @@ function AdminApp() {
       setIsSaving(true);
       await apiFetch(`/api/admin/map-editor/edges/${edge.id}`, { method: 'DELETE' });
       setDirtySinceExport(true);
-      setNotice('Veza je obrisana.');
+      setNotice(t('notice.edgeDeleted'));
       clearSelection();
       if (graph) {
         await loadGraph(graph.floor.floorId);
       }
     } catch (deleteError) {
-      setError(asMessage(deleteError, 'Ne mogu da obrisem vezu.'));
+      setError(asMessage(deleteError, t('errors.edgeDelete')));
     } finally {
       setIsSaving(false);
     }
@@ -697,9 +714,9 @@ function AdminApp() {
       const sql = await apiFetchText('/api/admin/map-editor/export/sql');
       setExportSql(sql);
       setDirtySinceExport(false);
-      setNotice('SQL export je generisan.');
+      setNotice(t('admin.exportSql'));
     } catch (exportError) {
-      setError(asMessage(exportError, 'Ne mogu da generisem SQL export.'));
+      setError(asMessage(exportError, t('errors.exportCreate')));
     } finally {
       setIsExporting(false);
     }
@@ -719,19 +736,32 @@ function AdminApp() {
   };
 
   if (isLoading) {
-    return <main className="loading-state">Ucitavam admin editor...</main>;
+    return <main className="loading-state">{t('admin.loading')}</main>;
   }
 
   return (
     <main className="admin-page">
       <header className="admin-header">
         <div>
-          <p className="eyebrow">FERI Navigator Admin</p>
-          <h1>Map editor</h1>
+          <p className="eyebrow">{t('admin.eyebrow')}</p>
+          <h1>{t('admin.title')}</h1>
         </div>
         <div className="header-actions">
+          <div className="language-switch" role="group" aria-label={t('admin.languageSwitch')}>
+            {SUPPORTED_LANGUAGES.map((option) => (
+              <button
+                key={option}
+                type="button"
+                className={language === option ? 'language-button active' : 'language-button'}
+                aria-pressed={language === option}
+                onClick={() => setLanguage(option)}
+              >
+                {t(option === 'sl' ? 'language.sl' : 'language.en')}
+              </button>
+            ))}
+          </div>
           <span className={dirtySinceExport ? 'dirty-pill dirty' : 'dirty-pill'}>
-            {dirtySinceExport ? 'Unexported changes' : 'Export up to date'}
+            {dirtySinceExport ? t('admin.unexportedChanges') : t('admin.exportUpToDate')}
           </span>
           <button
             type="button"
@@ -739,15 +769,13 @@ function AdminApp() {
             onClick={exportCurrentSql}
             disabled={isExporting}
           >
-            {isExporting ? 'Exporting...' : 'Export SQL'}
+            {isExporting ? t('admin.exporting') : t('admin.exportSql')}
           </button>
         </div>
       </header>
 
-      <section className="notice-banner" aria-label="Admin workflow notice">
-        <strong>Local admin tool only.</strong> Koristi ovaj UI samo protiv lokalnog backenda,
-        pa promene prebaci dalje kroz pregledani Flyway migration. Nemoj direktno editovati
-        staging ili production.
+      <section className="notice-banner" aria-labelledby={noticeId}>
+        <strong id={noticeId}>{t('admin.noticeTitle')}</strong> {t('admin.noticeText')}
       </section>
 
       {(error || notice) && (
@@ -758,7 +786,7 @@ function AdminApp() {
       )}
 
       <section className="editor-shell">
-        <aside className="tool-rail" aria-label="Editor tools">
+        <aside className="tool-rail" aria-label={t('admin.toolsLabel')}>
           {tools.map((item) => (
             <button
               key={item.id}
@@ -801,7 +829,12 @@ function AdminApp() {
               ))}
             </select>
             <span className="graph-count">
-              {graph ? `${graph.nodes.length} nodes / ${sameFloorEdges.length} edges` : 'No graph'}
+              {graph
+                ? t('admin.mapStats', {
+                    nodes: graph.nodes.length,
+                    edges: sameFloorEdges.length,
+                  })
+                : t('admin.noGraph')}
             </span>
           </div>
 
@@ -863,7 +896,7 @@ function AdminApp() {
                 </svg>
               </>
             ) : (
-              <div className="empty-map">Nema ucitanog grafa.</div>
+              <div className="empty-map">{t('admin.graphEmpty')}</div>
             )}
           </div>
         </section>
@@ -871,7 +904,7 @@ function AdminApp() {
         <aside className="inspector">
           <section className="panel">
             <div className="panel-title-row">
-              <h2>Inspector</h2>
+              <h2>{t('admin.inspector')}</h2>
               <span>{tool}</span>
             </div>
             {tool === 'connect' ? (
@@ -910,12 +943,12 @@ function AdminApp() {
             ) : (
               <p className="empty-copy">
                 {tool === 'add-node'
-                  ? 'Klikni na mapu za novi node.'
+                  ? t('admin.empty.addNode')
                   : tool === 'connect'
-                    ? 'Klikni source node, zatim target node.'
+                    ? t('admin.empty.connect')
                     : tool === 'delete'
-                      ? 'Klikni node ili edge za brisanje.'
-                      : 'Izaberi node ili edge na mapi.'}
+                      ? t('admin.empty.delete')
+                      : t('admin.empty.select')}
               </p>
             )}
           </section>
@@ -924,13 +957,10 @@ function AdminApp() {
 
           <section className="panel">
             <div className="panel-title-row">
-              <h2>SQL export</h2>
+              <h2>{t('admin.sqlExport')}</h2>
               {exportSql ? <span>{Math.round(exportSql.length / 1024)} KB</span> : null}
             </div>
-            <p className="export-copy">
-              Export pravi SQL snapshot za pregledanu Flyway migraciju. Ne azurira hosted
-              okruzenja direktno.
-            </p>
+            <p className="export-copy">{t('admin.sqlExportText')}</p>
             <div className="export-actions">
               <button
                 type="button"
@@ -938,7 +968,7 @@ function AdminApp() {
                 onClick={exportCurrentSql}
                 disabled={isExporting}
               >
-                Generate
+                {t('admin.create')}
               </button>
               <button
                 type="button"
@@ -946,7 +976,7 @@ function AdminApp() {
                 onClick={downloadExport}
                 disabled={!exportSql}
               >
-                Download
+                {t('admin.download')}
               </button>
               <button
                 type="button"
@@ -954,7 +984,7 @@ function AdminApp() {
                 onClick={() => void navigator.clipboard?.writeText(exportSql)}
                 disabled={!exportSql}
               >
-                Copy
+                {t('admin.copy')}
               </button>
             </div>
             {exportSql ? <textarea className="sql-preview" value={exportSql} readOnly /> : null}
@@ -963,7 +993,7 @@ function AdminApp() {
           {crossFloorEdges.length > 0 ? (
             <section className="panel">
               <div className="panel-title-row">
-                <h2>Cross-floor</h2>
+                <h2>{t('admin.crossFloorEdges')}</h2>
                 <span>{crossFloorEdges.length}</span>
               </div>
               <div className="edge-list">
@@ -1007,14 +1037,17 @@ function ConnectPanel({
   onTargetNodeChange: (nodeId: number) => void;
   onPrepare: () => void;
 }) {
+  const { t } = useI18n();
   const sourceNode = graph?.nodes.find((node) => node.id === connectSourceNodeId);
   return (
     <div className="compact-stack">
-      <p className="readonly-box">Source: {sourceNode?.externalId ?? 'nije izabran'}</p>
+      <p className="readonly-box">
+        {t('admin.source')}: {sourceNode?.externalId ?? t('admin.noneSelected')}
+      </p>
       {connectSourceNodeId != null ? (
         <>
           <label>
-            Target floor
+            {t('admin.targetFloor')}
             <select
               value={connectTargetFloorId ?? ''}
               onChange={(event) => onTargetFloorChange(Number(event.target.value))}
@@ -1027,12 +1060,12 @@ function ConnectPanel({
             </select>
           </label>
           <label>
-            Target node
+            {t('admin.targetNode')}
             <select
               value={connectTargetNodeId ?? ''}
               onChange={(event) => onTargetNodeChange(Number(event.target.value))}
             >
-              <option value="">Izaberi node</option>
+              <option value="">{t('admin.selectNode')}</option>
               {connectTargetNodes.map((node) => (
                 <option key={node.id} value={node.id}>
                   {node.externalId}
@@ -1046,7 +1079,7 @@ function ConnectPanel({
             onClick={onPrepare}
             disabled={connectTargetNodeId == null}
           >
-            Prepare cross-floor edge
+            {t('admin.prepareCrossFloorConnection')}
           </button>
         </>
       ) : null}
@@ -1071,24 +1104,25 @@ function NodeForm({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="compact-stack">
       <label>
-        Label
+        {t('admin.label')}
         <input
           value={form.label}
           onChange={(event) => onChange({ ...form, label: event.target.value })}
         />
       </label>
       <label>
-        External ID
+        {t('admin.externalId')}
         <input
           value={form.externalId}
           onChange={(event) => onChange({ ...form, externalId: event.target.value })}
         />
       </label>
       <label>
-        Node type
+        {t('admin.nodeType')}
         <select
           value={form.nodeTypeCode}
           onChange={(event) => {
@@ -1108,7 +1142,7 @@ function NodeForm({
         </select>
       </label>
       <label>
-        Space ID
+        {t('admin.spaceId')}
         <input
           value={form.spaceId}
           onChange={(event) => onChange({ ...form, spaceId: event.target.value })}
@@ -1124,7 +1158,7 @@ function NodeForm({
           checked={form.isWaypoint}
           onChange={(event) => onChange({ ...form, isWaypoint: event.target.checked })}
         />
-        Waypoint
+        {t('admin.pathNode')}
       </label>
       <label className="check-row">
         <input
@@ -1132,19 +1166,19 @@ function NodeForm({
           checked={form.isPublic}
           onChange={(event) => onChange({ ...form, isPublic: event.target.checked })}
         />
-        Public
+        {t('admin.public')}
       </label>
       <div className="button-grid">
         <button type="button" className="primary-button" onClick={onSave} disabled={isSaving}>
-          Save node
+          {t('admin.saveNode')}
         </button>
         {form.kind === 'edit' ? (
           <button type="button" className="danger-button" onClick={onDelete} disabled={isSaving}>
-            Delete
+            {t('admin.delete')}
           </button>
         ) : null}
         <button type="button" className="secondary-button" onClick={onClose}>
-          Close
+          {t('admin.close')}
         </button>
       </div>
     </div>
@@ -1168,12 +1202,13 @@ function EdgeForm({
   onDelete: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="compact-stack">
-      <p className="readonly-box">From: {form.fromLabel}</p>
-      <p className="readonly-box">To: {form.toLabel}</p>
+      <p className="readonly-box">{t('admin.from')}: {form.fromLabel}</p>
+      <p className="readonly-box">{t('admin.to')}: {form.toLabel}</p>
       <label>
-        Edge type
+        {t('admin.edgeType')}
         <select
           value={form.edgeTypeCode}
           onChange={(event) => onChange({ ...form, edgeTypeCode: event.target.value })}
@@ -1191,7 +1226,7 @@ function EdgeForm({
           checked={form.isBidirectional}
           onChange={(event) => onChange({ ...form, isBidirectional: event.target.checked })}
         />
-        Bidirectional
+        {t('admin.bidirectional')}
       </label>
       <label className="check-row">
         <input
@@ -1199,7 +1234,7 @@ function EdgeForm({
           checked={form.isCrossFloor}
           onChange={(event) => onChange({ ...form, isCrossFloor: event.target.checked })}
         />
-        Cross-floor
+        {t('admin.crossFloor')}
       </label>
       <label className="check-row">
         <input
@@ -1207,24 +1242,24 @@ function EdgeForm({
           checked={form.isCrossBuilding}
           onChange={(event) => onChange({ ...form, isCrossBuilding: event.target.checked })}
         />
-        Cross-building
+        {t('admin.crossBuilding')}
       </label>
       <label>
-        Forward instruction
+        {t('admin.forwardInstruction')}
         <textarea
           value={form.instructionForward}
           onChange={(event) => onChange({ ...form, instructionForward: event.target.value })}
         />
       </label>
       <label>
-        Backward instruction
+        {t('admin.backwardInstruction')}
         <textarea
           value={form.instructionBackward}
           onChange={(event) => onChange({ ...form, instructionBackward: event.target.value })}
         />
       </label>
       <label>
-        Landmark
+        {t('admin.landmark')}
         <input
           value={form.landmark}
           onChange={(event) => onChange({ ...form, landmark: event.target.value })}
@@ -1232,15 +1267,15 @@ function EdgeForm({
       </label>
       <div className="button-grid">
         <button type="button" className="primary-button" onClick={onSave} disabled={isSaving}>
-          Save edge
+          {t('admin.saveEdge')}
         </button>
         {form.kind === 'edit' ? (
           <button type="button" className="danger-button" onClick={onDelete} disabled={isSaving}>
-            Delete
+            {t('admin.delete')}
           </button>
         ) : null}
         <button type="button" className="secondary-button" onClick={onClose}>
-          Close
+          {t('admin.close')}
         </button>
       </div>
     </div>
@@ -1256,6 +1291,7 @@ function NumberField({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const { t } = useI18n();
   return (
     <label>
       {label}
@@ -1269,6 +1305,7 @@ function NumberField({
 }
 
 function RoutePreviewPanel() {
+  const { t } = useI18n();
   const [fromQuery, setFromQuery] = useState('');
   const [toQuery, setToQuery] = useState('');
   const [fromLocation, setFromLocation] = useState<NavigationLocation | null>(null);
@@ -1301,11 +1338,12 @@ function RoutePreviewPanel() {
           allowElevator: 'true',
         });
         const response = await fetch(`${ADMIN_API_BASE_URL}/api/navigation/route?${params}`, {
+          headers: { 'Accept-Language': getCurrentLanguage() },
           signal: controller.signal,
         });
         if (!response.ok) {
           const payload = (await response.json().catch(() => ({}))) as { message?: string };
-          throw new Error(payload.message || 'Ruta nije dostupna.');
+          throw new Error(payload.message || t('admin.previewUnavailable'));
         }
         const nextRoute = (await response.json()) as NavigationRoute;
         setRoute(nextRoute);
@@ -1315,7 +1353,7 @@ function RoutePreviewPanel() {
           return;
         }
         setRoute(null);
-        setRouteError(asMessage(previewError, 'Ne mogu da prikazem rutu.'));
+        setRouteError(asMessage(previewError, t('errors.routePreview')));
       } finally {
         setIsRouting(false);
       }
@@ -1325,19 +1363,19 @@ function RoutePreviewPanel() {
       controller.abort();
       window.clearTimeout(timeoutId);
     };
-  }, [fromLocation, toLocation]);
+  }, [fromLocation, t, toLocation]);
 
   const activeSegment = route?.segments[activeSegmentIndex] ?? null;
 
   return (
     <section className="panel route-panel">
       <div className="panel-title-row">
-        <h2>Route preview</h2>
-        {isRouting ? <span>routing...</span> : null}
+        <h2>{t('admin.routePreview')}</h2>
+        {isRouting ? <span>{t('admin.calculatingRoute')}</span> : null}
       </div>
       <LocationPicker
         id="preview-from"
-        label="From"
+        label={t('admin.from')}
         query={fromQuery}
         selected={fromLocation}
         results={fromResults}
@@ -1352,7 +1390,7 @@ function RoutePreviewPanel() {
       />
       <LocationPicker
         id="preview-to"
-        label="To"
+        label={t('admin.to')}
         query={toQuery}
         selected={toLocation}
         results={toResults}
@@ -1417,7 +1455,7 @@ function LocationPicker({
           id={id}
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search location"
+          placeholder={t('admin.searchLocation')}
           autoComplete="off"
         />
       </label>
@@ -1475,7 +1513,10 @@ function useLocationSearch(query: string, setResults: (locations: NavigationLoca
     const controller = new AbortController();
     const params = new URLSearchParams({ query: query.trim(), limit: '20' });
 
-    fetch(`${ADMIN_API_BASE_URL}/api/navigation/locations?${params}`, { signal: controller.signal })
+    fetch(`${ADMIN_API_BASE_URL}/api/navigation/locations?${params}`, {
+      headers: { 'Accept-Language': getCurrentLanguage() },
+      signal: controller.signal,
+    })
       .then((response) => (response.ok ? response.json() : []))
       .then((locations: NavigationLocation[]) => setResults(locations))
       .catch((searchError) => {
@@ -1541,6 +1582,7 @@ function toNodePayload(node: EditorNode) {
 async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${ADMIN_API_BASE_URL}${path}`, {
     headers: {
+      'Accept-Language': getCurrentLanguage(),
       'Content-Type': 'application/json',
       ...(init?.headers ?? {}),
     },
@@ -1549,7 +1591,7 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as { message?: string };
-    throw new Error(payload.message || 'Request failed.');
+    throw new Error(payload.message || translate(getCurrentLanguage(), 'errors.requestFailed'));
   }
 
   if (response.status === 204) {
@@ -1560,9 +1602,11 @@ async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<
 }
 
 async function apiFetchText(path: string): Promise<string> {
-  const response = await fetch(`${ADMIN_API_BASE_URL}${path}`);
+  const response = await fetch(`${ADMIN_API_BASE_URL}${path}`, {
+    headers: { 'Accept-Language': getCurrentLanguage() },
+  });
   if (!response.ok) {
-    throw new Error('Request failed.');
+    throw new Error(translate(getCurrentLanguage(), 'errors.requestFailed'));
   }
   return response.text();
 }

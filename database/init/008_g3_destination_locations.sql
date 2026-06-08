@@ -20,7 +20,7 @@ WITH destination_input(
         ('klet', 'G3-K1-AVLA', 'Avla', 'public_area', 840.00, 238.00, 'avla hall lobby'),
         ('klet', 'G3-K1-RAZSTAVNI-PROSTOR', 'Razstavni prostor', 'public_area', 980.00, 430.00, 'razstavni prostor exhibition public area'),
 
-        -- Pritlicje
+        -- Pritličje
         ('pritlicje', 'G3-P1-13', 'Sejna soba', 'classroom', 430.00, 176.00, 'sejna soba meeting room classroom'),
         ('pritlicje', 'G3-P1-14', 'Sejna soba', 'classroom', 190.00, 176.00, 'sejna soba meeting room classroom'),
         ('pritlicje', 'G3-P1-15', 'Laboratorij Turing', 'laboratory', 195.00, 540.00, 'laboratorij turing lab laboratory laboratoji'),

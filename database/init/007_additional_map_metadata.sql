@@ -38,14 +38,14 @@ SELECT
 FROM buildings b
 JOIN (
     VALUES
-        ('C', 'pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/objekt_c.png'),
+        ('C', 'pritlicje', 'Pritličje', 0.00, 0.000, '/maps/objekt_c.png'),
 
-        ('E', 'pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/objekt_e.png'),
+        ('E', 'pritlicje', 'Pritličje', 0.00, 0.000, '/maps/objekt_e.png'),
 
-        ('F', 'pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/objekt_f_p.png'),
+        ('F', 'pritlicje', 'Pritličje', 0.00, 0.000, '/maps/objekt_f_p.png'),
         ('F', '1_nadstropje', '1. nadstropje', 1.00, 1.000, '/maps/objekt_f_1_n.png'),
 
-        ('G', 'pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/objekt_g_p.png'),
+        ('G', 'pritlicje', 'Pritličje', 0.00, 0.000, '/maps/objekt_g_p.png'),
         ('G', '1_medetaza', '1. medetaza', 0.50, 0.500, '/maps/objekt_g_1_m.png'),
         ('G', '1_nadstropje', '1. nadstropje', 1.00, 1.000, '/maps/objekt_g_1_n.png'),
         ('G', '2_medetaza', '2. medetaza', 1.50, 1.500, '/maps/objekt_g_2_m.png'),
@@ -54,7 +54,7 @@ JOIN (
         ('G', '4_nadstropje', '4. nadstropje', 4.00, 4.000, '/maps/objekt_g_4_n.png'),
 
         ('G3', 'klet', 'Klet', -1.00, -1.000, '/maps/g3_klet.png'),
-        ('G3', 'pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/g3_pritlicje.png'),
+        ('G3', 'pritlicje', 'Pritličje', 0.00, 0.000, '/maps/g3_pritlicje.png'),
         ('G3', 'nadstropje', 'Nadstropje', 1.00, 1.000, '/maps/g3_nadstropje.png'),
         ('G3', 'mansarda', 'Mansarda', 2.00, 2.000, '/maps/g3_mansarda.png')
 ) AS f(building_code, code, label, level_number, z, map_image_url)

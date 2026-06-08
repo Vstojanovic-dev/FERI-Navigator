@@ -1,6 +1,7 @@
+import { useI18n } from '../i18n/useI18n';
 import type { CatalogSpace } from '../types/catalog';
-import { getSpaceDisplayName } from '../utils/displayNames';
-import { buildSpaceDescription } from '../utils/spaceDescription';
+import { getSpaceDisplayName, localizeFloorLabel } from '../utils/displayNames';
+import { buildSpaceDescription, getLocalizedSpaceType } from '../utils/spaceDescription';
 import PageShell from './PageShell';
 import SubPageHeader from './SubPageHeader';
 import styles from './SpaceDetailsView.module.css';
@@ -18,12 +19,15 @@ function SpaceDetailsView({
   onFindClassroom,
   showAllMenuItems = false,
 }: SpaceDetailsViewProps) {
+  const { language, t } = useI18n();
   const displayName = getSpaceDisplayName(space);
-  const description = buildSpaceDescription(space);
+  const description = buildSpaceDescription(space, language, t);
   const infoItems = [
-    space.buildingName?.trim() ? { label: 'Objekt', value: space.buildingName } : null,
-    space.floor?.trim() ? { label: 'Nadstropje', value: space.floor } : null,
-    space.code?.trim() ? { label: 'Oznaka', value: space.code } : null,
+    space.buildingName?.trim() ? { label: t('details.building'), value: space.buildingName } : null,
+    space.floor?.trim()
+      ? { label: t('details.floor'), value: localizeFloorLabel(space.floor, language) }
+      : null,
+    space.code?.trim() ? { label: t('details.code'), value: space.code } : null,
   ].filter((item): item is { label: string; value: string } => item != null);
 
   return (
@@ -36,7 +40,9 @@ function SpaceDetailsView({
       />
 
       <section className={styles.hero}>
-        {space.type ? <span className={styles.typeBadge}>{space.type}</span> : null}
+        {space.type ? (
+          <span className={styles.typeBadge}>{getLocalizedSpaceType(space.type, language)}</span>
+        ) : null}
         <h1 className={styles.name}>{displayName}</h1>
       </section>
 
@@ -61,7 +67,7 @@ function SpaceDetailsView({
           className={styles.primaryButton}
           onClick={() => onFindClassroom(space)}
         >
-          Poišči učilnico
+          {t('details.findClassroom')}
         </button>
       </section>
     </PageShell>

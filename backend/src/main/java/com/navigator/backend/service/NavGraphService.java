@@ -39,7 +39,7 @@ public class NavGraphService {
   public FloorGraphDto.ImportResult importFloorGraph(FloorGraphDto.ImportRequest request) {
     Long floor = request.getFloor().longValue();
     log.info(
-        "Uvoz grafa za {}. sprat - {} cvorova, {} veza",
+        "Uvoz grafa za {}. nadstropje - {} vozlišč, {} povezav",
         floor,
         request.getNodes().size(),
         request.getEdges().size());
@@ -69,7 +69,7 @@ public class NavGraphService {
 
       NavNode saved = nodeRepo.save(node);
       nodeMap.put(dto.getId(), saved);
-      log.debug("Cvor upisan: {} ({})", dto.getId(), dto.getLabel());
+      log.debug("Vozlišče shranjeno: {} ({})", dto.getId(), dto.getLabel());
     }
 
     int edgesInserted = 0;
@@ -78,7 +78,7 @@ public class NavGraphService {
       NavNode toNode = nodeMap.get(dto.getTo());
 
       if (fromNode == null || toNode == null) {
-        log.warn("Veza preskocena - cvor nije pronadjen: {} -> {}", dto.getFrom(), dto.getTo());
+        log.warn("Povezava je preskočena - vozlišče ni najdeno: {} -> {}", dto.getFrom(), dto.getTo());
         continue;
       }
 
@@ -99,19 +99,19 @@ public class NavGraphService {
       edgesInserted++;
     }
 
-    log.info("Import zavrsen: {} cvorova, {} veza", nodeMap.size(), edgesInserted);
+    log.info("Uvoz je zaključen: {} vozlišč, {} povezav", nodeMap.size(), edgesInserted);
 
     return new FloorGraphDto.ImportResult(
         nodeMap.size(),
         edgesInserted,
         request.getFloor(),
-        "Uspjesno uvezeno "
+        "Uspešno uvoženih "
             + nodeMap.size()
-            + " cvorova i "
+            + " vozlišč in "
             + edgesInserted
-            + " veza za "
+            + " povezav za "
             + request.getFloor()
-            + ". sprat");
+            + ". nadstropje");
   }
 
   @Transactional
@@ -122,7 +122,7 @@ public class NavGraphService {
       NavNode toNode = nodeRepo.findByExternalId(dto.getTo()).orElse(null);
 
       if (fromNode == null || toNode == null) {
-        log.warn("Cross-floor veza preskocena: {} -> {}", dto.getFrom(), dto.getTo());
+        log.warn("Medetažna povezava je preskočena: {} -> {}", dto.getFrom(), dto.getTo());
         continue;
       }
 
@@ -145,7 +145,7 @@ public class NavGraphService {
           makeLineString(toNode.getGeom(), fromNode.getGeom()));
       count++;
     }
-    log.info("Uvezeno {} cross-floor veza", count);
+    log.info("Uvoženih {} medetažnih povezav", count);
     return count;
   }
 
@@ -170,13 +170,13 @@ public class NavGraphService {
   private NodeType resolveNodeType(String code) {
     return nodeTypeRepo
         .findByCode(code)
-        .orElseThrow(() -> new IllegalArgumentException("Nepoznat tip cvora: " + code));
+        .orElseThrow(() -> new IllegalArgumentException("Neznana vrsta vozlišča: " + code));
   }
 
   private EdgeType resolveEdgeType(String code) {
     return edgeTypeRepo
         .findByCode(code)
-        .orElseThrow(() -> new IllegalArgumentException("Nepoznat tip ivice: " + code));
+        .orElseThrow(() -> new IllegalArgumentException("Neznana vrsta povezave: " + code));
   }
 
   private Point makePoint(double x, double y) {

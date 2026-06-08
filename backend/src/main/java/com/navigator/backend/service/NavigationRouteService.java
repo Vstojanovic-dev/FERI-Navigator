@@ -36,29 +36,52 @@ public class NavigationRouteService {
 
   @Transactional(readOnly = true)
   public List<NavigationLocationDto> searchLocations(String query, int limit) {
+    return searchLocations(query, limit, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<NavigationLocationDto> searchLocations(String query, int limit, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     int normalizedLimit = Math.max(1, Math.min(limit, 200));
     String normalizedQuery = query == null ? "" : query.trim();
     return locationRepository
         .searchEnabled(normalizedQuery, PageRequest.of(0, normalizedLimit))
         .stream()
-        .map(this::toLocationDto)
+        .map(location -> toLocationDto(location, language))
         .toList();
   }
 
   @Transactional(readOnly = true)
   public List<NavigationLocationDto> searchSpaces(String query, int limit) {
+    return searchSpaces(query, limit, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<NavigationLocationDto> searchSpaces(String query, int limit, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     int normalizedLimit = Math.max(1, Math.min(limit, 200));
     String normalizedQuery = query == null ? "" : query.trim();
     return locationRepository
         .searchSpaces(normalizedQuery, PageRequest.of(0, normalizedLimit))
         .stream()
-        .map(this::toLocationDto)
+        .map(location -> toLocationDto(location, language))
         .toList();
   }
 
   @Transactional(readOnly = true)
   public RouteResponseDto route(
       Long fromLocationId, Long toLocationId, String targetType, boolean allowElevator) {
+    return route(fromLocationId, toLocationId, targetType, allowElevator, null);
+  }
+
+  @Transactional(readOnly = true)
+  public RouteResponseDto route(
+      Long fromLocationId,
+      Long toLocationId,
+      String targetType,
+      boolean allowElevator,
+      String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     String normalizedTargetType = normalizeTargetType(targetType);
     boolean hasLocationTarget = toLocationId != null;
     boolean hasNearestTarget = normalizedTargetType != null;
@@ -67,28 +90,28 @@ public class NavigationRouteService {
       throw new NavigationRouteException(
           HttpStatus.BAD_REQUEST,
           "INVALID_TARGET",
-          "Posaljite tacno jedan cilj: toLocationId ili targetType.");
+          NavigationTexts.exactlyOneTarget(language));
     }
 
     if (hasNearestTarget) {
-      return routeToNearestTarget(fromLocationId, normalizedTargetType, allowElevator);
+      return routeToNearestTarget(fromLocationId, normalizedTargetType, allowElevator, language);
     }
 
-    NavigationLocation from = findLocation(fromLocationId, "fromLocationId");
-    NavigationLocation to = findLocation(toLocationId, "toLocationId");
+    NavigationLocation from = findLocation(fromLocationId, "fromLocationId", language);
+    NavigationLocation to = findLocation(toLocationId, "toLocationId", language);
 
     if (!from.hasNode()) {
       throw new NavigationRouteException(
           HttpStatus.UNPROCESSABLE_ENTITY,
           "LOCATION_WITHOUT_NODE",
-          "Pocetna lokacija jos nije povezana sa navigacionim grafom.");
+          NavigationTexts.startLocationNotLinked(language));
     }
 
     if (!to.hasNode()) {
       throw new NavigationRouteException(
           HttpStatus.UNPROCESSABLE_ENTITY,
           "LOCATION_WITHOUT_NODE",
-          "Ciljna lokacija jos nije povezana sa navigacionim grafom.");
+          NavigationTexts.targetLocationNotLinked(language));
     }
 
     try {
@@ -99,34 +122,39 @@ public class NavigationRouteService {
         throw new NavigationRouteException(
             HttpStatus.NOT_FOUND,
             "NO_ROUTE",
-            "Za izabrane lokacije jos ne postoji unesena ruta.");
+            NavigationTexts.noRouteForSelectedLocations(language));
       }
 
       return RouteResponseDto.builder()
           .routeId("route-" + from.getId() + "-" + to.getId())
-          .from(toLocationDto(from))
-          .to(toLocationDto(to))
+          .from(toLocationDto(from, language))
+          .to(toLocationDto(to, language))
           .totalCost(searchResult.getTotalCost())
-          .segments(buildSegments(searchResult, to))
+          .segments(buildSegments(searchResult, to, language))
           .build();
     } catch (IllegalStateException ex) {
-      throw invalidRouteData();
+      throw invalidRouteData(language);
     }
   }
 
   private RouteResponseDto routeToNearestTarget(
-      Long fromLocationId, String targetType, boolean allowElevator) {
+      Long fromLocationId,
+      String targetType,
+      boolean allowElevator,
+      NavigationLanguage language) {
     if (!"wc".equals(targetType)) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST, "UNSUPPORTED_TARGET_TYPE", "Podrzan je samo targetType=wc.");
+          HttpStatus.BAD_REQUEST,
+          "UNSUPPORTED_TARGET_TYPE",
+          NavigationTexts.supportedTargetTypeOnlyWc(language));
     }
 
-    NavigationLocation from = findLocation(fromLocationId, "fromLocationId");
+    NavigationLocation from = findLocation(fromLocationId, "fromLocationId", language);
     if (!from.hasNode()) {
       throw new NavigationRouteException(
           HttpStatus.UNPROCESSABLE_ENTITY,
           "LOCATION_WITHOUT_NODE",
-          "Pocetna lokacija jos nije povezana sa navigacionim grafom.");
+          NavigationTexts.startLocationNotLinked(language));
     }
 
     List<NavigationLocation> candidates =
@@ -139,7 +167,7 @@ public class NavigationRouteService {
       throw new NavigationRouteException(
           HttpStatus.NOT_FOUND,
           "TARGET_TYPE_NOT_AVAILABLE",
-          "Najblizi WC trenutno nije dostupan u navigacionim podacima.");
+          NavigationTexts.nearestWcUnavailable(language));
     }
 
     try {
@@ -161,19 +189,19 @@ public class NavigationRouteService {
         throw new NavigationRouteException(
             HttpStatus.NOT_FOUND,
             "NO_ROUTE_TO_TARGET_TYPE",
-            "Do najblizeg WC-a trenutno ne postoji unesena ruta.");
+            NavigationTexts.noRouteToNearestWc(language));
       }
 
       return RouteResponseDto.builder()
           .routeId(
               "route-" + from.getId() + "-nearest-" + targetType + "-" + bestLocation.getId())
-          .from(toLocationDto(from))
-          .to(toLocationDto(bestLocation))
+          .from(toLocationDto(from, language))
+          .to(toLocationDto(bestLocation, language))
           .totalCost(bestRoute.getTotalCost())
-          .segments(buildSegments(bestRoute, bestLocation))
+          .segments(buildSegments(bestRoute, bestLocation, language))
           .build();
     } catch (IllegalStateException ex) {
-      throw invalidRouteData();
+      throw invalidRouteData(language);
     }
   }
 
@@ -197,10 +225,13 @@ public class NavigationRouteService {
     return RouteSearchResult.builder().nodes(List.of()).edges(List.of()).totalCost(0).build();
   }
 
-  private NavigationLocation findLocation(Long locationId, String fieldName) {
+  private NavigationLocation findLocation(
+      Long locationId, String fieldName, NavigationLanguage language) {
     if (locationId == null) {
       throw new NavigationRouteException(
-          HttpStatus.BAD_REQUEST, "MISSING_LOCATION", "Parametar '" + fieldName + "' je obavezan.");
+          HttpStatus.BAD_REQUEST,
+          "MISSING_LOCATION",
+          NavigationTexts.missingLocation(fieldName, language));
     }
 
     return locationRepository
@@ -210,11 +241,13 @@ public class NavigationRouteService {
                 new NavigationRouteException(
                     HttpStatus.NOT_FOUND,
                     "LOCATION_NOT_FOUND",
-                    "Lokacija nije pronadjena: " + locationId));
+                    NavigationTexts.locationNotFound(locationId, language)));
   }
 
   private List<RouteSegmentDto> buildSegments(
-      RouteSearchResult searchResult, NavigationLocation destinationLocation) {
+      RouteSearchResult searchResult,
+      NavigationLocation destinationLocation,
+      NavigationLanguage language) {
     List<NavNode> nodes =
         searchResult.getNodes() != null ? searchResult.getNodes() : Collections.emptyList();
     List<NavEdge> edges =
@@ -234,7 +267,7 @@ public class NavigationRouteService {
               List.of(
                   RouteStepDto.builder()
                       .index(0)
-                      .text("Start i cilj su ista lokacija.")
+                      .text(NavigationTexts.sameLocation(language))
                       .fromNodeId(safeNodeId(node))
                       .toNodeId(safeNodeId(node))
                       .type("same_location")
@@ -242,7 +275,8 @@ public class NavigationRouteService {
                       .maneuverType("destination")
                       .zoneId(null)
                       .build()),
-              Collections.emptyMap()));
+              Collections.emptyMap(),
+              language));
     }
 
     validateRouteShape(nodes, edges);
@@ -250,7 +284,8 @@ public class NavigationRouteService {
         destinationLocation != null && destinationLocation.hasNode()
             ? safeNodeId(destinationLocation.getNode())
             : safeNodeId(nodes.get(nodes.size() - 1));
-    Map<Long, String> nodeDisplayNames = resolveNodeDisplayNames(nodes, destinationLocation);
+    Map<Long, String> nodeDisplayNames =
+        resolveNodeDisplayNames(nodes, destinationLocation, language);
 
     List<SegmentDraft> drafts = new ArrayList<>();
     SegmentDraft current = new SegmentDraft(requireFloor(nodes.get(0)));
@@ -294,17 +329,24 @@ public class NavigationRouteService {
                 draft.nodes.get(0),
                 true,
                 false,
-                nodeDisplayNames));
+                nodeDisplayNames,
+                language));
       }
       generatedSteps.addAll(
           generateSegmentSteps(
               draft,
               i == drafts.size() - 1,
               finalDestinationNodeId,
-              nodeDisplayNames));
+              nodeDisplayNames,
+              language));
       segments.add(
           buildSegment(
-              i, draft.floor, draft.nodes, reindexSteps(generatedSteps), nodeDisplayNames));
+              i,
+              draft.floor,
+              draft.nodes,
+              reindexSteps(generatedSteps),
+              nodeDisplayNames,
+              language));
     }
     return segments;
   }
@@ -313,7 +355,8 @@ public class NavigationRouteService {
       SegmentDraft draft,
       boolean finalSegment,
       Long finalDestinationNodeId,
-      Map<Long, String> nodeDisplayNames) {
+      Map<Long, String> nodeDisplayNames,
+      NavigationLanguage language) {
     List<RouteStepDto> steps = new ArrayList<>();
     if (draft.edges.isEmpty()) {
       return steps;
@@ -348,7 +391,8 @@ public class NavigationRouteService {
               maneuverType,
               (chunkEnd - chunkStart) + 1,
               isDestination,
-              nodeDisplayNames);
+              nodeDisplayNames,
+              language);
 
       steps.add(
           RouteStepDto.builder()
@@ -398,7 +442,8 @@ public class NavigationRouteService {
       Floor floor,
       List<NavNode> nodes,
       List<RouteStepDto> steps,
-      Map<Long, String> nodeDisplayNames) {
+      Map<Long, String> nodeDisplayNames,
+      NavigationLanguage language) {
     boolean usesElevator = steps.stream().anyMatch(step -> "elevator".equals(step.getType()));
     boolean usesStairs = steps.stream().anyMatch(step -> "stairs".equals(step.getType()));
 
@@ -406,17 +451,18 @@ public class NavigationRouteService {
         .index(index)
         .buildingId(floor.getBuilding().getId())
         .buildingCode(floor.getBuilding().getCode())
-        .buildingName(floor.getBuilding().getName())
+        .buildingName(
+            NavigationLocalization.localizeBuildingName(floor.getBuilding().getName(), language))
         .floorId(floor.getId())
         .floorCode(floor.getCode())
-        .floorLabel(floor.getLabel())
+        .floorLabel(NavigationLocalization.localizeFloorLabel(floor.getLabel(), language))
         .mapImageUrl(floor.getMapImageUrl())
         .coordinateWidth(safeDecimal(floor.getCoordinateWidth(), "coordinateWidth", "floor " + floor.getId()))
         .coordinateHeight(safeDecimal(floor.getCoordinateHeight(), "coordinateHeight", "floor " + floor.getId()))
         .z(safeDecimal(floor.getZ(), "z", "floor " + floor.getId()))
         .usesElevator(usesElevator)
         .usesStairs(usesStairs)
-        .path(nodes.stream().map(node -> toPointDto(node, nodeDisplayNames)).toList())
+        .path(nodes.stream().map(node -> toPointDto(node, nodeDisplayNames, language)).toList())
         .steps(steps)
         .build();
   }
@@ -447,13 +493,16 @@ public class NavigationRouteService {
       NavNode toNode,
       boolean arrivalContext,
       boolean isDestination,
-      Map<Long, String> nodeDisplayNames) {
+      Map<Long, String> nodeDisplayNames,
+      NavigationLanguage language) {
     String type = edge.getEdgeTypeCode();
     String maneuverType = resolveManeuverType(edge, toNode, arrivalContext, isDestination);
     String icon = resolveIcon(edge, maneuverType);
     return RouteStepDto.builder()
         .index(index)
-        .text(instruction(edge, fromNode, toNode, arrivalContext, isDestination, nodeDisplayNames))
+        .text(
+            instruction(
+                edge, fromNode, toNode, arrivalContext, isDestination, nodeDisplayNames, language))
         .fromNodeId(safeNodeId(fromNode))
         .toNodeId(safeNodeId(toNode))
         .type(type)
@@ -521,7 +570,8 @@ public class NavigationRouteService {
       NavNode toNode,
       boolean arrivalContext,
       boolean isDestination,
-      Map<Long, String> nodeDisplayNames) {
+      Map<Long, String> nodeDisplayNames,
+      NavigationLanguage language) {
     return instructionForChunk(
         edge,
         fromNode,
@@ -530,7 +580,8 @@ public class NavigationRouteService {
         resolveManeuverType(edge, toNode, arrivalContext, isDestination),
         1,
         isDestination,
-        nodeDisplayNames);
+        nodeDisplayNames,
+        language);
   }
 
   private String instructionForChunk(
@@ -541,62 +592,63 @@ public class NavigationRouteService {
       String maneuverType,
       int mergedEdgeCount,
       boolean isDestination,
-      Map<Long, String> nodeDisplayNames) {
+      Map<Long, String> nodeDisplayNames,
+    NavigationLanguage language) {
     if (!arrivalContext && hasText(edge.getInstructionForward())) {
-      return edge.getInstructionForward();
+      return NavigationLocalization.localizeInstruction(edge.getInstructionForward(), language);
     }
 
     String edgeType = edge.getEdgeTypeCode();
-    String toLabel = readableLabel(toNode, nodeDisplayNames);
+    String toLabel = readableLabel(toNode, nodeDisplayNames, language);
 
     if ("elevator".equals(edgeType)) {
       return arrivalContext
-          ? "Izadjite iz lifta i nastavite po prikazanoj putanji."
-          : "Udjite u lift i idite na sprat " + toNode.getFloor().getLabel() + ".";
+          ? NavigationTexts.elevatorExit(language)
+          : NavigationTexts.elevatorEnter(toNode.getFloor().getLabel(), language);
     }
 
     if ("stairs".equals(edgeType)) {
       return arrivalContext
-          ? "Izadjite sa stepenica i nastavite po prikazanoj putanji."
-          : "Idite stepenicama do sprata " + toNode.getFloor().getLabel() + ".";
+          ? NavigationTexts.stairsExit(language)
+          : NavigationTexts.stairsEnter(toNode.getFloor().getLabel(), language);
     }
 
     if ("building_transfer".equals(edgeType)) {
       return arrivalContext
-          ? "Usli ste u " + toNode.getFloor().getBuilding().getName() + ". Nastavite po prikazanoj putanji."
-          : "Nastavite prema " + toLabel + ".";
+          ? NavigationTexts.buildingEntered(toNode.getFloor().getBuilding().getName(), language)
+          : NavigationTexts.continueTo(toLabel, language);
     }
 
     if (isDestination) {
-      return "Stigli ste do lokacije " + toLabel + ".";
+      return NavigationTexts.arrivedAt(toLabel, language);
     }
 
     if ("corridor".equals(edgeType) || "virtual".equals(edgeType)) {
       if (isTechnicalWaypoint(toNode)) {
-        return "Nadaljujte po hodniku.";
+        return NavigationTexts.continueAlongCorridor(language);
       }
       if ("left".equals(maneuverType)) {
-        return "Na razcepu zavijte levo.";
+        return NavigationTexts.turnLeft(language);
       }
       if ("right".equals(maneuverType)) {
-        return "Na razcepu zavijte desno.";
+        return NavigationTexts.turnRight(language);
       }
       if ("slight_left".equals(maneuverType)) {
-        return "Rahlo zavijte levo.";
+        return NavigationTexts.slightLeft(language);
       }
       if ("slight_right".equals(maneuverType)) {
-        return "Rahlo zavijte desno.";
+        return NavigationTexts.slightRight(language);
       }
       if ("turn_back".equals(maneuverType)) {
-        return "Obrnite se nazaj.";
+        return NavigationTexts.turnBack(language);
       }
       if (mergedEdgeCount > 1) {
-        return "Nadaljujte po hodniku.";
+        return NavigationTexts.continueAlongCorridor(language);
       }
-      return "Nastavite prema " + toLabel + ".";
+      return NavigationTexts.continueTo(toLabel, language);
     }
 
-    return "Pratite putanju do " + toLabel + ".";
+    return NavigationTexts.followPathTo(toLabel, language);
   }
 
   private String classifyTurn(NavNode previous, NavNode current, NavNode next) {
@@ -638,28 +690,35 @@ public class NavigationRouteService {
   }
 
   private String readableLabel(NavNode node, Map<Long, String> nodeDisplayNames) {
+    return readableLabel(node, nodeDisplayNames, NavigationLanguage.SL);
+  }
+
+  private String readableLabel(
+      NavNode node, Map<Long, String> nodeDisplayNames, NavigationLanguage language) {
     String mappedDisplayName = nodeDisplayNames.get(safeNodeId(node));
     if (hasText(mappedDisplayName)) {
       return mappedDisplayName.trim();
     }
 
     if (hasText(node.getLabel())) {
-      return humanizeLabel(node.getLabel());
+      return humanizeLabel(node.getLabel(), language);
     }
 
     if (isTechnicalWaypoint(node)) {
-      return "sledecoj tacki";
+      return NavigationTexts.nextWaypoint(language);
     }
 
     if (hasText(node.getExternalId())) {
-      return humanizeLabel(node.getExternalId());
+      return humanizeLabel(node.getExternalId(), language);
     }
 
-    return "cilju";
+    return NavigationTexts.nextWaypoint(language);
   }
 
   private Map<Long, String> resolveNodeDisplayNames(
-      List<NavNode> nodes, NavigationLocation destinationLocation) {
+      List<NavNode> nodes,
+      NavigationLocation destinationLocation,
+      NavigationLanguage language) {
     List<Long> nodeIds =
         nodes.stream().map(NavNode::getId).filter(Objects::nonNull).distinct().toList();
     if (nodeIds.isEmpty()) {
@@ -674,23 +733,27 @@ public class NavigationRouteService {
           .filter(location -> hasText(location.getDisplayName()))
           .sorted(Comparator.comparing(NavigationLocation::getId))
           .forEach(
-              location ->
-                  nodeDisplayNames.putIfAbsent(
-                      safeNodeId(location.getNode()), location.getDisplayName().trim()));
+                location ->
+                    nodeDisplayNames.putIfAbsent(
+                        safeNodeId(location.getNode()),
+                        NavigationLocalization.localizeDisplayName(
+                            location.getDisplayName(), language)));
     }
 
     if (destinationLocation != null
         && destinationLocation.hasNode()
         && hasText(destinationLocation.getDisplayName())) {
       nodeDisplayNames.put(
-          safeNodeId(destinationLocation.getNode()), destinationLocation.getDisplayName().trim());
+          safeNodeId(destinationLocation.getNode()),
+          NavigationLocalization.localizeDisplayName(
+              destinationLocation.getDisplayName(), language));
     }
 
     return nodeDisplayNames;
   }
 
-  private String humanizeLabel(String value) {
-    String normalized = value == null ? "" : value.trim();
+  private String humanizeLabel(String value, NavigationLanguage language) {
+    String normalized = value == null ? "" : NavigationLocalization.normalizeSourceText(value);
     if (normalized.isEmpty()) {
       return normalized;
     }
@@ -701,8 +764,10 @@ public class NavigationRouteService {
       return normalized;
     }
 
+    withSpaces = NavigationLocalization.normalizeSourceText(withSpaces);
+
     if (!withSpaces.equals(withSpaces.toLowerCase(Locale.ROOT))) {
-      return withSpaces;
+      return NavigationLocalization.localizeDisplayName(withSpaces, language);
     }
 
     String[] parts = withSpaces.split(" ");
@@ -719,7 +784,37 @@ public class NavigationRouteService {
         builder.append(part.substring(1));
       }
     }
-    return builder.toString();
+    String humanized =
+        builder
+        .toString()
+        .replace(" Za ", " za ")
+        .replace(" Objekt ", " objekt ")
+        .replace(" In ", " in ")
+        .replace(" Od ", " od ")
+        .replace(" Do ", " do ");
+    String slHumanized =
+        humanized
+            .replaceAll("\\b([A-Z0-9]+) objekt\\b", "objekt $1")
+            .replaceAll("\\b([A-Z0-9]+) Objekt\\b", "objekt $1");
+    return NavigationLocalization.localizeDisplayName(slHumanized, language);
+  }
+
+  private String slovenizeFallbackLabel(String value) {
+    String result = value;
+    result = result.replaceAll("(?i)\\bulaz\\b", "vhod");
+    result = result.replaceAll("(?i)\\bizlaz\\b", "izhod");
+    result = result.replaceAll("(?i)\\bobjekat\\b", "objekt");
+    result = result.replaceAll("(?i)\\bstepenice\\b", "stopnišče");
+    result = result.replaceAll("(?i)\\bstepeniste\\b", "stopnišče");
+    result = result.replaceAll("(?i)\\bglevne\\b", "glavne");
+    result = result.replaceAll("(?i)\\btajnistvo\\b", "tajništvo");
+    result = result.replaceAll("(?i)\\bucionica\\b", "učilnica");
+    result = result.replaceAll("(?i)\\bucilnica\\b", "učilnica");
+    result = result.replaceAll("(?i)\\bliftovi\\b", "dvigala");
+    result = result.replaceAll("(?i)\\blift\\b", "dvigalo");
+    result = result.replaceAll("(?i)\\bstudentski\\b", "študentski");
+    result = result.replaceAll("(?i)\\bosoblje\\b", "osebje");
+    return result;
   }
 
   private boolean isTechnicalWaypoint(NavNode node) {
@@ -737,14 +832,15 @@ public class NavigationRouteService {
   }
 
   private RoutePointDto toPointDto(NavNode node) {
-    return toPointDto(node, Collections.emptyMap());
+    return toPointDto(node, Collections.emptyMap(), NavigationLanguage.SL);
   }
 
-  private RoutePointDto toPointDto(NavNode node, Map<Long, String> nodeDisplayNames) {
+  private RoutePointDto toPointDto(
+      NavNode node, Map<Long, String> nodeDisplayNames, NavigationLanguage language) {
     return RoutePointDto.builder()
         .nodeId(safeNodeId(node))
         .externalId(node.getExternalId())
-        .label(readableLabel(node, nodeDisplayNames))
+        .label(readableLabel(node, nodeDisplayNames, language))
         .nodeType(node.getNodeTypeCode())
         .x(safeNodeCoordinate(node, "x"))
         .y(safeNodeCoordinate(node, "y"))
@@ -759,24 +855,30 @@ public class NavigationRouteService {
         || !Objects.equals(fromFloor.getBuilding().getId(), toFloor.getBuilding().getId());
   }
 
-  private NavigationLocationDto toLocationDto(NavigationLocation location) {
+  NavigationLocationDto toLocationDto(NavigationLocation location, NavigationLanguage language) {
     Space space = location.getSpace();
 
     return NavigationLocationDto.builder()
         .id(location.getId())
-        .displayName(location.getDisplayName())
+        .displayName(NavigationLocalization.localizeDisplayName(location.getDisplayName(), language))
         .locationType(location.getLocationType())
         .buildingId(location.getBuilding().getId())
         .buildingCode(location.getBuilding().getCode())
-        .buildingName(location.getBuilding().getName())
+        .buildingName(
+            NavigationLocalization.localizeBuildingName(location.getBuilding().getName(), language))
         .floorId(location.getFloor().getId())
         .floorCode(location.getFloor().getCode())
-        .floorLabel(location.getFloor().getLabel())
+        .floorLabel(
+            NavigationLocalization.localizeFloorLabel(location.getFloor().getLabel(), language))
         .nodeId(location.getNode() != null ? location.getNode().getId() : null)
         .spaceId(space != null ? space.getId() : location.getSpaceId())
-        .spaceName(space != null ? space.getName() : null)
+        .spaceName(
+            space != null ? NavigationLocalization.localizeDisplayName(space.getName(), language) : null)
         .spaceTypeName(
-            space != null && space.getSpaceType() != null ? space.getSpaceType().getName() : null)
+            space != null && space.getSpaceType() != null
+                ? NavigationLocalization.localizeSpaceTypeName(
+                    space.getSpaceType().getName(), language)
+                : null)
         .description(space != null ? space.getDescription() : null)
         .imageUrl(space != null ? space.getImageUrl() : null)
         .hasNode(location.hasNode())
@@ -795,11 +897,11 @@ public class NavigationRouteService {
     }
   }
 
-  private NavigationRouteException invalidRouteData() {
+  private NavigationRouteException invalidRouteData(NavigationLanguage language) {
     return new NavigationRouteException(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "INVALID_ROUTE_DATA",
-        "Navigacioni podaci su nepotpuni ili nekonzistentni.");
+        NavigationTexts.invalidRouteData(language));
   }
 
   private void validateRouteShape(List<NavNode> nodes, List<NavEdge> edges) {

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useI18n } from '../../i18n/useI18n';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
+import { localizeFloorLabel } from '../../utils/displayNames';
 import { findLocationByQuery } from '../../utils/locationMatch';
 import {
   getNavigationLocationLabel,
@@ -11,15 +13,13 @@ import {
   navigationLocationToSearchable,
   shouldAutofill,
 } from '../../utils/search';
-import {
-  getTargetSelectionLabel,
-  isSameStartAndEnd,
-} from './locationSelection';
+import { getTargetSelectionLabel, isSameStartAndEnd } from './locationSelection';
 import LocationPicker from './LocationPicker';
 import RouteMap from './RouteMap';
 import SharePanel from './SharePanel';
 import StepList from './StepList';
 import {
+  createNearestWcTarget,
   isNearestTarget,
   targetSelectionToSuggestion,
   targetToSearchable,
@@ -50,6 +50,7 @@ function NavigationView({
   sharedTargetType,
   sharedAllowElevator,
 }: NavigationViewProps) {
+  const { language, t } = useI18n();
   const [isFormExpanded, setIsFormExpanded] = useState(true);
   const [isFormCollapsing, setIsFormCollapsing] = useState(false);
   const [route, setRoute] = useState<NavigationRoute | null>(null);
@@ -75,31 +76,39 @@ function NavigationView({
 
   const fromRanked = useMemo(
     () =>
-      getSearchResults(fromResults, fromQuery, navigationLocationToSearchable, getNavigationLocationLabel),
+      getSearchResults(
+        fromResults,
+        fromQuery,
+        navigationLocationToSearchable,
+        getNavigationLocationLabel
+      ),
     [fromResults, fromQuery]
   );
 
   const toRanked = useMemo(() => {
-    const candidates: TargetSelection[] = toResults.filter(
-      (location) => location.locationType !== 'stairs' && location.locationType !== 'wc'
-    );
+    const nearestWc = createNearestWcTarget(t);
+    const candidates: TargetSelection[] = [
+      nearestWc,
+      ...toResults.filter((location) => location.locationType !== 'stairs' && location.locationType !== 'wc'),
+    ];
+
     return getSearchResults(candidates, toQuery, targetToSearchable, getTargetSelectionLabel);
-  }, [toResults, toQuery]);
+  }, [t, toQuery, toResults]);
 
   const fromSuggestions = useMemo(
     () =>
       fromRanked.map((result) => ({
         key: `loc-${result.item.id}`,
         label: result.label,
-        meta: `${result.item.buildingCode} - ${result.item.floorLabel}`,
+        meta: `${result.item.buildingCode} - ${localizeFloorLabel(result.item.floorLabel, language)}`,
         value: result.item as TargetSelection,
       })),
-    [fromRanked]
+    [fromRanked, language]
   );
 
   const toSuggestions = useMemo(
-    () => toRanked.map((result) => targetSelectionToSuggestion(result.item)),
-    [toRanked]
+    () => toRanked.map((result) => targetSelectionToSuggestion(result.item, language)),
+    [language, toRanked]
   );
 
   const requestRoute = async ({
@@ -139,9 +148,10 @@ function NavigationView({
     }, 240);
   };
 
-  // Bootstrap iz shared linka
   useEffect(() => {
-    if (!sharedFromLocationId) return;
+    if (!sharedFromLocationId) {
+      return;
+    }
 
     setAllowElevator(sharedAllowElevator ?? true);
 
@@ -155,23 +165,22 @@ function NavigationView({
             toLocationId: sharedToLocationId,
             targetType: sharedTargetType,
             allowElevator: sharedAllowElevator ?? true,
-            message: 'Deljena pot trenutno ni dostopna.',
+            message: t('navigation.sharedRouteUnavailable'),
           })
         );
       } catch (routeError) {
         setError(
           routeError instanceof ApiError
             ? routeError.message
-            : 'Deljena pot trenutno ni dostopna.'
+            : t('navigation.sharedRouteUnavailable')
         );
       } finally {
         setIsRouting(false);
       }
     };
 
-    routeFromShare();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void routeFromShare();
+  }, [sharedAllowElevator, sharedFromLocationId, sharedTargetType, sharedToLocationId, t]);
 
   useEffect(() => {
     setToQuery(initialTarget);
@@ -227,17 +236,11 @@ function NavigationView({
     }
 
     prevFromQueryRef.current = fromQuery;
-  }, [fromQuery, fromRanked, fromLocation]);
+  }, [fromLocation, fromQuery, fromRanked]);
 
   useEffect(() => {
     const previousValue = prevToQueryRef.current;
-    const autofillItem = shouldAutofill(
-      previousValue,
-      toQuery,
-      toRanked,
-      toTarget,
-      isSameTarget
-    );
+    const autofillItem = shouldAutofill(previousValue, toQuery, toRanked, toTarget, isSameTarget);
 
     if (autofillItem) {
       const label = getTargetSelectionLabel(autofillItem);
@@ -288,13 +291,14 @@ function NavigationView({
 
   const handleRoute = async () => {
     if (!fromLocation || !toTarget) {
-      setError('Izberi začetno in ciljno lokacijo iz seznama.');
+      setError(t('navigation.selectLocationsError'));
       return;
     }
     if (isSameStartAndEnd(fromLocation, toTarget)) {
       setRoute(null);
       return;
     }
+
     setIsRouting(true);
     setError('');
     setShareUrl(null);
@@ -306,12 +310,14 @@ function NavigationView({
           toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
           targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
           allowElevator,
-          message: 'Napaka pri računanju poti.',
+          message: t('navigation.routeCalculationError'),
         })
       );
     } catch (routeError) {
       setRoute(null);
-      setError(routeError instanceof ApiError ? routeError.message : 'Napaka pri računanju poti.');
+      setError(
+        routeError instanceof ApiError ? routeError.message : t('navigation.routeCalculationError')
+      );
     } finally {
       setIsRouting(false);
     }
@@ -319,7 +325,7 @@ function NavigationView({
 
   const handleShare = async () => {
     if (!fromLocation || !toTarget) {
-      window.alert('Deljenje poti trenutno ni na voljo.');
+      window.alert(t('navigation.shareUnavailable'));
       return;
     }
 
@@ -335,7 +341,7 @@ function NavigationView({
       setShareUrl(share.shareUrl);
     } catch (shareIssue) {
       setShareError(
-        shareIssue instanceof ApiError ? shareIssue.message : 'Napaka pri ustvarjanju povezave.'
+        shareIssue instanceof ApiError ? shareIssue.message : t('navigation.shareCreateError')
       );
     } finally {
       setIsCreatingShare(false);
@@ -343,24 +349,37 @@ function NavigationView({
   };
 
   const moveRouteStep = (direction: 1 | -1) => {
-    if (!route) return;
+    if (!route) {
+      return;
+    }
+
     const segment = routeSegments[activeSegmentIndex];
-    if (!segment) return;
+    if (!segment) {
+      return;
+    }
+
     const nextStepIndex = activeStepIndex + direction;
     if (nextStepIndex >= 0 && nextStepIndex < segment.steps.length) {
       setActiveStepIndex(nextStepIndex);
       return;
     }
+
     const nextSegmentIndex = activeSegmentIndex + direction;
     const nextSegment = routeSegments[nextSegmentIndex];
-    if (!nextSegment) return;
+    if (!nextSegment) {
+      return;
+    }
+
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(nextSegmentIndex);
     setActiveStepIndex(direction > 0 ? 0 : Math.max(nextSegment.steps.length - 1, 0));
   };
 
   const jumpToSegment = (index: number) => {
-    if (!route || index === activeSegmentIndex || index < 0 || index >= routeSegments.length) return;
+    if (!route || index === activeSegmentIndex || index < 0 || index >= routeSegments.length) {
+      return;
+    }
+
     setTransitionNonce((value) => value + 1);
     setActiveSegmentIndex(index);
     setActiveStepIndex(0);
@@ -368,12 +387,13 @@ function NavigationView({
 
   const compactFromLabel = fromLocation
     ? getNavigationLocationLabel(fromLocation)
-    : fromQuery || 'Začetna lokacija';
-  const compactToLabel = toTarget ? getTargetSelectionLabel(toTarget) : toQuery || 'Ciljna lokacija';
+    : fromQuery || t('navigation.startFallback');
+  const compactToLabel = toTarget
+    ? getTargetSelectionLabel(toTarget)
+    : toQuery || t('navigation.targetFallback');
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = routeSegments.length > 1;
-  const totalRouteSteps =
-    routeSegments.reduce((sum, segment) => sum + segment.steps.length, 0);
+  const totalRouteSteps = routeSegments.reduce((sum, segment) => sum + segment.steps.length, 0);
   const showStepNav = totalRouteSteps > 1;
   const canMovePrev = Boolean(
     route && activeSegment && !(activeSegmentIndex === 0 && activeStepIndex === 0)
@@ -390,7 +410,7 @@ function NavigationView({
   const stepsWindowStart = activeSegment
     ? Math.floor(activeStepIndex / stepsWindowSize) * stepsWindowSize
     : 0;
-  const segmentLabel = activeSegment?.floorLabel ?? '';
+  const segmentLabel = activeSegment ? localizeFloorLabel(activeSegment.floorLabel, language) : '';
 
   return (
     <section className={`${styles.content} ${showRouteLayout ? styles.contentRoute : ''}`}>
@@ -398,14 +418,16 @@ function NavigationView({
         <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
           <LocationPicker
             id="start-location"
-            label="Začetna lokacija"
-            placeholder="Poišči začetno lokacijo"
+            label={t('navigation.startLabel')}
+            placeholder={t('navigation.startPlaceholder')}
             query={fromQuery}
             selected={fromLocation}
             suggestions={fromSuggestions}
             onQueryChange={handleFromQueryChange}
             onSelect={(location) => {
-              if (isNearestTarget(location)) return;
+              if (isNearestTarget(location)) {
+                return;
+              }
               const label = getNavigationLocationLabel(location);
               setFromLocation(location);
               setFromQuery(label);
@@ -416,8 +438,8 @@ function NavigationView({
           />
           <LocationPicker
             id="target-location"
-            label="Ciljna lokacija"
-            placeholder="Poišči cilj"
+            label={t('navigation.targetLabel')}
+            placeholder={t('navigation.targetPlaceholder')}
             query={toQuery}
             selected={toTarget}
             suggestions={toSuggestions}
@@ -433,7 +455,7 @@ function NavigationView({
           />
           <label className={styles.checkboxCard} htmlFor="allow-elevator">
             <span className={styles.checkboxCopy}>
-              <span className={styles.checkboxTitle}>Uporabi lift</span>
+              <span className={styles.checkboxTitle}>{t('navigation.allowElevator')}</span>
             </span>
             <span className={styles.checkboxControl}>
               <input
@@ -460,7 +482,7 @@ function NavigationView({
             disabled={!canRoute}
             data-testid="show-route-button"
           >
-            {isRouting ? 'Računam pot...' : 'Prikaži pot'}
+            {isRouting ? t('navigation.calculatingRoute') : t('navigation.showRoute')}
           </button>
         </div>
       ) : (
@@ -472,7 +494,7 @@ function NavigationView({
               setIsFormExpanded(true);
               setIsRouteVisible(false);
             }}
-            aria-label="Uredi lokacije"
+            aria-label={t('navigation.editLocations')}
           >
             <span className={styles.compactRouteField}>{compactFromLabel}</span>
             <span className={styles.compactRouteArrow}>→</span>
@@ -484,7 +506,7 @@ function NavigationView({
               className={styles.shareButton}
               onClick={handleShare}
               disabled={isCreatingShare}
-              aria-label="Deli pot"
+              aria-label={t('navigation.shareRoute')}
             >
               <span className={styles.shareIcon} aria-hidden="true">
                 ✈
@@ -494,9 +516,7 @@ function NavigationView({
         </div>
       )}
 
-      {hasSameLocations && (
-        <p className={styles.errorText}>Začetna in ciljna lokacija ne smeta biti enaki.</p>
-      )}
+      {hasSameLocations && <p className={styles.errorText}>{t('navigation.sameLocationsError')}</p>}
       {error && !hasSameLocations && <p className={styles.errorText}>{error}</p>}
 
       {showRouteLayout && route && activeSegment && (
@@ -511,7 +531,7 @@ function NavigationView({
                   : undefined
               }
               disabled={!hasMultipleSegments}
-              aria-label={hasMultipleSegments ? 'Spremeni deonico' : segmentLabel}
+              aria-label={hasMultipleSegments ? t('navigation.changeSegment') : segmentLabel}
             >
               <span className={styles.segmentMeta}>{segmentLabel}</span>
               {hasMultipleSegments && (
@@ -550,7 +570,7 @@ function NavigationView({
                       className={styles.navButton}
                       onClick={() => moveRouteStep(-1)}
                       disabled={!canMovePrev}
-                      aria-label="Prejšnji korak"
+                      aria-label={t('navigation.previousStep')}
                     >
                       <span className={styles.navArrow}>←</span>
                     </button>
@@ -560,7 +580,7 @@ function NavigationView({
                       className={styles.navButton}
                       onClick={() => moveRouteStep(1)}
                       disabled={!canMoveNext}
-                      aria-label="Naprej"
+                      aria-label={t('navigation.nextStep')}
                     >
                       <span className={styles.navArrow}>→</span>
                     </button>
@@ -587,5 +607,3 @@ function requireRouteSegments(route: NavigationRoute, message: string) {
 }
 
 export default NavigationView;
-
-

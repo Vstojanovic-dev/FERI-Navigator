@@ -28,7 +28,7 @@ public interface NavEdgeRepository extends JpaRepository<NavEdge, Long> {
             """)
   List<NavEdge> findAllConnected(@Param("node") NavNode node);
 
-  // Sve veze za dati sprat
+  // Vse povezave za izbrano nadstropje
   @Query(
       """
             SELECT e FROM NavEdge e
@@ -37,7 +37,7 @@ public interface NavEdgeRepository extends JpaRepository<NavEdge, Long> {
             """)
   List<NavEdge> findAllByFloor(@Param("floorId") Long floorId);
 
-  // Samo prelazi između spratova
+  // Samo prehodi med nadstropji
   List<NavEdge> findAllByIsCrossFloorTrue();
 
   void deleteAllByFromNodeFloorId(Long floorId);

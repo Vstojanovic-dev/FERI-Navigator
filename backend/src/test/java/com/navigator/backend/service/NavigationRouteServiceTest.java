@@ -56,13 +56,13 @@ class NavigationRouteServiceTest {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
-    when(locationRepository.searchEnabled(eq("Glavni ulaz"), eq(PageRequest.of(0, 1))))
+    when(locationRepository.searchEnabled(eq("Glavni vhod"), eq(PageRequest.of(0, 1))))
         .thenReturn(List.of());
 
-    List<?> result = service.searchLocations("  Glavni ulaz  ", -25);
+    List<?> result = service.searchLocations("  Glavni vhod  ", -25);
 
     assertTrue(result.isEmpty());
-    verify(locationRepository).searchEnabled("Glavni ulaz", PageRequest.of(0, 1));
+    verify(locationRepository).searchEnabled("Glavni vhod", PageRequest.of(0, 1));
   }
 
   @Test
@@ -79,12 +79,94 @@ class NavigationRouteServiceTest {
   }
 
   @Test
+  void routeReturnsEnglishErrorMessagesWhenRequested() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+
+    NavigationRouteException exception =
+        assertThrows(
+            NavigationRouteException.class, () -> service.route(1L, 2L, "wc", true, "en-US"));
+
+    assertEquals(HttpStatus.BAD_REQUEST, exception.getStatus());
+    assertEquals("INVALID_TARGET", exception.getCode());
+    assertEquals("Provide exactly one target: toLocationId or targetType.", exception.getMessage());
+  }
+
+  @Test
+  void searchLocationsLocalizesEnglishDisplayMetadata() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation location =
+        buildLocation(1L, "Amfiteater Gauss (G3-K1-01) - G3, Klet", "classroom", true, 11L, "Klet");
+    location.getBuilding().setName("Objekt G3");
+
+    when(locationRepository.searchEnabled(eq("gauss"), eq(PageRequest.of(0, 20))))
+        .thenReturn(List.of(location));
+
+    var result = service.searchLocations("gauss", 20, "en-US");
+
+    assertEquals(1, result.size());
+    assertEquals("Gauss Classroom (G3-K1-01) - G3, Basement", result.get(0).getDisplayName());
+    assertEquals("Building G3", result.get(0).getBuildingName());
+    assertEquals("Basement", result.get(0).getFloorLabel());
+  }
+
+  @Test
+  void routeLocalizesStoredInstructionsAndNamesForEnglish() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+
+    Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
+    Floor floor = buildFloor(101L, g2, "2_nadstropje", "2. nadstropje", "/maps/g2-2.png");
+
+    NavNode start = buildNode(11L, "G2_2_nadstropje_wp12", "hodnik", "corridor", floor, 10, 10, true);
+    NavNode destination =
+        buildNode(12L, "G2_2_nadstropje_weber_lab", "Laboratorij Weber", "room", floor, 20, 10, false);
+
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", start, g2);
+    NavigationLocation to = buildLocation(2L, "Laboratorij Weber", "laboratory", destination, g2);
+
+    NavEdge edge =
+        NavEdge.builder()
+            .id(501L)
+            .fromNode(start)
+            .toNode(destination)
+            .weight(BigDecimal.ONE)
+            .edgeType(EdgeType.builder().id(1L).code("virtual").name("virtual").build())
+            .instructionForward("Laboratorij Weber je ob hodniku.")
+            .build();
+
+    RouteSearchResult route =
+        RouteSearchResult.builder()
+            .nodes(List.of(start, destination))
+            .edges(List.of(edge))
+            .totalCost(3)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(List.of(11L, 12L))).thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, destination, true))
+        .thenReturn(List.of(VerticalTraversalMode.ANY));
+    when(aStarService.findPath(start, destination, true, VerticalTraversalMode.ANY)).thenReturn(route);
+
+    RouteResponseDto result = service.route(1L, 2L, null, true, "en");
+
+    assertEquals("Building G2", result.getTo().getBuildingName());
+    assertEquals("Weber Laboratory", result.getTo().getDisplayName());
+    assertEquals("2nd Floor", result.getTo().getFloorLabel());
+    assertEquals(
+        "Weber Laboratory is next to the corridor.",
+        result.getSegments().get(0).getSteps().get(0).getText());
+  }
+
+  @Test
   void routeToNearestTargetChoosesReachableCandidateWithLowestCost() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Glavni vhod", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Glavni vhod", "entrance", true, 11L, "Pritličje");
     NavigationLocation fartherWc = buildLocation(2L, "WC A", "wc", true, 21L, "1. nadstropje");
-    NavigationLocation closerWc = buildLocation(3L, "WC B", "wc", true, 31L, "Pritlicje");
+    NavigationLocation closerWc = buildLocation(3L, "WC B", "wc", true, 31L, "Pritličje");
     RouteSearchResult longRoute =
         RouteSearchResult.builder()
             .nodes(List.of(from.getNode(), fartherWc.getNode()))
@@ -134,8 +216,8 @@ class NavigationRouteServiceTest {
   void routeNormalizesInvalidGraphDataIntoNavigationError() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
-    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritličje");
     from.getFloor().setCoordinateWidth(null);
 
     RouteSearchResult route =
@@ -176,8 +258,8 @@ class NavigationRouteServiceTest {
   void routeNormalizesMismatchedRouteShapeIntoNavigationError() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
-    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
+    NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "Pritličje");
 
     RouteSearchResult route =
         RouteSearchResult.builder()
@@ -206,7 +288,7 @@ class NavigationRouteServiceTest {
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
-    Floor g2Floor = buildFloor(101L, g2, "pritlicje", "Pritlicje", "/maps/g2.png");
+    Floor g2Floor = buildFloor(101L, g2, "pritlicje", "Pritličje", "/maps/g2.png");
 
     NavNode start = buildNode(11L, "G2_start", "G2 start", "corridor", g2Floor, 10, 10, true);
     NavNode waypoint = buildNode(12L, "G2_wp1", "G2 wp1", "corridor", g2Floor, 20, 20, true);
@@ -242,7 +324,7 @@ class NavigationRouteServiceTest {
             .map(RouteResponseDto.RoutePointDto::getNodeId)
             .toList());
     assertEquals("G2", result.getSegments().get(0).getBuildingCode());
-    assertEquals("Pritlicje", result.getSegments().get(0).getFloorLabel());
+    assertEquals("Pritličje", result.getSegments().get(0).getFloorLabel());
   }
 
   @Test
@@ -251,15 +333,15 @@ class NavigationRouteServiceTest {
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
 
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
-    Floor groundFloor = buildFloor(101L, g2, "pritlicje", "Pritlicje", "/maps/g2-p.png");
+    Floor groundFloor = buildFloor(101L, g2, "pritlicje", "Pritličje", "/maps/g2-p.png");
     Floor firstFloor =
         buildFloor(102L, g2, "1_nadstropje", "1. nadstropje", "/maps/g2-1.png");
 
     NavNode start = buildNode(11L, "G2_start", "G2 start", "corridor", groundFloor, 10, 10, true);
     NavNode stairsDown =
-        buildNode(12L, "G2_stairs_p", "Stepenice P", "stairs", groundFloor, 20, 20, true);
+        buildNode(12L, "G2_stairs_p", "Stopnišče P", "stairs", groundFloor, 20, 20, true);
     NavNode stairsUp =
-        buildNode(21L, "G2_stairs_1", "Stepenice 1", "stairs", firstFloor, 40, 40, true);
+        buildNode(21L, "G2_stairs_1", "Stopnišče 1", "stairs", firstFloor, 40, 40, true);
     NavNode destination =
         buildNode(22L, "G2_room_1", "G2 room 1", "room", firstFloor, 50, 50, false);
 
@@ -299,7 +381,7 @@ class NavigationRouteServiceTest {
         result.getSegments().get(1).getPath().stream()
             .map(RouteResponseDto.RoutePointDto::getNodeId)
             .toList());
-    assertEquals("Pritlicje", result.getSegments().get(0).getFloorLabel());
+    assertEquals("Pritličje", result.getSegments().get(0).getFloorLabel());
     assertEquals("1. nadstropje", result.getSegments().get(1).getFloorLabel());
   }
 
@@ -311,15 +393,15 @@ class NavigationRouteServiceTest {
     Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
     Building g3 = Building.builder().id(2L).code("G3").name("Objekt G3").description("G3").build();
 
-    Floor g2Floor = buildFloor(101L, g2, "pritlicje", "Pritlicje", "/maps/g2.png");
-    Floor g3Floor = buildFloor(201L, g3, "pritlicje", "Pritlicje", "/maps/g3.png");
+    Floor g2Floor = buildFloor(101L, g2, "pritlicje", "Pritličje", "/maps/g2.png");
+    Floor g3Floor = buildFloor(201L, g3, "pritlicje", "Pritličje", "/maps/g3.png");
 
     NavNode start = buildNode(11L, "G2_start", "G2 start", "corridor", g2Floor, 10, 10, true);
     NavNode g2Exit =
         buildNode(
             12L,
             "G2_pritlicje_izlaz_za_g3_objekat",
-            "Izlaz za G3",
+            "Izhod za objekt G3",
             "building_transfer",
             g2Floor,
             20,
@@ -383,9 +465,9 @@ class NavigationRouteServiceTest {
         buildNode(13L, "izlaz_za_g3_objekat", null, "building_transfer", g2Floor, 50, 10, false);
 
     NavigationLocation from = buildLocation(1L, "G2 P1 Alfa", "entrance", start, g2);
-    NavigationLocation to = buildLocation(2L, "Izlaz Za G3 Objekat", "exit", buildingExit, g2);
+    NavigationLocation to = buildLocation(2L, "Izhod za objekt G3", "exit", buildingExit, g2);
     NavigationLocation studyRoomLocation =
-        buildLocation(3L, "Prostor Za Ucenje 2", "room", studyRoom, g2);
+        buildLocation(3L, "Prostor za učenje 2", "room", studyRoom, g2);
 
     RouteSearchResult route =
         RouteSearchResult.builder()
@@ -409,10 +491,10 @@ class NavigationRouteServiceTest {
 
     assertEquals(1, result.getSegments().size());
     assertEquals(
-        "Nastavite prema Prostor Za Ucenje 2.",
+        "Nadaljujte proti Prostor za učenje 2.",
         result.getSegments().get(0).getSteps().get(0).getText());
     assertEquals(
-        "Stigli ste do lokacije Izlaz Za G3 Objekat.",
+        "Prispeli ste do lokacije Izhod za objekt G3.",
         result.getSegments().get(0).getSteps().get(1).getText());
   }
 
@@ -435,7 +517,7 @@ class NavigationRouteServiceTest {
         buildNode(22L, "seminarska_soba", null, "room", g3Floor, 930, 930, false);
 
     NavigationLocation from = buildLocation(1L, "G2 P1 Alfa", "entrance", start, g2);
-    NavigationLocation to = buildLocation(2L, "Seminarska Soba", "room", destination, g3);
+    NavigationLocation to = buildLocation(2L, "Seminarska soba", "room", destination, g3);
 
     RouteSearchResult route =
         RouteSearchResult.builder()
@@ -458,13 +540,13 @@ class NavigationRouteServiceTest {
 
     RouteResponseDto result = service.route(1L, 2L, null, true);
 
-    assertEquals("Nastavite prema Izlaz Za G3 Objekat.", result.getSegments().get(0).getSteps().get(0).getText());
+    assertEquals("Nadaljujte proti Izhod za objekt G3.", result.getSegments().get(0).getSteps().get(0).getText());
     assertEquals("building_transfer", result.getSegments().get(1).getSteps().get(0).getManeuverType());
     assertEquals(
-        "Usli ste u Objekt G3. Nastavite po prikazanoj putanji.",
+        "Vstopili ste v Objekt G3. Nadaljujte po prikazani poti.",
         result.getSegments().get(1).getSteps().get(0).getText());
     assertEquals(
-        "Stigli ste do lokacije Seminarska Soba.",
+        "Prispeli ste do lokacije Seminarska soba.",
         result.getSegments().get(1).getSteps().get(1).getText());
   }
 
@@ -472,7 +554,7 @@ class NavigationRouteServiceTest {
   void allowElevatorTrueUsesElevatorOnlyBeforeFallback() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
     RouteSearchResult elevatorRoute =
         RouteSearchResult.builder()
@@ -501,7 +583,7 @@ class NavigationRouteServiceTest {
   void allowElevatorTrueFallsBackToStairsWhenElevatorRouteIsMissing() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
     RouteSearchResult stairsRoute =
         RouteSearchResult.builder()
@@ -530,7 +612,7 @@ class NavigationRouteServiceTest {
   void oneFloorDifferenceWithoutElevatorPrefersStairsBeforeElevator() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "1. nadstropje");
     RouteSearchResult stairsRoute =
         RouteSearchResult.builder()
@@ -559,7 +641,7 @@ class NavigationRouteServiceTest {
   void multiFloorDifferenceWithoutElevatorFallsBackToStairsWhenElevatorRouteMissing() {
     NavigationRouteService service =
         new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
-    NavigationLocation from = buildLocation(1L, "Ulaz", "entrance", true, 11L, "Pritlicje");
+    NavigationLocation from = buildLocation(1L, "Vhod", "entrance", true, 11L, "Pritličje");
     NavigationLocation to = buildLocation(2L, "Kabinet", "room", true, 21L, "3. nadstropje");
     RouteSearchResult stairsRoute =
         RouteSearchResult.builder()

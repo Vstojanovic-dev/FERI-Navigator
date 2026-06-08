@@ -61,7 +61,7 @@ SELECT
 FROM buildings b
 JOIN (
     VALUES
-        ('pritlicje', 'Pritlicje', 0.00, 0.000, '/maps/1_pritlicje.png'),
+        ('pritlicje', 'Pritličje', 0.00, 0.000, '/maps/1_pritlicje.png'),
         ('1_nadstropje', '1. nadstropje', 1.00, 1.000, '/maps/2_nadstropje1.png'),
         ('medetaza', 'Medetaza', 1.50, 1.500, '/maps/3_medetaza.png'),
         ('2_nadstropje', '2. nadstropje', 2.00, 2.000, '/maps/4_nadstropje2.png'),

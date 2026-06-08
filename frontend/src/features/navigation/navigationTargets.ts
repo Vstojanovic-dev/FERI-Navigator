@@ -1,7 +1,10 @@
+import type { AppLanguage } from '../../i18n/language';
+import type { Translator } from '../../i18n/translate';
 import type { NavigationLocation } from '../../types/navigation';
+import { localizeFloorLabel } from '../../utils/displayNames';
 import {
   getNavigationLocationLabel,
-  NEAREST_WC_SEARCHABLE,
+  getNearestWcSearchable,
   navigationLocationToSearchable,
 } from '../../utils/search';
 
@@ -15,13 +18,15 @@ type NearestTarget = {
 
 export type TargetSelection = NavigationLocation | NearestTarget;
 
-export const NEAREST_WC_TARGET: NearestTarget = {
-  kind: 'nearest',
-  id: 'nearest-wc',
-  displayName: 'Najbližji WC',
-  targetType: 'wc',
-  meta: 'Najkrajša dostopna ruta do WC-ja',
-};
+export function createNearestWcTarget(t: Translator): NearestTarget {
+  return {
+    kind: 'nearest',
+    id: 'nearest-wc',
+    displayName: t('navigation.nearestWc'),
+    targetType: 'wc',
+    meta: t('navigation.nearestWcMeta'),
+  };
+}
 
 export function isNearestTarget(target: TargetSelection): target is NearestTarget {
   return 'kind' in target && target.kind === 'nearest';
@@ -29,7 +34,7 @@ export function isNearestTarget(target: TargetSelection): target is NearestTarge
 
 export function targetToSearchable(target: TargetSelection) {
   if (isNearestTarget(target)) {
-    return NEAREST_WC_SEARCHABLE;
+    return getNearestWcSearchable(target.displayName);
   }
   return navigationLocationToSearchable(target);
 }
@@ -48,7 +53,10 @@ export type LocationPickerSuggestion = {
   value: TargetSelection;
 };
 
-export function targetSelectionToSuggestion(selection: TargetSelection): LocationPickerSuggestion {
+export function targetSelectionToSuggestion(
+  selection: TargetSelection,
+  language: AppLanguage
+): LocationPickerSuggestion {
   if (isNearestTarget(selection)) {
     return {
       key: selection.id,
@@ -60,7 +68,7 @@ export function targetSelectionToSuggestion(selection: TargetSelection): Locatio
   return {
     key: `loc-${selection.id}`,
     label: getTargetSelectionLabel(selection),
-    meta: `${selection.buildingCode} - ${selection.floorLabel}`,
+    meta: `${selection.buildingCode} - ${localizeFloorLabel(selection.floorLabel, language)}`,
     value: selection,
   };
 }
