@@ -1,7 +1,11 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { resolveAssetUrl } from '../../services/api';
 import type { RouteSegment } from '../../types/navigation';
 import { getSegmentViewport } from './mapViewport';
+import {
+  resolveActiveStepGeometry,
+  resolveStepPathBounds,
+} from './routeGeometry';
 import styles from './NavigationView.module.css';
 
 type RouteMapProps = {
@@ -21,21 +25,63 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
   );
   const hasPolyline = safePath.length >= 2;
   const activeStep = safeSteps[activeStepIndex];
-  const activeFrom = safePath.find((point) => point.nodeId === activeStep?.fromNodeId);
-  const activeTo = safePath.find((point) => point.nodeId === activeStep?.toNodeId);
-  const activeFromIndex = safePath.findIndex((point) => point.nodeId === activeStep?.fromNodeId);
-  const activeToIndex = safePath.findIndex((point) => point.nodeId === activeStep?.toNodeId);
+  const stepBounds = useMemo(
+    () => resolveStepPathBounds(safePath, safeSteps),
+    [safePath, safeSteps]
+  );
+  const activeBounds = stepBounds[activeStepIndex] ?? null;
+  const activeFromIndex = activeBounds?.fromIndex ?? -1;
+  const activeToIndex = activeBounds?.toIndex ?? -1;
+  const activeGeometry = useMemo(
+    () => resolveActiveStepGeometry(safePath, safeSteps, activeStepIndex),
+    [activeStepIndex, safePath, safeSteps]
+  );
+  const activeStepPoints = useMemo(
+    () => activeGeometry.stepPoints.map((point) => `${point.x},${point.y}`).join(' '),
+    [activeGeometry.stepPoints]
+  );
+  const activeStepStart = activeGeometry.stepPoints[0];
+  const activeStepEnd = activeGeometry.stepPoints.at(-1);
+  const activeMarkerPoint = activeStepEnd ?? null;
+  const shouldWarnSuspiciousActiveStep =
+    import.meta.env.DEV && activeGeometry.isGroupedStep && activeGeometry.renderMode === 'polyline';
+
+  useEffect(() => {
+    if (!shouldWarnSuspiciousActiveStep) {
+      return;
+    }
+
+    console.warn('[route-geometry:suspicious-step]', {
+      buildingCode: segment.buildingCode,
+      floorCode: segment.floorCode,
+      floorLabel: segment.floorLabel,
+      stepIndex: activeStep?.index ?? activeStepIndex,
+      fromNodeId: activeStep?.fromNodeId,
+      toNodeId: activeStep?.toNodeId,
+      pointCount: activeGeometry.stepPoints.length,
+      maxDeviation: activeGeometry.maxDeviation,
+      pathToDirectRatio: activeGeometry.pathToDirectRatio,
+      maxTurnAngleDeg: activeGeometry.maxTurnAngleDeg,
+      points: activeGeometry.stepPoints,
+    });
+  }, [
+    activeGeometry.maxDeviation,
+    activeGeometry.maxTurnAngleDeg,
+    activeGeometry.pathToDirectRatio,
+    activeGeometry.stepPoints,
+    activeStep?.fromNodeId,
+    activeStep?.index,
+    activeStep?.toNodeId,
+    activeStepIndex,
+    segment.buildingCode,
+    segment.floorCode,
+    segment.floorLabel,
+    shouldWarnSuspiciousActiveStep,
+  ]);
   const donePoints =
     activeFromIndex >= 0
       ? safePath
           .slice(0, activeFromIndex + 1)
-          .map((point) => `${point.x},${point.y}`)
-          .join(' ')
-      : '';
-  const activePoints =
-    activeFromIndex >= 0 && activeToIndex >= activeFromIndex
-      ? safePath
-          .slice(activeFromIndex, activeToIndex + 1)
           .map((point) => `${point.x},${point.y}`)
           .join(' ')
       : '';
@@ -108,9 +154,10 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
               opacity="0.85"
             />
           )}
-          {activePoints && (
+          {activeGeometry.renderMode === 'polyline' && activeStepPoints && (
             <polyline
-              points={activePoints}
+              data-testid="active-step-polyline"
+              points={activeStepPoints}
               fill="none"
               stroke="#dc2626"
               strokeLinecap="round"
@@ -119,12 +166,13 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
               opacity="1"
             />
           )}
-          {activeFrom && activeTo && (
+          {activeGeometry.renderMode === 'direct' && activeStepStart && activeStepEnd && (
             <line
-              x1={activeFrom.x}
-              y1={activeFrom.y}
-              x2={activeTo.x}
-              y2={activeTo.y}
+              data-testid="active-step-direct-line"
+              x1={activeStepStart.x}
+              y1={activeStepStart.y}
+              x2={activeStepEnd.x}
+              y2={activeStepEnd.y}
               stroke="#dc2626"
               strokeLinecap="round"
               strokeWidth="22"
@@ -133,8 +181,18 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
           )}
           {safePath[0] && <RouteMarker point={safePath[0]} label="A" fill="#64748b" />}
           {safePath.at(-1) && <RouteMarker point={safePath.at(-1)!} label="B" fill="#dc2626" />}
-          {activeTo && <RouteMarker point={activeTo} label="" fill="#dc2626" radius={11} />}
-          {activeTo && <circle cx={activeTo.x} cy={activeTo.y} r="22" fill="#dc2626" opacity="0.22" />}
+          {activeMarkerPoint && (
+            <RouteMarker point={activeMarkerPoint} label="" fill="#dc2626" radius={11} />
+          )}
+          {activeMarkerPoint && (
+            <circle
+              cx={activeMarkerPoint.x}
+              cy={activeMarkerPoint.y}
+              r="22"
+              fill="#dc2626"
+              opacity="0.22"
+            />
+          )}
         </svg>
       </div>
     </div>
