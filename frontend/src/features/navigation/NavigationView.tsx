@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
@@ -69,6 +69,7 @@ function NavigationView({
   const [toTarget, setToTarget] = useState<TargetSelection | null>(null);
   const prevFromQueryRef = useRef('');
   const prevToQueryRef = useRef('');
+  const userEditedTargetRef = useRef(false);
 
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
@@ -185,6 +186,7 @@ function NavigationView({
     setShareError('');
     setAllowElevator(sharedAllowElevator ?? true);
     prevToQueryRef.current = '';
+    userEditedTargetRef.current = false;
   }, [initialTarget, sharedAllowElevator]);
 
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
@@ -193,7 +195,7 @@ function NavigationView({
   const canRoute = Boolean(fromLocation && toTarget && !isRouting && !hasSameLocations);
 
   useEffect(() => {
-    if (!initialTarget.trim() || toTarget) {
+    if (!initialTarget.trim() || toTarget || userEditedTargetRef.current) {
       return;
     }
 
@@ -268,7 +270,17 @@ function NavigationView({
     setShareUrl(null);
   };
 
+  const handleElevatorChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setAllowElevator(event.target.checked);
+    if (isFormExpanded) {
+      setRoute(null);
+      setShareUrl(null);
+      setShareError('');
+    }
+  };
+
   const handleToQueryChange = (value: string) => {
+    userEditedTargetRef.current = true;
     const previousValue = toQuery;
     prevToQueryRef.current = previousValue;
 
@@ -431,27 +443,15 @@ function NavigationView({
               setShareUrl(null);
             }}
           />
-          <label className={styles.checkboxCard} htmlFor="allow-elevator">
-            <span className={styles.checkboxCopy}>
-              <span className={styles.checkboxTitle}>Uporabi lift</span>
-            </span>
-            <span className={styles.checkboxControl}>
-              <input
-                id="allow-elevator"
-                type="checkbox"
-                checked={allowElevator}
-                onChange={(event) => {
-                  setAllowElevator(event.target.checked);
-                  setRoute(null);
-                  setShareUrl(null);
-                  setShareError('');
-                }}
-                className={styles.checkboxInput}
-              />
-              <span className={styles.checkboxTrack} aria-hidden="true">
-                <span className={styles.checkboxThumb} />
-              </span>
-            </span>
+          <label className={styles.elevatorCheckbox} htmlFor="allow-elevator">
+            <input
+              id="allow-elevator"
+              type="checkbox"
+              checked={allowElevator}
+              onChange={handleElevatorChange}
+              className={styles.elevatorCheckboxInput}
+            />
+            <span>Uporabi dvigalo</span>
           </label>
           <button
             type="button"
@@ -502,6 +502,16 @@ function NavigationView({
       {showRouteLayout && route && activeSegment && (
         <div className={`${styles.routeLayout} ${isRouteVisible ? styles.routeLayoutVisible : ''}`}>
           <div className={styles.routeControlsRow}>
+            <label className={styles.elevatorCheckboxCompact} htmlFor="allow-elevator-route">
+              <input
+                id="allow-elevator-route"
+                type="checkbox"
+                checked={allowElevator}
+                onChange={handleElevatorChange}
+                className={styles.elevatorCheckboxInput}
+              />
+              <span>Uporabi dvigalo</span>
+            </label>
             <button
               type="button"
               className={styles.segmentInfoButton}
