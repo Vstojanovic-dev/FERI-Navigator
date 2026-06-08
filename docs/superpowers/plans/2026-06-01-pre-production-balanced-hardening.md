@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Uciniti FERI Navigator bezbednim i operativno spremnim za staging/public alpha hosting bez stalno hostovanog admin panela.
+**Goal:** Uciniti FERI Navigator bezbednim i operativno spremnim za staging/production-like hosting bez stalno hostovanog admin panela.
 
 **Architecture:** Javni runtime sadrzi samo frontend, backend i bazu; admin ostaje lokalni ops alat koji proizvodi SQL export, a staging/prod dobija promene iskljucivo kroz verzionisane Flyway migracije. Hardening obuhvata security/config razdvajanje, migration workflow, correctness bugfixe, frontend otpornost i minimalni release/CI tok.
 

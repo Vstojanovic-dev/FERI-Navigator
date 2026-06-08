@@ -1,82 +1,74 @@
 # FERI Navigator
 
-## Sta je FERI Navigator
+## Opis in vizija projekta
 
-FERI Navigator je web aplikacija za snalazenje kroz prostore FERI-ja. Projekat je fokusiran na dve glavne potrebe:
+FERI Navigator je spletna aplikacija za lažje iskanje učilnic, kabinetov in drugih prostorov na FERI. Projekt združuje pregled prostorov, osnovne informacije o objektih in navigacijo skozi stavbo v eni aplikaciji, ki je prilagojena predvsem hitri uporabi na telefonu.
 
-- korisnik treba brzo da pronadje ucionicu, kabinet ili drugi prostor,
-- korisnik treba da dobije razumljivu navigaciju kroz zgradu, po mapama i spratovima.
+Vizija projekta je preprosta: obiskovalec ali študent mora čim hitreje najti pravi prostor in dobiti razumljivo pot do cilja, brez dodatnega spraševanja ali iskanja po hodnikih.
 
-Aplikacija je podeljena na korisnicki frontend, admin alat za uredjivanje navigacionog grafa, backend API i verzionisane SQL podatke sa mapama. Trenutni fokus projekta je da navigacioni sistem bude dovoljno stabilan da ljudi i AI mogu bezbedno da menjaju rute, podatke i UI bez lomljenja ugovora izmedju slojeva.
+## Kdo so uporabniki in kaj lahko počnejo
 
-## Struktura projekta
+Glavni uporabniki so študenti, obiskovalci in zaposleni na FERI, ki želijo hitro poiskati prostor ali preveriti podrobnosti o določeni učilnici. V aplikaciji lahko iščejo prostore, pregledujejo objekte in odprejo navigacijo do izbranega cilja.
 
-- `frontend/` - glavna korisnicka web aplikacija
-- `frontend/admin/` - admin panel za uredjivanje navigacionog grafa i SQL export
-- `backend/` - Spring Boot backend, API i logika rutiranja
-- `database/` - SQL schema, seed podaci i slike mapa
-- `docs/` - projektna dokumentacija i handover materijal
+Druga skupina uporabnikov so razvijalci in skrbniki sistema. Ti skrbijo za backend, podatke, zemljevide in administrativni del projekta, ki omogoča urejanje navigacijskih podatkov in vzdrževanje celotnega sistema.
 
-## Brzi start
+## Slike projekta
 
-Najkraci nacin za podizanje glavnog stack-a iz korena repozitorijuma je:
+Posnetki zaslona uporabniškega vmesnika bodo dodani naknadno.
+
+## Kako zagnati projekt
+
+Priporočeni način zagona je Docker.
+
+### Predpogoji
+
+- nameščen Docker Desktop,
+- omogočen `docker compose`.
+
+### Zagon
+
+V korenu repozitorija zaženi:
 
 ```powershell
 docker compose up --build
 ```
 
-Pre pokretanja proveri da su Docker i Docker Compose dostupni lokalno.
+Ta ukaz zažene:
 
-Tipicne adrese u lokalnom razvoju:
+- PostgreSQL bazo z začetnimi podatki,
+- Spring Boot backend API,
+- uporabniški frontend.
 
-- korisnicki frontend: Vite dev server iz `frontend/`
-- admin frontend: Vite dev server iz `frontend/admin/`
+Po uspešnem zagonu so glavne lokalne točke dostopa:
+
+- frontend: `http://localhost:5173`
 - backend API: `http://localhost:8080`
+- PostgreSQL: `localhost:5432`
 
-Za detaljniji lokalni workflow i module koje zelis da podizes odvojeno, vidi dokumentaciju u `docs/`.
+## Kje nadaljevati z branjem
 
-## Kako je sistem organizovan
+Za širši pregled projekta in podrobnejšo dokumentacijo nadaljuj tukaj:
 
-Korisnicki frontend prikazuje pretragu prostora, detalje objekata i navigacijski UI. On ne odlucuje kako izgleda navigacioni graf niti sam racuna rutu. Njegova odgovornost je da korisniku omoguci izbor lokacija, posalje stabilne identifikatore backend-u i prikaze rezultat koji backend vrati.
+- `docs/README.md` za pregled dokumentacije,
+- `docs/opis.md` za funkcionalni opis aplikacije,
+- `docs/navigation.md` za razlago navigacijskega modela,
+- `docs/backend.md` za backend arhitekturo in API kontekst,
+- `docs/admin_panel.md` za administrativni del projekta.
 
-Backend je centralno mesto za aplikativnu logiku navigacije. On cita navigacione podatke iz baze, validira korisnicki izbor lokacija, racuna rutu kroz graf i vraca frontend-u odgovor spreman za prikaz, ukljucujuci segmente rute, koordinate i tekstualne korake.
+## Struktura projekta
 
-Baza i SQL seed fajlovi su izvor istine za navigacione podatke. U njima zive sema, lokacije, cvorovi, ivice, spratovi i metapodaci mapa. Admin panel sluzi za uredjivanje navigacionog grafa, ali promene nisu trajne za tim dok ne budu exportovane u SQL i commitovane u repozitorijum.
+- `frontend/` vsebuje glavni uporabniški spletni vmesnik.
+- `frontend/admin/` vsebuje administrativni vmesnik za urejanje navigacijskih podatkov.
+- `backend/` vsebuje Spring Boot aplikacijo, API-je in poslovno logiko.
+- `database/` vsebuje SQL inicializacijo baze, podatke in datoteke zemljevidov.
+- `docs/` vsebuje projektno dokumentacijo in delovne zapise.
+- `deploy/` vsebuje datoteke in pripomočke za nameščanje okolij.
+- `docker-compose.yml` je glavni lokalni Docker zagon projekta.
+- `docker-compose.prod.yml` je konfiguracija za produkcijsko okolje.
+- `.env.example` vsebuje primer produkcijskih oziroma strežniških nastavitev.
 
-## Najvaznija pravila
+## Kontakt razvijalca
 
-- SQL schema i seed fajlovi u `database/init/` su source of truth za navigacione podatke.
-- Frontend ne sme da modeluje navigacioni graf niti da sam odlucuje o validnim rutama.
-- Route API treba da koristi stabilne ID-jeve lokacija, ne slobodan tekst kao glavni identitet.
-- Koordinate rute ostaju u internom koordinatnom sistemu mape, a frontend radi prikaz i skaliranje.
-- Admin izmene nisu zavrsene dok se export ne prenese u verzionisani SQL i ne commituje.
+Za vprašanja ali povratne informacije: `veljko.stojanovic@student.um.si`
 
-## Gde poceti sa citanjem
-
-Ako prvi put ulazis u projekat ili AI treba da stekne siguran mentalni model pre izmene, kreni od ovih dokumenata:
-
-- `docs/README.md`
-- `docs/backend.md`
-- `docs/navigation.md`
-- `docs/admin_panel.md`
-- `docs/opis.md`
-
-## Ako menjas sistem
-
-- Ako menjas navigacionu logiku ili route response, prvo procitaj `docs/backend.md` i `docs/navigation.md`.
-- Ako menjas bazu, seed podatke ili mapiranje entiteta, prvo procitaj `docs/backend.md` i pregledaj `database/init/`.
-- Ako menjas admin panel ili workflow exporta, prvo procitaj `docs/admin_panel.md`.
-- Ako menjas korisnicki tok ili funkcionalni opis aplikacije, prvo procitaj `docs/opis.md`.
-
-## Trenutno stanje i ogranicenja
-
-Projekat vec ima solidan tehnicki temelj za navigaciju, backend i admin graf editor, ali dokumentacija jos nije potpuno ujednacena. Deo znanja je dobro opisan dubinski, posebno backend i admin workflow, a deo je jos u handover ili radnoj formi.
-
-Najveci oprez je potreban kod izmena koje prelaze granice modula:
-
-- promena SQL seme ili seed podataka,
-- promena route DTO ugovora,
-- promena koordinatnog sistema ili map assets,
-- promena admin export workflow-a.
-
-Dokumentacija u `docs/` ce se postepeno reorganizovati u strukturisaniji, hibridni sistem koji je podjednako citljiv ljudima i dovoljno eksplicitan za AI.
+Prijava napak prek Microsoft Forms: placeholder, povezava bo dodana naknadno.

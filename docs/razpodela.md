@@ -40,3 +40,14 @@ treba nekako croppovati  slike
 
 
 PREDLOG: dodati opciju najblizi automat
+
+
+Srediti jezik , da bude sve slovenscina
+Srediti dokumetaciju LEPO!
+Napraviti prezentaciju koja ce da pokaze stranki vrednost
+(Moze i stvari koje nisu zavrsene, samo da se pokaze kako ce da izgleda)
+Govorilne ure
+Na slajdovi moze da ide neke tehnicke stvari koje nece biti procitane , bolje dok predstavljate kako aplikacija radi
+(backup prezentacija)
+Grupisanje tacka nije uredu\
+_promocija

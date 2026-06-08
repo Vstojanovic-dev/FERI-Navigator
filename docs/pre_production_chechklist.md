@@ -1,12 +1,12 @@
 # Pre-production checklist
 
-Ovaj dokument vise nije wish-list. Statusi ispod prate trenutno stanje repoa za public alpha hardening.
+Ovaj dokument vise nije wish-list. Statusi ispod prate trenutno stanje repoa za pre-production hardening.
 
 Status oznake:
 
 - `[x]` zatvoreno u repou
 - `[ ]` i dalje otvoren posao
-- `[-]` svesno odlozeno posle alpha readiness ciklusa
+- `[-]` svesno odlozeno posle staging readiness ciklusa
 
 ## P0
 
@@ -54,9 +54,9 @@ Status oznake:
 - [ ] Error boundary i sira frontend resiliency proveravanja ostaju follow-up.
 - [ ] Accessibility i mobile verification jos nisu zatvoreni kao formalni gate.
 
-## Trenutni alpha readiness zakljucak
+## Trenutni staging readiness zakljucak
 
-Repo je znacajno blize staging-ready stanju nego na pocetku ciklusa, ali jos nije kompletno spreman za public alpha deploy bez sledecih preostalih blokera:
+Repo je znacajno blize staging-ready stanju nego na pocetku ciklusa, ali jos nije kompletno spreman za javni staging ili production-like deploy bez sledecih preostalih blokera:
 
 1. definisati stvarne production secrets i domen/env vrednosti,
 2. postaviti TLS na runtime sloju,

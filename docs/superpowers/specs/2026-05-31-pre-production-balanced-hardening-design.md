@@ -2,7 +2,7 @@
 
 ## Goal
 
-Pripremiti FERI Navigator za bezbedan staging i public alpha hosting tako da javni deployment sadrzi samo korisnicki frontend i backend API, dok admin panel ostaje privremeni, lokalni ili rucno ukljucen ops alat. Resenje mora ukloniti poznate P0/P1 bezbednosne i deployment rizike, uvesti stabilan migration workflow za bazu i zatvoriti najvaznije correctness i operativne rupe pre online izlaska.
+Pripremiti FERI Navigator za bezbedan staging i production-like hosting tako da javni deployment sadrzi samo korisnicki frontend i backend API, dok admin panel ostaje privremeni, lokalni ili rucno ukljucen ops alat. Resenje mora ukloniti poznate P0/P1 bezbednosne i deployment rizike, uvesti stabilan migration workflow za bazu i zatvoriti najvaznije correctness i operativne rupe pre online izlaska.
 
 ## Scope
 
@@ -12,7 +12,7 @@ Ovaj dizajn pokriva:
 - profile/config razdvajanje za `dev`, `test` i `prod`,
 - prelazak sa init-only SQL pristupa na production-safe migration workflow,
 - offline admin workflow zasnovan na SQL exportu i git verzionisanju,
-- alpha-readiness ispravke za poznate routing i DTO edge case probleme,
+- staging-readiness ispravke za poznate routing i DTO edge case probleme,
 - minimalni CI, health, backup i release workflow potreban za hosting.
 
 Ovaj dizajn ne pokriva:
@@ -25,7 +25,7 @@ Ovaj dizajn ne pokriva:
 
 ## Current State
 
-Trenutni repo vec ima Docker-based lokalni stack, odvojene frontend i admin frontend aplikacije, Spring Boot backend i SQL snapshot fajlove u `database/init/`. To je dovoljno za razvoj, ali nije dovoljno disciplinovano za staging/public alpha iz sledecih razloga:
+Trenutni repo vec ima Docker-based lokalni stack, odvojene frontend i admin frontend aplikacije, Spring Boot backend i SQL snapshot fajlove u `database/init/`. To je dovoljno za razvoj, ali nije dovoljno disciplinovano za staging/production-like hosting iz sledecih razloga:
 
 - admin write endpointi su otvoreni i nemaju autentifikaciju,
 - CORS je siroko otvoren,
@@ -90,7 +90,7 @@ Admin pristup se ne tretira kao opsti korisnicki feature, vec kao operativni kan
 - admin kontroleri i eventualni import endpointi vracaju `404` ili `403` kada je admin mode iskljucen,
 - opciono kasnije dodati autentifikaciju za privremeni remote admin stack ako zatreba.
 
-Ovaj pristup je namerno strozi od "uvek ukljucen admin iza login-a", jer smanjuje javnu povrsinu sistema za alpha fazu.
+Ovaj pristup je namerno strozi od "uvek ukljucen admin iza login-a", jer smanjuje javnu povrsinu sistema za rani javni staging rollout.
 
 ### 2. Configuration and Profiles
 
@@ -151,7 +151,7 @@ Ako kasnije zatreba privremeni remote admin stack, on mora biti:
 - vremenski ogranicen,
 - po zavrsetku ugasen.
 
-Ali to nije uslov za initial public alpha readiness i ne treba ga gurati u prvi hardening sprint.
+Ali to nije uslov za initial staging readiness i ne treba ga gurati u prvi hardening sprint.
 
 ### 5. Correctness and Stability
 
@@ -163,7 +163,7 @@ Pre hostinga moraju biti reseni poznati problemi koji mogu oboriti poverenje u a
 - frontend pretpostavke o validnim DTO poljima i koordinatama,
 - search endpoint/client ponasanje koje moze generisati previse requestova ili los UX.
 
-Balanced hardening ne znaci "srediti sve bugs zauvek", nego zatvoriti one defekte koji direktno ugrozavaju alpha upotrebu, debug-ovanje i deploy pouzdanost.
+Balanced hardening ne znaci "srediti sve bugs zauvek", nego zatvoriti one defekte koji direktno ugrozavaju staging upotrebu, debug-ovanje i deploy pouzdanost.
 
 ### 6. Operational Readiness
 
@@ -225,7 +225,7 @@ Test strategy nije usmerena na savrsenu pokrivenost, vec na hvatanje regresija k
 
 ### Zasto ne stalno hostovan admin
 
-Prednost je manja javna povrsina i jednostavniji security model. Mana je sto admin izmene traze disciplinovan lokalni workflow i dodatni deploy korak. Za alpha fazu to je prihvatljiv i pozeljan tradeoff.
+Prednost je manja javna povrsina i jednostavniji security model. Mana je sto admin izmene traze disciplinovan lokalni workflow i dodatni deploy korak. Za staging fazu to je prihvatljiv i pozeljan tradeoff.
 
 ### Zasto Flyway umesto init-only snapshot pristupa
 
@@ -237,12 +237,12 @@ Cilj je pustiti aplikaciju online bez nepotrebnog odlaganja. Zato se fokus stavl
 
 ## Acceptance Criteria
 
-Smatracemo projekat spremnim za staging/public alpha kada vaze sledeci uslovi:
+Smatracemo projekat spremnim za staging rollout kada vaze sledeci uslovi:
 
 - javni deployment ne sadrzi admin frontend niti otvorene admin write endpoint-e po default-u,
 - production config nema dev fallback secrets ni `localhost` URL zavisnosti,
 - baza koristi migracioni workflow za promene nad postojecim okruzenjima,
-- poznati routing i null-safety problemi koji ugrozavaju alpha flow su sanirani i testirani,
+- poznati routing i null-safety problemi koji ugrozavaju staging flow su sanirani i testirani,
 - postoji produkcioni deployment manifest i dokumentovan release/smoke test postupak,
 - postoji dokumentovan lokalni admin export -> migration workflow,
 - CI proverava osnovne build/test korake pre release-a.

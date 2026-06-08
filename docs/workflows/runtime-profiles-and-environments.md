@@ -269,7 +269,7 @@ I dalje postoji prelazni model:
 - `database/init` ostaje bootstrap path
 - Flyway je authoritative za post-bootstrap promene
 
-To je prihvatljivo za ovu alpha fazu, ali treba ga drzati disciplinovano.
+To je prihvatljivo u ovom prelaznom staging/production-like modelu, ali treba ga drzati disciplinovano.
 
 ## 8. Sta je sada verifikovano
 
@@ -306,7 +306,7 @@ Mozes ici ka staging-u, ali ne treba jos tvrditi da je sistem "full production h
 Ispravan opis trenutnog stanja je:
 
 - `development workflow` je uskladjen
-- `public alpha / staging readiness` je znacajno popravljena
+- `staging readiness` je znacajno popravljena
 - postoje jos operativni production follow-up koraci
 
 ## 10. Pravila za developere
