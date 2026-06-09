@@ -1,12 +1,26 @@
 export const BUILDING_PLAN_MAP: Record<string, string> = {
-  'Objekt C': '/maps/objekt_c.png',
-  'Objekt E': '/maps/objekt_e.png',
-  'Objekt F': '/maps/objekt_f_p.png',
-  'Objekt G': '/maps/objekt_g_p.png',
-  'Objekt G2': '/maps/objekt_g_2_n.png',
-  'Objekt G3': '/maps/g3_pritlicje.png',
+  C: '/maps/objekt_c.png',
+  E: '/maps/objekt_e.png',
+  F: '/maps/objekt_f_p.png',
+  G: '/maps/objekt_g_p.png',
+  G2: '/maps/objekt_g_2_n.png',
+  G3: '/maps/g3_pritlicje.png',
 };
 
+export function getBuildingKey(buildingName: string | null | undefined): string {
+  const normalized = buildingName?.trim() ?? '';
+  if (!normalized) {
+    return '';
+  }
+
+  const match = normalized.match(/(?:objekt|building)\s+([a-z0-9-]+)/i);
+  if (match?.[1]) {
+    return match[1].toUpperCase();
+  }
+
+  return normalized.toUpperCase();
+}
+
 export function getBuildingPlanImageUrl(buildingName: string): string | null {
-  return BUILDING_PLAN_MAP[buildingName] ?? null;
+  return BUILDING_PLAN_MAP[getBuildingKey(buildingName)] ?? null;
 }

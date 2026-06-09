@@ -20,28 +20,57 @@ public class CatalogService {
 
   @Transactional(readOnly = true)
   public List<BuildingCatalogDto> listBuildings() {
-    return buildingRepository.findCatalogSummaries();
+    return listBuildings(null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<BuildingCatalogDto> listBuildings(String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
+    return buildingRepository.findCatalogSummaries().stream()
+        .map(
+            building ->
+                new BuildingCatalogDto(
+                    building.id(),
+                    NavigationLocalization.localizeBuildingName(building.name(), language),
+                    building.description(),
+                    building.imageUrl(),
+                    building.spaceCount()))
+        .toList();
   }
 
   @Transactional(readOnly = true)
   public List<CatalogSpaceDto> listBuildingSpaces(Long buildingId) {
+    return listBuildingSpaces(buildingId, null);
+  }
+
+  @Transactional(readOnly = true)
+  public List<CatalogSpaceDto> listBuildingSpaces(Long buildingId, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     return locationRepository.findEnabledCatalogSpacesByBuildingId(buildingId).stream()
-        .map(this::toCatalogSpaceDto)
+        .map(location -> toCatalogSpaceDto(location, language))
         .toList();
   }
 
-  private CatalogSpaceDto toCatalogSpaceDto(NavigationLocation location) {
+  private CatalogSpaceDto toCatalogSpaceDto(
+      NavigationLocation location, NavigationLanguage language) {
     Space space = location.getSpace();
+    String localizedDisplayName =
+        NavigationLocalization.localizeDisplayName(
+            space != null ? space.getName() : location.getDisplayName(), language);
+    String localizedType =
+        NavigationLocalization.localizeSpaceTypeName(
+            space != null && space.getSpaceType() != null
+                ? space.getSpaceType().getName()
+                : location.getLocationType(),
+            language);
 
     return new CatalogSpaceDto(
         space != null ? space.getId() : location.getSpaceId(),
-        space != null ? space.getName() : location.getDisplayName(),
-        space != null && space.getSpaceType() != null
-            ? space.getSpaceType().getName()
-            : location.getLocationType(),
+        localizedDisplayName,
+        localizedType,
         location.getBuilding().getId(),
-        location.getBuilding().getName(),
-        location.getFloor().getLabel(),
+        NavigationLocalization.localizeBuildingName(location.getBuilding().getName(), language),
+        NavigationLocalization.localizeFloorLabel(location.getFloor().getLabel(), language),
         space != null ? space.getDescription() : null,
         space != null ? space.getImageUrl() : null);
   }

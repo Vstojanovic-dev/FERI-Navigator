@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { pdf } from '@react-pdf/renderer';
+import { useI18n } from '../../i18n/useI18n';
 import { resolveAssetUrl } from '../../services/api';
 import type { NavigationRoute } from '../../types/navigation';
 import RoutePdf from './RoutePdf';
@@ -9,15 +10,6 @@ type UseRoutePdfResult = {
   downloadPdf: (route: NavigationRoute) => Promise<void>;
 };
 
-/**
- * Konvertuje sliku s URL-a u base64 data URL koristeći Canvas API.
- *
- * Zašto base64 umjesto direktnog URL-a?
- * @react-pdf/renderer fetchuje slike u Node-like okruženju u kojem CORS
- * headeri mogu blokirati cross-origin slike. Kada sami fetchujemo sliku
- * u browseru (isti origin ili uz CORS credencijale) i pretvorimo je u
- * base64, PDF renderer dobija podatke direktno bez ijednog mrežnog zahtjeva.
- */
 async function imageUrlToBase64(url: string): Promise<string> {
   try {
     const response = await fetch(url, { credentials: 'same-origin' });
@@ -36,23 +28,21 @@ async function imageUrlToBase64(url: string): Promise<string> {
 
 export function useRoutePdf(): UseRoutePdfResult {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { language } = useI18n();
 
   const downloadPdf = async (route: NavigationRoute) => {
     setIsGenerating(true);
     try {
-      // Resolviraj i konvertuj slike tlocrta za svaki segment u base64
       const mapImageUrls = await Promise.all(
         route.segments.map(async (segment) => {
           if (!segment.mapImageUrl) return '';
           const absoluteUrl = resolveAssetUrl(segment.mapImageUrl);
           if (!absoluteUrl) return '';
           return imageUrlToBase64(absoluteUrl);
-        }),
+        })
       );
 
-      const blob = await pdf(
-        <RoutePdf route={route} mapImageUrls={mapImageUrls} />,
-      ).toBlob();
+      const blob = await pdf(<RoutePdf route={route} mapImageUrls={mapImageUrls} language={language} />).toBlob();
 
       const url = URL.createObjectURL(blob);
 
@@ -67,7 +57,7 @@ export function useRoutePdf(): UseRoutePdfResult {
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = `feri-pot-${fromSlug}-${toSlug}.pdf`;
+      link.download = `${language === 'en' ? 'feri-route' : 'feri-pot'}-${fromSlug}-${toSlug}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

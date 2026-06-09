@@ -74,14 +74,14 @@ function SpaceDetailsView({
         </button>
 
         {mapLocation ? (
-          <section className={styles.locationSection} aria-label="Lokacija prostora">
-            <h2 className={styles.locationTitle}>Lokacija prostora</h2>
+          <section className={styles.locationSection} aria-label={t('details.locationTitle')}>
+            <h2 className={styles.locationTitle}>{t('details.locationTitle')}</h2>
             <div className={styles.locationCard}>
               <SpaceMapPreview
                 mapImageUrl={mapLocation.mapImageUrl}
                 markerX={mapLocation.markerX}
                 markerY={mapLocation.markerY}
-                alt={`Lokacija prostora ${displayName} na načrtu objekta`}
+                alt={t('details.mapAlt', { name: displayName })}
               />
             </div>
           </section>

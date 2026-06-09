@@ -1,5 +1,5 @@
 import type { CatalogSpace } from '../types/catalog';
-import { getBuildingPlanImageUrl } from './buildingPlanImages';
+import { getBuildingKey, getBuildingPlanImageUrl } from './buildingPlanImages';
 
 export type SpaceMapLocation = {
   mapImageUrl: string;
@@ -8,26 +8,29 @@ export type SpaceMapLocation = {
 };
 
 const FLOOR_PLAN_BY_BUILDING: Record<string, Record<string, string>> = {
-  'Objekt G': {
+  G: {
     pritlicje: '/maps/objekt_g_p.png',
+    'ground floor': '/maps/objekt_g_p.png',
     '4. nadstropje': '/maps/objekt_g_4_n.png',
-    '4.': '/maps/objekt_g_4_n.png',
+    '4th floor': '/maps/objekt_g_4_n.png',
   },
-  'Objekt G2': {
+  G2: {
     '1. nadstropje': '/maps/objekt_g_2_n.png',
+    '1st floor': '/maps/objekt_g_2_n.png',
   },
-  'Objekt G3': {
+  G3: {
     pritlicje: '/maps/g3_pritlicje.png',
+    'ground floor': '/maps/g3_pritlicje.png',
   },
 };
 
 const DEFAULT_MARKER_BY_BUILDING: Record<string, { markerX: number; markerY: number }> = {
-  'Objekt C': { markerX: 38, markerY: 52 },
-  'Objekt E': { markerX: 55, markerY: 44 },
-  'Objekt F': { markerX: 48, markerY: 60 },
-  'Objekt G': { markerX: 40, markerY: 50 },
-  'Objekt G2': { markerX: 46, markerY: 54 },
-  'Objekt G3': { markerX: 52, markerY: 48 },
+  C: { markerX: 38, markerY: 52 },
+  E: { markerX: 55, markerY: 44 },
+  F: { markerX: 48, markerY: 60 },
+  G: { markerX: 40, markerY: 50 },
+  G2: { markerX: 46, markerY: 54 },
+  G3: { markerX: 52, markerY: 48 },
 };
 
 /** Demo marker overrides by space id (frontend-only). */
@@ -43,7 +46,7 @@ const DEMO_SPACE_MARKERS: Partial<Record<number, SpaceMapLocation>> = {
 };
 
 function resolveFloorPlanUrl(buildingName: string, floor: string): string | null {
-  const floorPlans = FLOOR_PLAN_BY_BUILDING[buildingName];
+  const floorPlans = FLOOR_PLAN_BY_BUILDING[getBuildingKey(buildingName)];
   if (!floorPlans) {
     return null;
   }
@@ -75,7 +78,7 @@ export function getSpaceMapLocation(space: CatalogSpace): SpaceMapLocation | nul
     return null;
   }
 
-  const buildingDefault = DEFAULT_MARKER_BY_BUILDING[space.buildingName];
+  const buildingDefault = DEFAULT_MARKER_BY_BUILDING[getBuildingKey(space.buildingName)];
   const markerX = clampPercent(
     space.markerX ?? demo?.markerX ?? buildingDefault?.markerX ?? 50
   );

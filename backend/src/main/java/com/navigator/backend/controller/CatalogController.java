@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -19,12 +20,15 @@ public class CatalogController {
   private final CatalogService catalogService;
 
   @GetMapping("/buildings")
-  public ResponseEntity<List<BuildingCatalogDto>> getBuildings() {
-    return ResponseEntity.ok(catalogService.listBuildings());
+  public ResponseEntity<List<BuildingCatalogDto>> getBuildings(
+      @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage) {
+    return ResponseEntity.ok(catalogService.listBuildings(acceptLanguage));
   }
 
   @GetMapping("/buildings/{buildingId}/spaces")
-  public ResponseEntity<List<CatalogSpaceDto>> getBuildingSpaces(@PathVariable Long buildingId) {
-    return ResponseEntity.ok(catalogService.listBuildingSpaces(buildingId));
+  public ResponseEntity<List<CatalogSpaceDto>> getBuildingSpaces(
+      @PathVariable Long buildingId,
+      @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage) {
+    return ResponseEntity.ok(catalogService.listBuildingSpaces(buildingId, acceptLanguage));
   }
 }

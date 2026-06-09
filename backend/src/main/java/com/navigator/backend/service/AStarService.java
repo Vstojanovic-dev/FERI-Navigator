@@ -33,19 +33,24 @@ public class AStarService {
   private record QueueEntry(Long nodeId, double score) {}
 
   public PathResponseDto findPath(String fromLabel, String toLabel) {
+    return findPath(fromLabel, toLabel, null);
+  }
+
+  public PathResponseDto findPath(String fromLabel, String toLabel, String acceptLanguage) {
+    NavigationLanguage language = NavigationLanguage.fromHeader(acceptLanguage);
     Optional<NavNode> startOpt = findNode(fromLabel);
     Optional<NavNode> goalOpt = findNode(toLabel);
 
     if (startOpt.isEmpty()) {
       return PathResponseDto.builder()
-          .message("Startni cvor nije pronadjen: " + fromLabel)
+          .message(NavigationTexts.startNodeNotFound(fromLabel, language))
           .path(Collections.emptyList())
           .build();
     }
 
     if (goalOpt.isEmpty()) {
       return PathResponseDto.builder()
-          .message("Ciljni cvor nije pronadjen: " + toLabel)
+          .message(NavigationTexts.targetNodeNotFound(toLabel, language))
           .path(Collections.emptyList())
           .build();
     }
@@ -53,7 +58,7 @@ public class AStarService {
     RouteSearchResult route = findPath(startOpt.get(), goalOpt.get(), true);
     if (route.getNodes().isEmpty()) {
       return PathResponseDto.builder()
-          .message("Put nije pronadjen izmedju '" + fromLabel + "' i '" + toLabel + "'.")
+          .message(NavigationTexts.noLegacyPath(fromLabel, toLabel, language))
           .path(Collections.emptyList())
           .build();
     }

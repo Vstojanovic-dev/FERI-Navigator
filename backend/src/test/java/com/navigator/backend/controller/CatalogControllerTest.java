@@ -27,7 +27,7 @@ class CatalogControllerTest {
 
   @Test
   void getBuildingsReturnsCatalogPayload() throws Exception {
-    when(catalogService.listBuildings())
+    when(catalogService.listBuildings(null))
         .thenReturn(List.of(new BuildingCatalogDto(7L, "Objekt G2", "Opis", "/img/g2.png", 12L)));
 
     mockMvc
@@ -37,14 +37,29 @@ class CatalogControllerTest {
         .andExpect(jsonPath("$[0].name").value("Objekt G2"))
         .andExpect(jsonPath("$[0].spaceCount").value(12));
 
-    verify(catalogService).listBuildings();
+    verify(catalogService).listBuildings(null);
+  }
+
+  @Test
+  void getBuildingsForwardsAcceptLanguageHeaderToService() throws Exception {
+    when(catalogService.listBuildings("en-US"))
+        .thenReturn(List.of(new BuildingCatalogDto(7L, "Building G2", "Opis", "/img/g2.png", 12L)));
+
+    mockMvc
+        .perform(get("/api/catalog/buildings").header("Accept-Language", "en-US"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].name").value("Building G2"));
+
+    verify(catalogService).listBuildings("en-US");
   }
 
   @Test
   void getBuildingSpacesReturnsSpaceCardsForRequestedBuilding() throws Exception {
-    when(catalogService.listBuildingSpaces(3L))
+    when(catalogService.listBuildingSpaces(3L, null))
         .thenReturn(
-            List.of(new CatalogSpaceDto(9L, "Alfa", "Učilnica", 3L, "Objekt G2", "1. nadstropje", "Opis", null)));
+            List.of(
+                new CatalogSpaceDto(
+                    9L, "Alfa", "Ucilnica", 3L, "Objekt G2", "1. nadstropje", "Opis", null)));
 
     mockMvc
         .perform(get("/api/catalog/buildings/3/spaces"))
@@ -53,6 +68,23 @@ class CatalogControllerTest {
         .andExpect(jsonPath("$[0].name").value("Alfa"))
         .andExpect(jsonPath("$[0].floor").value("1. nadstropje"));
 
-    verify(catalogService).listBuildingSpaces(3L);
+    verify(catalogService).listBuildingSpaces(3L, null);
+  }
+
+  @Test
+  void getBuildingSpacesForwardsAcceptLanguageHeaderToService() throws Exception {
+    when(catalogService.listBuildingSpaces(3L, "en-US"))
+        .thenReturn(
+            List.of(
+                new CatalogSpaceDto(
+                    9L, "Alfa", "Classroom", 3L, "Building G2", "1st Floor", "Opis", null)));
+
+    mockMvc
+        .perform(get("/api/catalog/buildings/3/spaces").header("Accept-Language", "en-US"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].type").value("Classroom"))
+        .andExpect(jsonPath("$[0].buildingName").value("Building G2"));
+
+    verify(catalogService).listBuildingSpaces(3L, "en-US");
   }
 }

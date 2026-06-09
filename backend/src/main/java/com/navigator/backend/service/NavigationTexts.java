@@ -57,6 +57,24 @@ final class NavigationTexts {
         : "Lokacija ni najdena: " + locationId;
   }
 
+  static String startNodeNotFound(String value, NavigationLanguage language) {
+    return language == NavigationLanguage.EN
+        ? "Start node was not found: " + value
+        : "Začetno vozlišče ni bilo najdeno: " + value;
+  }
+
+  static String targetNodeNotFound(String value, NavigationLanguage language) {
+    return language == NavigationLanguage.EN
+        ? "Target node was not found: " + value
+        : "Ciljno vozlišče ni bilo najdeno: " + value;
+  }
+
+  static String noLegacyPath(String fromLabel, String toLabel, NavigationLanguage language) {
+    return language == NavigationLanguage.EN
+        ? "No path was found between '" + fromLabel + "' and '" + toLabel + "'."
+        : "Pot med '" + fromLabel + "' in '" + toLabel + "' ni bila najdena.";
+  }
+
   static String sameLocation(NavigationLanguage language) {
     return language == NavigationLanguage.EN
         ? "The start and target are the same location."

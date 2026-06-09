@@ -60,16 +60,19 @@ public class NavigationController {
 
   @GetMapping("/path")
   public ResponseEntity<PathResponseDto> getPath(
-      @RequestParam String from, @RequestParam String to) {
+      @RequestParam String from,
+      @RequestParam String to,
+      @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage) {
+    boolean english = acceptLanguage != null && acceptLanguage.trim().toLowerCase().startsWith("en");
     if (from == null || from.isBlank()) {
       return ResponseEntity.badRequest()
-          .body(PathResponseDto.builder().message("Parameter 'from' je obvezen.").build());
+          .body(PathResponseDto.builder().message(missingLocationMessage("from", english)).build());
     }
     if (to == null || to.isBlank()) {
       return ResponseEntity.badRequest()
-          .body(PathResponseDto.builder().message("Parameter 'to' je obvezen.").build());
+          .body(PathResponseDto.builder().message(missingLocationMessage("to", english)).build());
     }
-    PathResponseDto result = aStarService.findPath(from.trim(), to.trim());
+    PathResponseDto result = aStarService.findPath(from.trim(), to.trim(), acceptLanguage);
     if (result.getPath() == null || result.getPath().isEmpty()) {
       return ResponseEntity.status(404).body(result);
     }
@@ -100,5 +103,11 @@ public class NavigationController {
       @RequestHeader(value = "Accept-Language", required = false) String acceptLanguage) {
     NavigationLocationDto location = navigationShareService.getLocation(id, acceptLanguage);
     return ResponseEntity.ok(location);
+  }
+
+  private String missingLocationMessage(String fieldName, boolean english) {
+    return english
+        ? "Parameter '" + fieldName + "' is required."
+        : "Parameter '" + fieldName + "' je obvezen.";
   }
 }

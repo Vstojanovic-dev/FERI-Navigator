@@ -43,6 +43,18 @@ class CatalogServiceTest {
   }
 
   @Test
+  void listBuildingsLocalizesBuildingNamesForEnglish() {
+    CatalogService service = new CatalogService(buildingRepository, locationRepository);
+
+    when(buildingRepository.findCatalogSummaries())
+        .thenReturn(List.of(new BuildingCatalogDto(7L, "Objekt G2", "Opis", "/img/g2.png", 12L)));
+
+    List<BuildingCatalogDto> result = service.listBuildings("en-US");
+
+    assertEquals("Building G2", result.getFirst().name());
+  }
+
+  @Test
   void listBuildingSpacesMapsLocationAndSpaceFieldsForFrontendCards() {
     CatalogService service = new CatalogService(buildingRepository, locationRepository);
     NavigationLocation location = buildLocation();
@@ -61,6 +73,22 @@ class CatalogServiceTest {
     assertEquals("Opis prostora", space.description());
     assertNull(space.imageUrl());
     verify(locationRepository).findEnabledCatalogSpacesByBuildingId(2L);
+  }
+
+  @Test
+  void listBuildingSpacesLocalizesCatalogFieldsForEnglish() {
+    CatalogService service = new CatalogService(buildingRepository, locationRepository);
+    NavigationLocation location = buildLocation();
+
+    when(locationRepository.findEnabledCatalogSpacesByBuildingId(2L)).thenReturn(List.of(location));
+
+    List<CatalogSpaceDto> result = service.listBuildingSpaces(2L, "en-US");
+
+    CatalogSpaceDto space = result.getFirst();
+    assertEquals("Alfa", space.name());
+    assertEquals("Classroom", space.type());
+    assertEquals("Building G2", space.buildingName());
+    assertEquals("1st Floor", space.floor());
   }
 
   private NavigationLocation buildLocation() {

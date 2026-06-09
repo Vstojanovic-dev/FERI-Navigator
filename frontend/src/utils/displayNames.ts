@@ -46,6 +46,24 @@ export function formatSpaceCount(count: number, language: AppLanguage): string {
   return `${count} prostorov`;
 }
 
+function toOrdinal(value: number): string {
+  const mod100 = value % 100;
+  if (mod100 >= 11 && mod100 <= 13) {
+    return `${value}th`;
+  }
+
+  switch (value % 10) {
+    case 1:
+      return `${value}st`;
+    case 2:
+      return `${value}nd`;
+    case 3:
+      return `${value}rd`;
+    default:
+      return `${value}th`;
+  }
+}
+
 export function localizeFloorLabel(
   floorLabel: string | null | undefined,
   language: AppLanguage
@@ -59,8 +77,8 @@ export function localizeFloorLabel(
     return normalized;
   }
 
-  if (/^pritličje$/i.test(normalized)) {
-    return 'Ground floor';
+  if (/^pritli[\u010d\u0107]?je$/i.test(normalized)) {
+    return 'Ground Floor';
   }
 
   if (/^klet$/i.test(normalized)) {
@@ -69,7 +87,7 @@ export function localizeFloorLabel(
 
   const levelMatch = normalized.match(/^(\d+)\.\s*nadstropje$/i);
   if (levelMatch) {
-    return `Floor ${levelMatch[1]}`;
+    return `${toOrdinal(Number(levelMatch[1]))} Floor`;
   }
 
   return normalized;

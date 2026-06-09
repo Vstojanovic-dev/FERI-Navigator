@@ -9,7 +9,7 @@ import { useI18n } from '../i18n/useI18n';
 import { resolveAssetUrl } from '../services/api';
 import { fetchBuildings, fetchBuildingSpaces, searchSpaces } from '../services/catalogService';
 import type { BuildingSummary, CatalogSpace } from '../types/catalog';
-import { getBuildingPlanImageUrl } from '../utils/buildingPlanImages';
+import { getBuildingKey, getBuildingPlanImageUrl } from '../utils/buildingPlanImages';
 import { formatSpaceCount, getSpaceDisplayName, localizeFloorLabel } from '../utils/displayNames';
 import {
   buildingToSearchable,
@@ -27,7 +27,7 @@ type BuildingsPageState = {
 };
 
 const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
-  'Objekt C': [
+  C: [
     {
       id: 9001,
       name: 'C-101',
@@ -51,7 +51,7 @@ const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
       code: 'C-102',
     },
   ],
-  'Objekt E': [
+  E: [
     {
       id: 9101,
       name: 'E-201',
@@ -64,7 +64,7 @@ const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
       code: 'E-201',
     },
   ],
-  'Objekt F': [
+  F: [
     {
       id: 9201,
       name: 'F-001',
@@ -77,7 +77,7 @@ const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
       code: 'F-001',
     },
   ],
-  'Objekt G': [
+  G: [
     {
       id: 9301,
       name: 'G-001',
@@ -101,7 +101,7 @@ const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
       code: 'G-GAL',
     },
   ],
-  'Objekt G2': [
+  G2: [
     {
       id: 9401,
       name: 'G2-101',
@@ -114,7 +114,7 @@ const DEMO_SPACES_BY_BUILDING: Record<string, CatalogSpace[]> = {
       code: 'G2-101',
     },
   ],
-  'Objekt G3': [
+  G3: [
     {
       id: 9501,
       name: 'G3-301',
@@ -224,7 +224,7 @@ function BuildingsPage() {
       if (counts.has(building.id)) {
         continue;
       }
-      const demoSpaces = DEMO_SPACES_BY_BUILDING[building.name];
+      const demoSpaces = DEMO_SPACES_BY_BUILDING[getBuildingKey(building.name)];
       if (demoSpaces) {
         counts.set(building.id, demoSpaces.length);
       }
@@ -293,7 +293,7 @@ function BuildingsPage() {
     const spacesForBuilding =
       buildingSpaces.length > 0
         ? buildingSpaces
-        : DEMO_SPACES_BY_BUILDING[selectedBuilding.name] ?? [];
+        : DEMO_SPACES_BY_BUILDING[getBuildingKey(selectedBuilding.name)] ?? [];
     const filteredBuildingSpaces = getSearchResults(
       spacesForBuilding,
       buildingSpaceSearch,

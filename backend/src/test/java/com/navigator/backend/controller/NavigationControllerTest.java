@@ -85,8 +85,20 @@ class NavigationControllerTest {
   }
 
   @Test
+  void getPathRejectsBlankFromParameterInEnglish() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/navigation/path")
+                .param("from", "   ")
+                .param("to", "alfa")
+                .header("Accept-Language", "en-US"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Parameter 'from' is required."));
+  }
+
+  @Test
   void getPathReturnsNotFoundWhenAStarDoesNotFindAnyNodes() throws Exception {
-    when(aStarService.findPath("referat", "alfa"))
+    when(aStarService.findPath("referat", "alfa", null))
         .thenReturn(
             PathResponseDto.builder()
                 .message("Pot ni bila najdena.")
@@ -98,7 +110,28 @@ class NavigationControllerTest {
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.message").value("Pot ni bila najdena."));
 
-    verify(aStarService).findPath("referat", "alfa");
+    verify(aStarService).findPath("referat", "alfa", null);
+  }
+
+  @Test
+  void getPathForwardsAcceptLanguageToAStarService() throws Exception {
+    when(aStarService.findPath("referat", "alfa", "en-US"))
+        .thenReturn(
+            PathResponseDto.builder()
+                .message("Path was not found.")
+                .path(Collections.emptyList())
+                .build());
+
+    mockMvc
+        .perform(
+            get("/api/navigation/path")
+                .param("from", "referat")
+                .param("to", "alfa")
+                .header("Accept-Language", "en-US"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.message").value("Path was not found."));
+
+    verify(aStarService).findPath("referat", "alfa", "en-US");
   }
 
   @Test

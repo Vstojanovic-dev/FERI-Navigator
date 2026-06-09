@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
+import com.navigator.backend.dto.PathResponseDto;
 import com.navigator.backend.dto.RouteSearchResult;
 import com.navigator.backend.model.Building;
 import com.navigator.backend.model.EdgeType;
@@ -154,6 +155,16 @@ class AStarServiceTest {
         service.findPath(start, goal, false, VerticalTraversalMode.ANY);
 
     assertEquals(List.of(start, corridorA, goal), result.getNodes());
+  }
+
+  @Test
+  void legacyPathMessagesAreLocalizedForEnglish() {
+    AStarService service = new AStarService(nodeRepository, edgeRepository);
+
+    PathResponseDto result = service.findPath("referat", "alfa", "en-US");
+
+    assertEquals("Start node was not found: referat", result.getMessage());
+    assertEquals(List.of(), result.getPath());
   }
 
   private NavNode buildNode(Long id, String externalId, BigDecimal x, BigDecimal y) {
