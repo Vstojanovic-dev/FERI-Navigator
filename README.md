@@ -1,74 +1,88 @@
 # FERI Navigator
 
-## Opis in vizija projekta
+FERI Navigator je namenjen študentom, zaposlenim in obiskovalcem FERI. Omogoča iskanje prostorov in uporabnika po tlorisih ter razumljivih korakih vodi do cilja, tudi med različnimi nadstropji.
 
-FERI Navigator je spletna aplikacija za lažje iskanje učilnic, kabinetov in drugih prostorov na FERI. Projekt združuje pregled prostorov, osnovne informacije o objektih in navigacijo skozi stavbo v eni aplikaciji, ki je prilagojena predvsem hitri uporabi na telefonu.
+Repozitorij vsebuje javno aplikacijo, backend, podatkovni in navigacijski model ter lokalno administratorsko orodje za urejanje navigacijskega grafa.
 
-Vizija projekta je preprosta: obiskovalec ali študent mora čim hitreje najti pravi prostor in dobiti razumljivo pot do cilja, brez dodatnega spraševanja ali iskanja po hodnikih.
+## Ključne zmožnosti
 
-## Kdo so uporabniki in kaj lahko počnejo
+- iskanje objektov in prostorov FERI;
+- navigacija med izbrano začetno in ciljno lokacijo;
+- prikaz poti na tlorisu aktivnega nadstropja;
+- navodila po korakih in prehodi med nadstropji;
+- izbira uporabe dvigala;
+- iskanje najbližjega stranišča;
+- deljenje poti s povezavo ali QR-kodo;
+- izvoz navodil za pot v PDF.
 
-Glavni uporabniki so študenti, obiskovalci in zaposleni na FERI, ki želijo hitro poiskati prostor ali preveriti podrobnosti o določeni učilnici. V aplikaciji lahko iščejo prostore, pregledujejo objekte in odprejo navigacijo do izbranega cilja.
-
-Druga skupina uporabnikov so razvijalci in skrbniki sistema. Ti skrbijo za backend, podatke, zemljevide in administrativni del projekta, ki omogoča urejanje navigacijskih podatkov in vzdrževanje celotnega sistema.
-
-## Slike projekta
-
-Posnetki zaslona uporabniškega vmesnika bodo dodani naknadno.
-
-## Kako zagnati projekt
-
-Priporočeni način zagona je Docker.
+## Hiter začetek
 
 ### Predpogoji
 
-- nameščen Docker Desktop,
-- omogočen `docker compose`.
+Za priporočeni način zagona potrebujete:
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/);
+- podporo za ukaz `docker compose`.
 
 ### Zagon
 
-V korenu repozitorija zaženi:
+V korenu repozitorija zaženite:
 
 ```powershell
-docker compose up --build
+docker compose up -d --build
 ```
 
-Ta ukaz zažene:
+Docker Compose zažene PostgreSQL/PostGIS podatkovno bazo, Spring Boot backend in javni React frontend.
 
-- PostgreSQL bazo z začetnimi podatki,
-- Spring Boot backend API,
-- uporabniški frontend.
+| Storitev | Naslov |
+|---|---|
+| Aplikacija | <http://localhost:5173> |
+| Backend API | <http://localhost:8080> |
+| Zdravje backenda | <http://localhost:8080/actuator/health> |
+| PostgreSQL | `localhost:5432` |
 
-Po uspešnem zagonu so glavne lokalne točke dostopa:
+Stanje storitev:
 
-- frontend: `http://localhost:5173`
-- backend API: `http://localhost:8080`
-- PostgreSQL: `localhost:5432`
+```powershell
+docker compose ps
+```
 
-## Kje nadaljevati z branjem
+Ustavitev:
 
-Za širši pregled projekta in podrobnejšo dokumentacijo nadaljuj tukaj:
+```powershell
+docker compose down
+```
 
-- `docs/README.md` za pregled dokumentacije,
-- `docs/opis.md` za funkcionalni opis aplikacije,
-- `docs/navigation.md` za razlago navigacijskega modela,
-- `docs/backend.md` za backend arhitekturo in API kontekst,
-- `docs/admin_panel.md` za administrativni del projekta.
+## Dokumentacija
 
-## Struktura projekta
+Za celoten pregled začnite v [`docs/README.md`](docs/README.md), nato pa izberite dokument glede na svoje delo:
 
-- `frontend/` vsebuje glavni uporabniški spletni vmesnik.
-- `frontend/admin/` vsebuje administrativni vmesnik za urejanje navigacijskih podatkov.
-- `backend/` vsebuje Spring Boot aplikacijo, API-je in poslovno logiko.
-- `database/` vsebuje SQL inicializacijo baze, podatke in datoteke zemljevidov.
-- `docs/` vsebuje projektno dokumentacijo in delovne zapise.
-- `deploy/` vsebuje datoteke in pripomočke za nameščanje okolij.
-- `docker-compose.yml` je glavni lokalni Docker zagon projekta.
-- `docker-compose.prod.yml` je konfiguracija za produkcijsko okolje.
-- `.env.example` vsebuje primer produkcijskih oziroma strežniških nastavitev.
+- **uporaba aplikacije:** `docs/user-guide.md`;
+- **prvi pregled za razvijalce:** `docs/architecture.md`, nato `docs/repository-structure.md` in `docs/development.md`;
+- **javni ali administratorski frontend:** `docs/frontend.md`;
+- **backend ali API:** `docs/backend-and-api.md`;
+- **podatkovna baza, zemljevidi ali navigacijski graf:** `docs/data-and-navigation.md`;
+- **namestitev in vzdrževanje:** `docs/deployment-and-operations.md`.
 
-## Kontakt razvijalca
+## Struktura repozitorija
 
-Za vprašanja ali povratne informacije: `veljko.stojanovic@student.um.si`
+```text
+FERI-Navigator/
+├── frontend/                 # Javni React uporabniški vmesnik
+│   ├── src/                  # Strani, komponente, funkcije in API odjemalci
+│   ├── public/               # Statične slike, ikone in tlorisi
+│   └── admin/                # Lokalno orodje za urejanje navigacijskega grafa
+├── backend/                  # Spring Boot API, poslovna logika in izračun poti
+│   └── src/                  # Produkcijska koda, konfiguracija, migracije in testi
+├── database/
+│   ├── init/                 # Začetna shema in podatki nove podatkovne baze
+│   └── maps/                 # Izvorni tlorisi za navigacijo
+├── docs/                     # Projektna dokumentacija in zgodovinski načrti
+├── deploy/                   # Pripomočki za preverjanje namestitve
+├── docker-compose.yml        # Lokalno razvojno okolje
+└── docker-compose.prod.yml   # Osnova za produkcijsko okolje
+```
 
-Prijava napak prek Microsoft Forms: placeholder, povezava bo dodana naknadno.
+## Kontakt
+
+Za vprašanja o projektu pišite na `veljko.stojanovic@student.um.si`.
