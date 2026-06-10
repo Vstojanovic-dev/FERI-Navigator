@@ -22,7 +22,7 @@ function SubPageHeader({
 }: SubPageHeaderProps) {
   const handleBack = useBackNavigation(fallbackTo);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { language, setLanguage, t } = useI18n();
+  const { languageButtonLabel, toggleLanguage, t } = useI18n();
   const { themeMode, toggleTheme } = useTheme();
 
   return (
@@ -48,10 +48,10 @@ function SubPageHeader({
         <button
           type="button"
           className={styles.langButton}
-          onClick={() => setLanguage(language === 'sl' ? 'en' : 'sl')}
+          onClick={toggleLanguage}
           aria-label={t('common.language')}
         >
-          {language === 'sl' ? 'EN' : 'SLO'}
+          {languageButtonLabel}
         </button>
         <button
           type="button"

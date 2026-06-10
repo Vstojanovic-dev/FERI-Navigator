@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import EmptyState from '../components/EmptyState';
+import LoadingSpinner from '../components/LoadingSpinner';
 import MainMenuOverlay from '../components/MainMenuOverlay';
 import OverlayModal from '../components/OverlayModal';
 import PageShell from '../components/PageShell';
@@ -41,11 +42,12 @@ function HomePage() {
   const [searchText, setSearchText] = useState('');
   const [typeFilter, setTypeFilter] = useState<SpaceTypeFilterKey>('all');
   const [spaces, setSpaces] = useState<CatalogSpace[]>([]);
+  const [isLoadingSpaces, setIsLoadingSpaces] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [introDone, setIntroDone] = useState(introCompletedOnce);
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
   const prevSearchTextRef = useRef('');
-  const { language, setLanguage, t } = useI18n();
+  const { language, languageButtonLabel, toggleLanguage, t } = useI18n();
   const { themeMode, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -68,6 +70,7 @@ function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+    setIsLoadingSpaces(true);
     searchSpaces(searchText)
       .then((items) => {
         if (!cancelled) {
@@ -77,6 +80,11 @@ function HomePage() {
       .catch(() => {
         if (!cancelled) {
           setSpaces([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSpaces(false);
         }
       });
 
@@ -193,10 +201,10 @@ function HomePage() {
             <button
               type="button"
               className={introDone ? styles.langButton : styles.langButtonHidden}
-              onClick={() => setLanguage(language === 'sl' ? 'en' : 'sl')}
+              onClick={toggleLanguage}
               aria-label={t('common.language')}
             >
-              {language === 'sl' ? 'EN' : 'SLO'}
+              {languageButtonLabel}
             </button>
             <button
               type="button"
@@ -240,7 +248,16 @@ function HomePage() {
           <span className={styles.resultBadge}>{filteredSpaces.length}</span>
         </div>
 
-        {filteredSpaces.length === 0 ? (
+        {isLoadingSpaces ? (
+          <div className={styles.loadingState} data-testid="spaces-loading">
+            <LoadingSpinner label={t('home.loadingSpaces')} compact />
+            <div className={styles.skeletonList} aria-hidden="true">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className={styles.skeletonCard} />
+              ))}
+            </div>
+          </div>
+        ) : filteredSpaces.length === 0 ? (
           <EmptyState title={t('home.noResultsTitle')} text={t('home.noResultsText')} />
         ) : (
           <div className={styles.compactCardsList} data-testid="space-results">

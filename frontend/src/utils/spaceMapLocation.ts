@@ -108,6 +108,30 @@ const DEMO_SPACE_MARKERS_BY_NAME: Record<string, { markerX: number; markerY: num
   henrylab: nodeToMarker(372.4, 411.0),
   becquerellab: nodeToMarker(494.4, 406.0),
   lumenlab: nodeToMarker(638.3, 396.0),
+  seminarskasobaaleksander: nodeToMarker(230.0, 680.0),
+  g21nadstropjeseminarskasoba: nodeToMarker(691.7, 167.0),
+  g22nadstropjeseminarskasoba: nodeToMarker(688.7, 168.7),
+  g23nadstropjeseminarskasoba: nodeToMarker(690.3, 178.1),
+};
+
+/** Frontend-only marker overrides by building|floor|core-name context. */
+const DEMO_SPACE_MARKERS_BY_CONTEXT: Record<string, MarkerEntry> = {
+  'g2|1nadstropje|seminarskasoba': {
+    mapImageUrl: '/maps/2_nadstropje1.png',
+    ...nodeToMarker(691.7, 167.0),
+  },
+  'g2|2nadstropje|seminarskasoba': {
+    mapImageUrl: '/maps/4_nadstropje2.png',
+    ...nodeToMarker(688.7, 168.7),
+  },
+  'g2|3nadstropje|seminarskasoba': {
+    mapImageUrl: '/maps/5_nadstropje3.png',
+    ...nodeToMarker(690.3, 178.1),
+  },
+  'g3|mansarda|seminarskasobaaleksander': {
+    mapImageUrl: '/maps/g3_mansarda.png',
+    ...nodeToMarker(230.0, 680.0),
+  },
 };
 
 /** Frontend-only marker overrides by space id. */
@@ -135,6 +159,102 @@ function normalizeKey(value: string | null | undefined): string {
     .replace(/\s+/g, '');
 }
 
+function normalizeFloorKey(floor: string | null | undefined, floorCode?: string | null): string {
+  const fromCode = normalizeKey(floorCode);
+  if (fromCode) {
+    return fromCode;
+  }
+
+  const normalized = normalizeKey(floor);
+  if (!normalized) {
+    return '';
+  }
+
+  if (normalized.includes('pritlicje') || normalized.includes('groundfloor')) {
+    return 'pritlicje';
+  }
+  if (normalized.includes('klet') || normalized.includes('basement')) {
+    return 'klet';
+  }
+  if (normalized.includes('mansarda') || normalized.includes('attic')) {
+    return 'mansarda';
+  }
+  if (normalized.includes('medetaza')) {
+    return normalized;
+  }
+
+  return normalized;
+}
+
+function normalizeBuildingKey(space: CatalogSpace): string {
+  const fromCode = space.buildingCode?.trim().toUpperCase();
+  if (fromCode) {
+    return fromCode.toLowerCase();
+  }
+  return getBuildingKey(space.buildingName).toLowerCase();
+}
+
+function extractCoreSpaceName(value: string | null | undefined): string {
+  if (!value?.trim()) {
+    return '';
+  }
+
+  let core = value.trim();
+  const dashIndex = core.indexOf(' - ');
+  if (dashIndex >= 0) {
+    core = core.slice(0, dashIndex).trim();
+  }
+
+  core = core.replace(/^[a-z0-9]+[-\s]+/i, '').trim();
+
+  const parenIndex = core.indexOf(' (');
+  if (parenIndex >= 0) {
+    core = core.slice(0, parenIndex).trim();
+  }
+
+  return core;
+}
+
+function collectMatchKeys(space: CatalogSpace): string[] {
+  const keys = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    if (!value?.trim()) {
+      return;
+    }
+
+    keys.add(normalizeKey(value));
+    keys.add(normalizeKey(extractCoreSpaceName(value)));
+  };
+
+  add(String(space.id));
+  add(space.code);
+  add(space.displayName);
+  add(space.name);
+  add(getSpaceDisplayName(space));
+
+  if (space.code) {
+    keys.add(normalizeKey(space.code.replace(/_/g, ' ')));
+  }
+
+  if (space.buildingCode && space.floorCode && space.name) {
+    add(`${space.buildingCode}_${space.floorCode}_${extractCoreSpaceName(space.name)}`);
+  }
+
+  return [...keys].filter(Boolean);
+}
+
+function buildContextKey(space: CatalogSpace): string | null {
+  const building = normalizeBuildingKey(space);
+  const floor = normalizeFloorKey(space.floor, space.floorCode);
+  const coreName = normalizeKey(extractCoreSpaceName(getSpaceDisplayName(space)) || extractCoreSpaceName(space.name));
+
+  if (!building || !floor || !coreName) {
+    return null;
+  }
+
+  return `${building}|${floor}|${coreName}`;
+}
+
 function resolveFloorPlanUrl(buildingName: string, floor: string): string | null {
   const floorPlans = FLOOR_PLAN_BY_BUILDING[getBuildingKey(buildingName)];
   if (!floorPlans) {
@@ -155,6 +275,30 @@ function clampPercent(value: number): number {
   return Math.min(100, Math.max(0, value));
 }
 
+function lookupMarkerByName(keys: string[]): MarkerEntry | null {
+  for (const key of keys) {
+    if (DEMO_SPACE_MARKERS_BY_NAME[key]) {
+      return DEMO_SPACE_MARKERS_BY_NAME[key];
+    }
+  }
+
+  for (const key of keys) {
+    if (key.length < 4) {
+      continue;
+    }
+    for (const [markerKey, marker] of Object.entries(DEMO_SPACE_MARKERS_BY_NAME)) {
+      if (markerKey.length < 4) {
+        continue;
+      }
+      if (key.includes(markerKey) || markerKey.includes(key)) {
+        return marker;
+      }
+    }
+  }
+
+  return null;
+}
+
 function resolveMarkerFromSpace(space: CatalogSpace): MarkerEntry | null {
   if (space.markerX != null && space.markerY != null) {
     return {
@@ -169,32 +313,13 @@ function resolveMarkerFromSpace(space: CatalogSpace): MarkerEntry | null {
     return byId;
   }
 
-  const candidates = [
-    space.code,
-    getSpaceDisplayName(space),
-    space.name,
-    space.displayName,
-  ].filter((v): v is string => Boolean(v?.trim()));
-
-  // 1. Exact normalized match
-  for (const val of candidates) {
-    const norm = normalizeKey(val);
-    if (DEMO_SPACE_MARKERS_BY_NAME[norm]) {
-      return DEMO_SPACE_MARKERS_BY_NAME[norm];
-    }
+  const contextKey = buildContextKey(space);
+  if (contextKey && DEMO_SPACE_MARKERS_BY_CONTEXT[contextKey]) {
+    return DEMO_SPACE_MARKERS_BY_CONTEXT[contextKey];
   }
 
-  // 2. Substring match
-  for (const val of candidates) {
-    const norm = normalizeKey(val);
-    for (const [key, marker] of Object.entries(DEMO_SPACE_MARKERS_BY_NAME)) {
-      if (norm.includes(key) || key.includes(norm)) {
-        return marker;
-      }
-    }
-  }
-
-  return null;
+  const keys = collectMatchKeys(space);
+  return lookupMarkerByName(keys);
 }
 
 export function getSpaceMapLocation(space: CatalogSpace): SpaceMapLocation | null {

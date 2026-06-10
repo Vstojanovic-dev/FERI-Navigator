@@ -5,6 +5,8 @@ import type { Translator } from './translate';
 export type I18nContextValue = {
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
+  toggleLanguage: () => void;
+  languageButtonLabel: string;
   t: Translator;
 };
 

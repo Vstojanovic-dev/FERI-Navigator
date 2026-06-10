@@ -44,6 +44,15 @@ export async function searchSpaces(query: string, limit = 200): Promise<CatalogS
   return locations.map(mapLocationToCatalogSpace);
 }
 
+function buildSyntheticSpaceCode(location: NavigationLocation): string | null {
+  if (!location.spaceName?.trim() || !location.buildingCode || !location.floorCode) {
+    return null;
+  }
+
+  const slug = location.spaceName.trim().toLowerCase().replace(/\s+/g, '_');
+  return `${location.buildingCode}_${location.floorCode}_${slug}`;
+}
+
 function mapLocationToCatalogSpace(location: NavigationLocation): CatalogSpace {
   const name = location.spaceName ?? location.displayName;
   return {
@@ -53,8 +62,11 @@ function mapLocationToCatalogSpace(location: NavigationLocation): CatalogSpace {
     type: location.spaceTypeName ?? location.locationType,
     buildingId: location.buildingId,
     buildingName: location.buildingName,
+    buildingCode: location.buildingCode,
     floor: location.floorLabel,
+    floorCode: location.floorCode,
     description: location.description,
     imageUrl: location.imageUrl,
+    code: buildSyntheticSpaceCode(location),
   };
 }

@@ -17,6 +17,8 @@ export type CatalogSpace = {
   description: string | null;
   imageUrl: string | null;
   code?: string | null;
+  buildingCode?: string | null;
+  floorCode?: string | null;
   purpose?: string | null;
   capacity?: number | null;
   notes?: string | null;
