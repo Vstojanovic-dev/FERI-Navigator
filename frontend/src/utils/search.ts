@@ -1,6 +1,6 @@
 import type { BuildingSummary, CatalogSpace } from '../types/catalog';
 import type { NavigationLocation } from '../types/navigation';
-import { getLocationDisplayName, getSpaceDisplayName } from './displayNames';
+import { capitalizeFirstLetter, getLocationDisplayName, getSpaceDisplayName } from './displayNames';
 
 export type SearchableFields = {
   displayName?: string;
@@ -35,16 +35,15 @@ export function normalizeText(value: string): string {
 }
 
 export function getSearchLabel(fields: SearchableFields): string {
+  let label = '';
   if (fields.displayName?.trim()) {
-    return fields.displayName.trim();
+    label = fields.displayName.trim();
+  } else if (fields.name?.trim()) {
+    label = fields.name.trim();
+  } else if (fields.fullName?.trim()) {
+    label = fields.fullName.trim();
   }
-  if (fields.name?.trim()) {
-    return fields.name.trim();
-  }
-  if (fields.fullName?.trim()) {
-    return fields.fullName.trim();
-  }
-  return '';
+  return capitalizeFirstLetter(label);
 }
 
 function rankAgainstQuery(

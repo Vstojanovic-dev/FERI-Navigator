@@ -75,21 +75,23 @@ function SpaceDetailsView({
 
         <section className={styles.locationSection} aria-label={t('details.locationTitle')}>
           <h2 className={styles.locationTitle}>{t('details.locationTitle')}</h2>
-          {mapLocation ? (
-            <div className={styles.locationCard}>
-              <SpaceMapPreview
-                mapImageUrl={mapLocation.mapImageUrl}
-                markerX={mapLocation.markerX}
-                markerY={mapLocation.markerY}
-                alt={t('details.mapAlt', { name: displayName })}
-              />
-              {!hasSpaceMapMarker(mapLocation) ? (
-                <p className={styles.locationHint}>{t('details.markerMissing')}</p>
-              ) : null}
-            </div>
-          ) : (
-            <p className={styles.locationMissing}>{t('details.mapMissing')}</p>
-          )}
+          <div className={styles.locationCard}>
+            {mapLocation ? (
+              <>
+                <SpaceMapPreview
+                  mapImageUrl={mapLocation.mapImageUrl}
+                  markerX={mapLocation.markerX}
+                  markerY={mapLocation.markerY}
+                  alt={t('details.mapAlt', { name: displayName })}
+                />
+                {!hasSpaceMapMarker(mapLocation) ? (
+                  <p className={styles.locationHint}>{t('details.markerMissing')}</p>
+                ) : null}
+              </>
+            ) : (
+              <p className={styles.locationMissing}>{t('details.mapMissing')}</p>
+            )}
+          </div>
         </section>
       </section>
     </PageShell>

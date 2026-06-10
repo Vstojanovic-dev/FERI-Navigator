@@ -79,14 +79,35 @@ function nodeToMarker(x: number, y: number): { markerX: number; markerY: number 
 
 /** Frontend-only marker overrides by normalized space name. */
 const DEMO_SPACE_MARKERS_BY_NAME: Record<string, { markerX: number; markerY: number }> = {
-  alfa: nodeToMarker(141.9, 294),
-  beta: nodeToMarker(139.9, 366),
-  'beta lab': { markerX: 36, markerY: 54 },
-  galerija: nodeToMarker(786.7, 163.4),
-  'weber lab': nodeToMarker(498.8, 402.9),
-  'farad lab': nodeToMarker(370.9, 412.9),
-  'tesla lab': nodeToMarker(649.8, 396.9),
-  referat: nodeToMarker(813.7, 142),
+  alfa: nodeToMarker(141.9, 294.0),
+  g2p1alfa: nodeToMarker(141.9, 294.0),
+  beta: nodeToMarker(139.9, 366.0),
+  g2p2beta: nodeToMarker(139.9, 366.0),
+  betalab: { markerX: 36, markerY: 54 },
+  galerija: nodeToMarker(786.7, 162.4),
+  weberlab: nodeToMarker(498.8, 402.9),
+  faradlab: nodeToMarker(370.9, 412.9),
+  teslalab: nodeToMarker(649.8, 396.9),
+  referat: nodeToMarker(813.7, 142.0),
+  g2p01: nodeToMarker(657.8, 244.0),
+  g2p02: nodeToMarker(486.8, 246.0),
+  g2p03: nodeToMarker(338.9, 246.0),
+  g2p04: nodeToMarker(647.8, 397.9),
+  g2p05: nodeToMarker(498.8, 407.9),
+  g2p06: nodeToMarker(368.9, 414.9),
+  amperlab: nodeToMarker(375.9, 410.9),
+  pascallab: nodeToMarker(500.8, 403.9),
+  newtonlab: nodeToMarker(648.8, 398.9),
+  g2p4delta: nodeToMarker(145.9, 359.7),
+  g2p3gama: nodeToMarker(146.9, 297.7),
+  tajnistvodekana: nodeToMarker(809.2, 338.0),
+  tajnistvofakultete: nodeToMarker(810.2, 392.0),
+  dekan: nodeToMarker(807.2, 256.0),
+  senatnasoba: nodeToMarker(813.2, 167.1),
+  kavarna: nodeToMarker(264.4, 330.1),
+  henrylab: nodeToMarker(372.4, 411.0),
+  becquerellab: nodeToMarker(494.4, 406.0),
+  lumenlab: nodeToMarker(638.3, 396.0),
 };
 
 /** Frontend-only marker overrides by space id. */
@@ -101,8 +122,17 @@ const DEMO_SPACE_MARKERS: Partial<Record<number, MarkerEntry>> = {
   9501: { mapImageUrl: '/maps/g3_pritlicje.png', markerX: 58, markerY: 46 },
 };
 
-function normalizeSpaceKey(value: string): string {
-  return value.trim().toLowerCase();
+function normalizeKey(value: string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, '');
 }
 
 function resolveFloorPlanUrl(buildingName: string, floor: string): string | null {
@@ -139,14 +169,32 @@ function resolveMarkerFromSpace(space: CatalogSpace): MarkerEntry | null {
     return byId;
   }
 
-  const displayName = normalizeSpaceKey(getSpaceDisplayName(space));
-  const byName = DEMO_SPACE_MARKERS_BY_NAME[displayName];
-  if (byName) {
-    return byName;
+  const candidates = [
+    space.code,
+    getSpaceDisplayName(space),
+    space.name,
+    space.displayName,
+  ].filter((v): v is string => Boolean(v?.trim()));
+
+  // 1. Exact normalized match
+  for (const val of candidates) {
+    const norm = normalizeKey(val);
+    if (DEMO_SPACE_MARKERS_BY_NAME[norm]) {
+      return DEMO_SPACE_MARKERS_BY_NAME[norm];
+    }
   }
 
-  const nameKey = normalizeSpaceKey(space.name.split(' - ')[0] ?? space.name);
-  return DEMO_SPACE_MARKERS_BY_NAME[nameKey] ?? null;
+  // 2. Substring match
+  for (const val of candidates) {
+    const norm = normalizeKey(val);
+    for (const [key, marker] of Object.entries(DEMO_SPACE_MARKERS_BY_NAME)) {
+      if (norm.includes(key) || key.includes(norm)) {
+        return marker;
+      }
+    }
+  }
+
+  return null;
 }
 
 export function getSpaceMapLocation(space: CatalogSpace): SpaceMapLocation | null {

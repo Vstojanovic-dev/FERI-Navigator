@@ -460,6 +460,10 @@
     box-shadow 150ms ease;
 }
 
+.scrollTopButton:hover {
+  background: var(--color-surface-tint);
+}
+
 .scrollTopButton:active {
   transform: scale(0.96);
 }

@@ -317,8 +317,8 @@ function BuildingsPage() {
     ).map((result) => result.item);
 
     const getSpacesPerPage = (height: number) => {
-      if (height < 700) return 4;
-      if (height < 850) return 6;
+      if (height < 650) return 4;
+      if (height >= 650 && height < 800) return 6;
       return 8;
     };
     const spacesPerPage = getSpacesPerPage(screenHeight);
@@ -329,25 +329,23 @@ function BuildingsPage() {
 
     return (
       <PageShell>
-        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems compact />
-        <section className={styles.buildingDetailContent}>
-          <div className={styles.planSectionCompact}>
-            <h2 className={styles.sectionTitleCompact}>{t('buildings.planTitle')}</h2>
-            <div className={styles.placeholderBoxCompact}>
-              {planImageUrl ? (
-                <img
-                  src={planImageUrl}
-                  alt={t('buildings.planAlt', { name: selectedBuilding.name })}
-                  className={styles.planImageCompact}
-                />
-              ) : (
-                <span>{t('buildings.noPlan')}</span>
-              )}
-            </div>
+        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems />
+        <section className={styles.content}>
+          <h2 className={styles.sectionTitle}>{t('buildings.planTitle')}</h2>
+          <div className={planImageUrl ? styles.planContainer : styles.placeholderBox}>
+            {planImageUrl ? (
+              <img
+                src={planImageUrl}
+                alt={t('buildings.planAlt', { name: selectedBuilding.name })}
+                className={styles.planImage}
+              />
+            ) : (
+              <span>{t('buildings.noPlan')}</span>
+            )}
           </div>
 
           <div className={styles.spacesSection}>
-            <h2 className={styles.sectionTitleCompact}>{t('buildings.spacesTitle')}</h2>
+            <h2 className={styles.sectionTitle}>{t('buildings.spacesTitle')}</h2>
 
             {spacesForBuilding.length > 0 ? (
               <SearchField
@@ -364,11 +362,11 @@ function BuildingsPage() {
               <EmptyState title={t('buildings.noResultsTitle')} text={t('buildings.noResultsText')} />
             ) : (
               <>
-                <div className={styles.spaceCardsListCompact}>
+                <div className={styles.spaceCardsList}>
                   {paginatedSpaces.map((space) => (
                     <article
                       key={space.id}
-                      className={styles.spaceCardCompact}
+                      className={styles.spaceCard}
                       onClick={() =>
                         navigate('/objekti', {
                           state: {
@@ -397,7 +395,7 @@ function BuildingsPage() {
                 </div>
 
                 {totalPages > 1 ? (
-                  <div className={styles.paginationCompact}>
+                  <div className={styles.pagination}>
                     <button
                       type="button"
                       className={styles.paginationButton}

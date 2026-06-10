@@ -139,8 +139,14 @@ function NavigationView({
     setRoute(nextRoute);
     setActiveSegmentIndex(0);
     setActiveStepIndex(0);
-    setIsRouteVisible(false);
     setTransitionNonce((value) => value + 1);
+
+    if (!isFormExpanded) {
+      setIsRouteVisible(true);
+      return;
+    }
+
+    setIsRouteVisible(false);
     setIsFormCollapsing(true);
     window.setTimeout(() => {
       setIsFormExpanded(false);
@@ -197,6 +203,12 @@ function NavigationView({
     prevToQueryRef.current = '';
     userEditedTargetRef.current = false;
   }, [initialTarget, sharedAllowElevator]);
+
+  useEffect(() => {
+    if (route && !isFormExpanded && fromLocation && toTarget) {
+      void handleRoute();
+    }
+  }, [allowElevator]);
 
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
   const activeSegment = routeSegments[activeSegmentIndex] ?? routeSegments[0] ?? null;
@@ -546,6 +558,21 @@ function NavigationView({
                 </>
               )}
             </button>
+
+            <label className={styles.elevatorCheckboxCompact} htmlFor="allow-elevator-compact">
+              <input
+                id="allow-elevator-compact"
+                type="checkbox"
+                checked={allowElevator}
+                onChange={(event) => {
+                  setAllowElevator(event.target.checked);
+                  setShareUrl(null);
+                  setShareError('');
+                }}
+                className={styles.elevatorCheckboxInput}
+              />
+              <span>{t('navigation.allowElevator')}</span>
+            </label>
           </div>
           <div className={styles.routeMain}>
             <div className={styles.mapWrap} key={`map-${activeSegmentIndex}-${transitionNonce}`}>
