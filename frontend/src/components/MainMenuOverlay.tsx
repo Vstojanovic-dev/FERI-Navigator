@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { SUPPORTED_LANGUAGES } from '../i18n/language';
 import { useI18n } from '../i18n/useI18n';
 import styles from './MainMenuOverlay.module.css';
 
@@ -13,7 +12,7 @@ type MainMenuOverlayProps = {
 function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOverlayProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { language, setLanguage, t } = useI18n();
+  const { t } = useI18n();
   const [isVisible, setIsVisible] = useState(isOpen);
   const [isClosing, setIsClosing] = useState(false);
 
@@ -76,17 +75,6 @@ function MainMenuOverlay({ isOpen, onClose, showAllItems = false }: MainMenuOver
             }}
           >
             {item.label}
-          </button>
-        ))}
-        {SUPPORTED_LANGUAGES.map((option) => (
-          <button
-            key={option}
-            type="button"
-            className={styles.menuItem}
-            aria-pressed={language === option}
-            onClick={() => setLanguage(option)}
-          >
-            {t(option === 'sl' ? 'language.sl' : 'language.en')}
           </button>
         ))}
       </nav>

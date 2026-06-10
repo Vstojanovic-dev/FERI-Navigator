@@ -339,3 +339,53 @@
   border-radius: 16px;
   object-fit: contain;
 }
+
+.headerRightGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 6;
+}
+
+.langButton,
+.langButtonHidden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition:
+    opacity 1000ms ease,
+    transform 1000ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.langButton {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.langButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.langButton:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.langButtonHidden {
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+}
+

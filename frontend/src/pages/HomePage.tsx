@@ -43,7 +43,7 @@ function HomePage() {
   const [introDone, setIntroDone] = useState(introCompletedOnce);
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
   const prevSearchTextRef = useRef('');
-  const { language, t } = useI18n();
+  const { language, setLanguage, t } = useI18n();
 
   useEffect(() => {
     if (introCompletedOnce) {
@@ -162,14 +162,24 @@ function HomePage() {
             </h1>
           </div>
 
-          <button
-            type="button"
-            className={introDone ? styles.roundButton : styles.roundButtonHidden}
-            onClick={() => setIsMapPopupOpen(true)}
-            aria-label={t('home.openMap')}
-          >
-            🗺️
-          </button>
+          <div className={styles.headerRightGroup}>
+            <button
+              type="button"
+              className={introDone ? styles.langButton : styles.langButtonHidden}
+              onClick={() => setLanguage(language === 'sl' ? 'en' : 'sl')}
+              aria-label={t('common.language')}
+            >
+              {language === 'sl' ? 'EN' : 'SLO'}
+            </button>
+            <button
+              type="button"
+              className={introDone ? styles.roundButton : styles.roundButtonHidden}
+              onClick={() => setIsMapPopupOpen(true)}
+              aria-label={t('home.openMap')}
+            >
+              🗺️
+            </button>
+          </div>
         </div>
       </header>
 
