@@ -53,6 +53,22 @@
   transform: scale(0.98);
 }
 
+:global([data-theme='dark']) .menuPanel {
+  background: var(--color-surface-white);
+}
+
+:global([data-theme='dark']) .menuItem {
+  padding: 15px 17px;
+  border: 1px solid transparent;
+}
+
+:global([data-theme='dark']) .menuItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+
 @keyframes menuFadeIn {
   from {
     opacity: 0;

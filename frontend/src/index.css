@@ -111,3 +111,14 @@ img {
   background-color: var(--color-surface-canvas);
   color: var(--color-brand-900);
 }
+
+[data-theme='dark'] input,
+[data-theme='dark'] textarea,
+[data-theme='dark'] select {
+  color: var(--color-text-input) !important;
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: var(--color-placeholder-input) !important;
+}

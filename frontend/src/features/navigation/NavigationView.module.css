@@ -335,10 +335,10 @@
   border-radius: 16px;
   outline: none;
   background: var(--color-surface-input);
+  color: var(--color-text-input);
 }
 .input::placeholder {
   color: var(--color-placeholder-input);
-  color: var(--color-brand-900);
   font-size: 15px;
 }
 
@@ -412,6 +412,11 @@
   background: var(--color-surface-white);
   text-align: left;
   cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.resultButton:hover {
+  background: var(--color-surface-tint);
 }
 
 .resultName {
@@ -421,7 +426,7 @@
 }
 
 .resultMeta {
-  color: #64748b;
+  color: var(--color-text-subtle);
   font-size: 12px;
   font-weight: 800;
 }
@@ -699,4 +704,18 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+:global([data-theme='dark']) .input {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+:global([data-theme='dark']) .resultsBox {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+:global([data-theme='dark']) .resultButton {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
 
