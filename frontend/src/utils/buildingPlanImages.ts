@@ -3,7 +3,7 @@ export const BUILDING_PLAN_MAP: Record<string, string> = {
   E: '/maps/objekt_e.png',
   F: '/maps/objekt_f_p.png',
   G: '/maps/objekt_g_p.png',
-  G2: '/maps/objekt_g_2_n.png',
+  G2: '/maps/1_pritlicje.png',
   G3: '/maps/g3_pritlicje.png',
 };
 

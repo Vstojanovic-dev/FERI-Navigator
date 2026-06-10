@@ -317,9 +317,9 @@ function BuildingsPage() {
     ).map((result) => result.item);
 
     const getSpacesPerPage = (height: number) => {
-      if (height < 700) return 6;
-      if (height >= 700 && height < 850) return 8;
-      return 10;
+      if (height < 700) return 4;
+      if (height < 850) return 6;
+      return 8;
     };
     const spacesPerPage = getSpacesPerPage(screenHeight);
     const totalPages = Math.ceil(filteredBuildingSpaces.length / spacesPerPage);
@@ -329,95 +329,101 @@ function BuildingsPage() {
 
     return (
       <PageShell>
-        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems />
-        <section className={styles.content}>
-          <h2 className={styles.sectionTitle}>{t('buildings.planTitle')}</h2>
-          <div className={styles.placeholderBox}>
-            {planImageUrl ? (
-              <img
-                src={planImageUrl}
-                alt={t('buildings.planAlt', { name: selectedBuilding.name })}
-                className={styles.planImage}
-              />
-            ) : (
-              <span>{t('buildings.noPlan')}</span>
-            )}
+        <SubPageHeader title={selectedBuilding.name} fallbackTo="/objekti" showAllMenuItems compact />
+        <section className={styles.buildingDetailContent}>
+          <div className={styles.planSectionCompact}>
+            <h2 className={styles.sectionTitleCompact}>{t('buildings.planTitle')}</h2>
+            <div className={styles.placeholderBoxCompact}>
+              {planImageUrl ? (
+                <img
+                  src={planImageUrl}
+                  alt={t('buildings.planAlt', { name: selectedBuilding.name })}
+                  className={styles.planImageCompact}
+                />
+              ) : (
+                <span>{t('buildings.noPlan')}</span>
+              )}
+            </div>
           </div>
 
-          <h2 className={styles.sectionTitle}>{t('buildings.spacesTitle')}</h2>
+          <div className={styles.spacesSection}>
+            <h2 className={styles.sectionTitleCompact}>{t('buildings.spacesTitle')}</h2>
 
-          {spacesForBuilding.length > 0 ? (
-            <SearchField
-              id="building-space-search"
-              value={buildingSpaceSearch}
-              onChange={setBuildingSpaceSearch}
-              placeholder={t('buildings.spaceSearchPlaceholder')}
-            />
-          ) : null}
+            {spacesForBuilding.length > 0 ? (
+              <SearchField
+                id="building-space-search"
+                value={buildingSpaceSearch}
+                onChange={setBuildingSpaceSearch}
+                placeholder={t('buildings.spaceSearchPlaceholder')}
+              />
+            ) : null}
 
-          {spacesForBuilding.length === 0 ? (
-            <EmptyState title={t('buildings.noSpacesTitle')} text={t('buildings.noSpacesText')} />
-          ) : filteredBuildingSpaces.length === 0 ? (
-            <EmptyState title={t('buildings.noResultsTitle')} text={t('buildings.noResultsText')} />
-          ) : (
-            <>
-              <div className={styles.spaceCardsList}>
-                {paginatedSpaces.map((space) => (
-                  <article
-                    key={space.id}
-                    className={styles.spaceCard}
-                    onClick={() =>
-                      navigate('/objekti', {
-                        state: {
-                          selectedBuilding,
-                          selectedSpace: space,
-                        } satisfies BuildingsPageState,
-                      })
-                    }
-                  >
-                    <div className={styles.spaceCardTopLine}>
-                      <h3 className={styles.spaceCardTitle}>{getCatalogSpaceLabel(space)}</h3>
-                      {space.type ? (
-                        <span className={styles.spaceCardType}>{getLocalizedSpaceType(space.type, language)}</span>
+            {spacesForBuilding.length === 0 ? (
+              <EmptyState title={t('buildings.noSpacesTitle')} text={t('buildings.noSpacesText')} />
+            ) : filteredBuildingSpaces.length === 0 ? (
+              <EmptyState title={t('buildings.noResultsTitle')} text={t('buildings.noResultsText')} />
+            ) : (
+              <>
+                <div className={styles.spaceCardsListCompact}>
+                  {paginatedSpaces.map((space) => (
+                    <article
+                      key={space.id}
+                      className={styles.spaceCardCompact}
+                      onClick={() =>
+                        navigate('/objekti', {
+                          state: {
+                            selectedBuilding,
+                            selectedSpace: space,
+                          } satisfies BuildingsPageState,
+                        })
+                      }
+                    >
+                      <div className={styles.spaceCardTopLine}>
+                        <h3 className={styles.spaceCardTitle}>{getCatalogSpaceLabel(space)}</h3>
+                        {space.type ? (
+                          <span className={styles.spaceCardType}>
+                            {getLocalizedSpaceType(space.type, language)}
+                          </span>
+                        ) : null}
+                      </div>
+                      {space.floor ? (
+                        <p className={styles.spaceCardMeta}>
+                          {localizeFloorLabel(space.floor, language)}
+                        </p>
                       ) : null}
-                    </div>
-                    {space.floor ? (
-                      <p className={styles.spaceCardMeta}>
-                        {localizeFloorLabel(space.floor, language)}
-                      </p>
-                    ) : null}
-                    {space.code ? <p className={styles.spaceCardCode}>{space.code}</p> : null}
-                  </article>
-                ))}
-              </div>
-
-              {totalPages > 1 && (
-                <div className={styles.pagination}>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={activePage === 1}
-                    aria-label="Prejšnja stran"
-                  >
-                    ←
-                  </button>
-                  <span className={styles.paginationIndicator}>
-                    {activePage} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    className={styles.paginationButton}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={activePage === totalPages}
-                    aria-label="Naslednja stran"
-                  >
-                    →
-                  </button>
+                      {space.code ? <p className={styles.spaceCardCode}>{space.code}</p> : null}
+                    </article>
+                  ))}
                 </div>
-              )}
-            </>
-          )}
+
+                {totalPages > 1 ? (
+                  <div className={styles.paginationCompact}>
+                    <button
+                      type="button"
+                      className={styles.paginationButton}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={activePage === 1}
+                      aria-label="Prejšnja stran"
+                    >
+                      ←
+                    </button>
+                    <span className={styles.paginationIndicator}>
+                      {activePage} / {totalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.paginationButton}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={activePage === totalPages}
+                      aria-label="Naslednja stran"
+                    >
+                      →
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
         </section>
       </PageShell>
     );

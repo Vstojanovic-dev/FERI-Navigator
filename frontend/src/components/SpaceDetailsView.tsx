@@ -2,7 +2,7 @@ import { useI18n } from '../i18n/useI18n';
 import type { CatalogSpace } from '../types/catalog';
 import { getSpaceDisplayName, localizeFloorLabel } from '../utils/displayNames';
 import { buildSpaceDescription, getLocalizedSpaceType } from '../utils/spaceDescription';
-import { getSpaceMapLocation } from '../utils/spaceMapLocation';
+import { getSpaceMapLocation, hasSpaceMapMarker } from '../utils/spaceMapLocation';
 import PageShell from './PageShell';
 import SpaceMapPreview from './SpaceMapPreview';
 import SubPageHeader from './SubPageHeader';
@@ -73,9 +73,9 @@ function SpaceDetailsView({
           {t('details.findClassroom')}
         </button>
 
-        {mapLocation ? (
-          <section className={styles.locationSection} aria-label={t('details.locationTitle')}>
-            <h2 className={styles.locationTitle}>{t('details.locationTitle')}</h2>
+        <section className={styles.locationSection} aria-label={t('details.locationTitle')}>
+          <h2 className={styles.locationTitle}>{t('details.locationTitle')}</h2>
+          {mapLocation ? (
             <div className={styles.locationCard}>
               <SpaceMapPreview
                 mapImageUrl={mapLocation.mapImageUrl}
@@ -83,9 +83,14 @@ function SpaceDetailsView({
                 markerY={mapLocation.markerY}
                 alt={t('details.mapAlt', { name: displayName })}
               />
+              {!hasSpaceMapMarker(mapLocation) ? (
+                <p className={styles.locationHint}>{t('details.markerMissing')}</p>
+              ) : null}
             </div>
-          </section>
-        ) : null}
+          ) : (
+            <p className={styles.locationMissing}>{t('details.mapMissing')}</p>
+          )}
+        </section>
       </section>
     </PageShell>
   );

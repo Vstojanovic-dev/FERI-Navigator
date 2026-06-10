@@ -41,6 +41,7 @@ function HomePage() {
   const [searchText, setSearchText] = useState('');
   const [typeFilter, setTypeFilter] = useState<SpaceTypeFilterKey>('all');
   const [spaces, setSpaces] = useState<CatalogSpace[]>([]);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [introDone, setIntroDone] = useState(introCompletedOnce);
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
   const prevSearchTextRef = useRef('');
@@ -83,6 +84,20 @@ function HomePage() {
       cancelled = true;
     };
   }, [searchText]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 280);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const typeFilters = useMemo(() => getSpaceTypeFilters(t), [t]);
   const spacesByType = useMemo(() => filterSpacesByType(spaces, typeFilter), [spaces, typeFilter]);
@@ -271,6 +286,17 @@ function HomePage() {
       </section>
 
       <MainMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
+      {showScrollTop ? (
+        <button
+          type="button"
+          className={styles.scrollTopButton}
+          onClick={scrollToTop}
+          aria-label={t('home.scrollToTop')}
+        >
+          ↑
+        </button>
+      ) : null}
 
       {isMapPopupOpen && (
         <OverlayModal title={t('home.mapTitle')} onClose={() => setIsMapPopupOpen(false)}>
