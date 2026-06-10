@@ -1291,7 +1291,6 @@ function NumberField({
   value: number;
   onChange: (value: number) => void;
 }) {
-  const { t } = useI18n();
   return (
     <label>
       {label}
@@ -1447,6 +1446,7 @@ function LocationPicker({
   onQueryChange: (value: string) => void;
   onSelect: (location: NavigationLocation) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="location-picker">
       <label htmlFor={id}>
