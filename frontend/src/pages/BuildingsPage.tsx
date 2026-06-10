@@ -400,26 +400,31 @@ function BuildingsPage() {
                     })
                   }
                 >
-                  {buildingImageUrl ? (
-                    <div className={styles.cardImageWrap}>
+                  <div className={styles.cardImageHalf}>
+                    {buildingImageUrl ? (
                       <img
                         src={buildingImageUrl}
                         alt={building.name}
-                        className={styles.cardImage}
+                        className={styles.cardPlanImage}
                       />
-                    </div>
-                  ) : (
-                    <div className={styles.cardImagePlaceholder}>{t('buildings.planPlaceholder')}</div>
-                  )}
-                  <div className={styles.cardBody}>
-                    <h2 className={styles.cardTitle}>{building.name}</h2>
-                    <p className={styles.cardMeta}>
-                      {formatSpaceCount(getBuildingSpaceCount(building), language)}
-                    </p>
+                    ) : (
+                      <div className={styles.cardPlanImagePlaceholder}>{t('buildings.planPlaceholder')}</div>
+                    )}
                   </div>
-                  <span className={styles.cardChevron} aria-hidden="true">
-                    ›
-                  </span>
+                  <div className={styles.cardBodyHalf}>
+                    <div className={styles.cardTextContent}>
+                      <h2 className={styles.cardTitle}>{building.name}</h2>
+                      <p className={styles.cardMeta}>
+                        {formatSpaceCount(getBuildingSpaceCount(building), language)}
+                      </p>
+                      <p className={styles.cardHint}>
+                        {language === 'sl' ? 'Ogled načrta in prostorov' : 'View plan and spaces'}
+                      </p>
+                    </div>
+                    <span className={styles.cardChevron} aria-hidden="true">
+                      ›
+                    </span>
+                  </div>
                 </article>
               );
             })}

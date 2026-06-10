@@ -10,13 +10,13 @@
 
 .card {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px 8px 8px;
+  align-items: stretch;
+  min-height: 140px;
+  padding: 0;
   overflow: hidden;
   background: #fff;
   border: 1px solid var(--color-border-soft);
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: var(--shadow-card);
   cursor: pointer;
   transition:
@@ -29,79 +29,80 @@
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
 }
 
-.cardImageWrap {
+.cardImageHalf {
+  flex: 1;
+  width: 50%;
   display: flex;
-  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 56px;
-  padding: 4px;
+  background: #f4f7fc;
+  border-right: 1px solid var(--color-border-soft);
+  padding: 12px;
   box-sizing: border-box;
-  overflow: hidden;
-  background: #eef3fb;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
 }
 
-.cardImage,
-.heroImage {
+.cardPlanImage {
   display: block;
   width: 100%;
   height: 100%;
+  max-height: 116px;
   object-fit: contain;
-  object-position: center center;
 }
 
-.cardImagePlaceholder {
+.cardPlanImagePlaceholder {
   display: flex;
-  flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 72px;
-  height: 56px;
-  padding: 4px;
-  box-sizing: border-box;
-  background: #f4f7fc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
   color: var(--color-text-subtle);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-align: center;
-  line-height: 1.15;
+  line-height: 1.3;
 }
 
-.cardBody {
-  display: flex;
+.cardBodyHalf {
   flex: 1;
-  flex-direction: column;
-  gap: 1px;
-  justify-content: center;
+  width: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  box-sizing: border-box;
   min-width: 0;
-  padding: 0;
+}
+
+.cardTextContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 
 .cardChevron {
   flex-shrink: 0;
-  padding-right: 2px;
-  color: #94a3b8;
-  font-size: 22px;
-  font-weight: 400;
+  padding-left: 8px;
+  color: #cbd5e1;
+  font-size: 24px;
+  font-weight: 300;
   line-height: 1;
 }
 
 .heroImage {
+  display: block;
+  width: 100%;
   height: 150px;
   border-radius: 24px;
+  object-fit: contain;
+  object-position: center center;
 }
 
 .cardTitle {
   margin: 0;
   color: var(--color-brand-900);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
-  line-height: 1.2;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
@@ -122,16 +123,16 @@
 
 .cardMeta {
   color: #465872;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.25;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
 }
 
 .cardHint {
   color: #94a3b8;
   font-size: 11px;
   font-weight: 700;
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .sectionTitle {
