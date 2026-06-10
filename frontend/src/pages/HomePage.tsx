@@ -232,13 +232,11 @@ function HomePage() {
                   </div>
                   {space.buildingName ? (
                     <p className={styles.compactCardMeta}>
-                      <span className={styles.compactCardMetaLabel}>{t('home.buildingLabel')}</span>
                       {space.buildingName}
                     </p>
                   ) : null}
                   {space.floor ? (
                     <p className={styles.compactCardMeta}>
-                      <span className={styles.compactCardMetaLabel}>{t('home.floorLabel')}</span>
                       {localizeFloorLabel(space.floor, language)}
                     </p>
                   ) : null}
