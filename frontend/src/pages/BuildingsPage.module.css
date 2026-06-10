@@ -14,7 +14,7 @@
   min-height: 140px;
   padding: 0;
   overflow: hidden;
-  background: #fff;
+  background: var(--color-surface-white);
   border: 1px solid var(--color-border-soft);
   border-radius: 20px;
   box-shadow: var(--shadow-card);
@@ -35,7 +35,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f4f7fc;
+  background: var(--color-surface-tint);
   border-right: 1px solid var(--color-border-soft);
   padding: 12px;
   box-sizing: border-box;
@@ -122,7 +122,7 @@
 }
 
 .cardMeta {
-  color: #465872;
+  color: var(--color-text-subtle);
   font-size: 14px;
   font-weight: 800;
   line-height: 1.3;
@@ -150,8 +150,8 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  background: #fff;
-  border: 2px dashed #cfc6b6;
+  background: var(--color-surface-white);
+  border: 2px dashed var(--color-border-soft);
   border-radius: 22px;
   color: var(--color-text-subtle);
   font-size: 14px;
@@ -172,7 +172,7 @@
   gap: 10px;
   align-items: center;
   padding: 14px 14px 14px 16px;
-  background: #fff;
+  background: var(--color-surface-white);
   border: 1px solid var(--color-border-soft);
   border-radius: 20px;
 }
@@ -188,7 +188,7 @@
   display: grid;
   gap: 6px;
   padding: 12px;
-  background: #fff;
+  background: var(--color-surface-white);
   border: 1px solid var(--color-border-soft);
   border-left: 3px solid var(--color-brand-900);
   border-radius: 16px;
@@ -222,8 +222,8 @@
   flex-shrink: 0;
   padding: 4px 7px;
   border-radius: 999px;
-  background: #eef3fb;
-  color: #465872;
+  background: var(--color-segment-count-bg);
+  color: var(--color-segment-count-text);
   font-size: 10px;
   font-weight: 900;
 }

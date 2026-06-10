@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useBackNavigation } from '../hooks/useBackNavigation';
 import { useI18n } from '../i18n/useI18n';
 import MainMenuOverlay from './MainMenuOverlay';
+import { useTheme } from '../theme/ThemeContext';
 import styles from './SubPageHeader.module.css';
 
 type SubPageHeaderProps = {
@@ -22,6 +23,7 @@ function SubPageHeader({
   const handleBack = useBackNavigation(fallbackTo);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { language, setLanguage, t } = useI18n();
+  const { themeMode, toggleTheme } = useTheme();
 
   return (
     <>
@@ -35,6 +37,14 @@ function SubPageHeader({
           ←
         </button>
         <h1 className={styles.title}>{title}</h1>
+        <button
+          type="button"
+          className={styles.themeButton}
+          onClick={toggleTheme}
+          aria-label="Toggle theme"
+        >
+          {themeMode === 'light' ? '☀️' : '🌙'}
+        </button>
         <button
           type="button"
           className={styles.langButton}

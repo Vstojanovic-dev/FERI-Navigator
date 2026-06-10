@@ -9,6 +9,32 @@
   --shadow-card: 0 14px 28px rgba(54, 42, 27, 0.09);
   --shadow-card-soft: 0 10px 25px rgba(54, 42, 27, 0.08);
 
+  /* CSS variables mapping to light mode values */
+  --color-surface-white: #ffffff;
+  --color-surface-tint: #f8fafc;
+  
+  --color-surface-input: #ffffff;
+  --color-text-input: #172033;
+  --color-placeholder-input: #736959;
+  --color-border-input: #d8dee8;
+  --color-icon-search: #8a7d6d;
+
+  --color-brand-button-text: #ffffff;
+  --color-accent-button-bg: #f9b54a;
+  
+  --color-active-step-bg: #fef2f2;
+  --color-active-step-text: #dc2626;
+  --color-active-step-border: #dc2626;
+  
+  --color-segment-count-bg: #eef3fb;
+  --color-segment-count-text: #41526d;
+  
+  --color-alert-bg: #fff7ed;
+  --color-alert-text: #9a3412;
+  --color-alert-border: #fed7aa;
+
+  --color-header-start: #172033;
+
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--color-brand-900);
   background: var(--color-surface-canvas);
@@ -41,4 +67,47 @@ select {
 
 img {
   max-width: 100%;
+}
+
+:root[data-theme='dark'] {
+  --color-brand-900: #f1f5f9;
+  --color-surface-canvas: #0f172a;
+  --color-border-soft: #334155;
+  --color-text-body: #cbd5e1;
+  --color-text-subtle: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-accent-500: #fbbf24;
+  --shadow-card: 0 14px 28px rgba(0, 0, 0, 0.45);
+  --shadow-card-soft: 0 10px 25px rgba(0, 0, 0, 0.35);
+
+  /* Dark theme overrides */
+  --color-surface-white: #1e293b;
+  --color-surface-tint: #0f172a;
+  
+  --color-surface-input: #111827;
+  --color-text-input: #f8fafc;
+  --color-placeholder-input: #94a3b8;
+  --color-border-input: rgba(255, 255, 255, 0.12);
+  --color-icon-search: #cbd5e1;
+
+  --color-brand-button-text: #0f172a;
+  --color-accent-button-bg: #fbbf24;
+  
+  --color-active-step-bg: #450a0a;
+  --color-active-step-text: #fca5a5;
+  --color-active-step-border: #f87171;
+  
+  --color-segment-count-bg: #1e293b;
+  --color-segment-count-text: #cbd5e1;
+  
+  --color-alert-bg: #2d1a10;
+  --color-alert-text: #ffedd5;
+  --color-alert-border: #7c2d12;
+
+  --color-header-start: #0b0f19;
+}
+
+[data-theme='dark'] body {
+  background-color: var(--color-surface-canvas);
+  color: var(--color-brand-900);
 }

@@ -11,12 +11,12 @@
 
 .headerArea {
   min-height: 158px;
-  background: linear-gradient(135deg, var(--color-brand-900) 0%, #26364f 58%, #445a7c 100%);
+  background: linear-gradient(135deg, var(--color-header-start) 0%, #26364f 58%, #445a7c 100%);
 }
 
 .headerAreaIntro {
   min-height: 100vh;
-  background: var(--color-brand-900);
+  background: var(--color-header-start);
 }
 
 .headerNavRowVisible {
@@ -193,14 +193,14 @@
 
 .typeFilterButton {
   border: 1px solid var(--color-border-soft);
-  background: #fff;
-  color: #465872;
+  background: var(--color-surface-white);
+  color: var(--color-text-subtle);
 }
 
 .typeFilterActive {
   border: 1px solid var(--color-brand-900);
   background: var(--color-brand-900);
-  color: #fff;
+  color: var(--color-brand-button-text);
 }
 
 .resultsTitleRow {
@@ -239,7 +239,7 @@
 
 .compactCard {
   overflow: hidden;
-  background: #fff;
+  background: var(--color-surface-white);
   border: 1px solid var(--color-border-soft);
   border-left: 4px solid var(--color-brand-900);
   border-radius: 24px;
@@ -280,8 +280,8 @@
   flex-shrink: 0;
   padding: 5px 8px;
   border-radius: 999px;
-  background: #eef3fb;
-  color: #465872;
+  background: var(--color-segment-count-bg);
+  color: var(--color-segment-count-text);
   font-size: 11px;
   font-weight: 900;
 }
@@ -310,8 +310,8 @@
   padding: 10px 12px;
   border: 0;
   border-radius: 14px;
-  background: #f9b54a;
-  color: var(--color-brand-900);
+  background: var(--color-accent-button-bg);
+  color: var(--color-brand-button-text);
   font-size: 13px;
   font-weight: 900;
   cursor: pointer;
@@ -388,4 +388,50 @@
   transform: translateY(18px);
   pointer-events: none;
 }
+
+.headerLeftGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 6;
+}
+
+.themeButton,
+.themeButtonHidden {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 19px;
+  cursor: pointer;
+  transition:
+    opacity 1000ms ease,
+    transform 1000ms ease,
+    background 150ms ease;
+}
+
+.themeButton {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.themeButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.themeButton:active {
+  transform: scale(0.95);
+}
+
+.themeButtonHidden {
+  opacity: 0;
+  transform: translateY(18px);
+  pointer-events: none;
+}
+
 

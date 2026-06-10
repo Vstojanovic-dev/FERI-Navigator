@@ -22,6 +22,7 @@ import {
   getSpaceTypeFilters,
   type SpaceTypeFilterKey,
 } from '../utils/spaceTypeFilter';
+import { useTheme } from '../theme/ThemeContext';
 import styles from './HomePage.module.css';
 
 type HomePageState = {
@@ -44,6 +45,7 @@ function HomePage() {
   const [introVisible, setIntroVisible] = useState(introCompletedOnce);
   const prevSearchTextRef = useRef('');
   const { language, setLanguage, t } = useI18n();
+  const { themeMode, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (introCompletedOnce) {
@@ -133,15 +135,25 @@ function HomePage() {
     <PageShell>
       <header className={introDone ? styles.headerArea : styles.headerAreaIntro}>
         <div className={styles.headerNavRowVisible}>
-          <button
-            type="button"
-            className={introDone ? styles.roundButton : styles.roundButtonHidden}
-            onClick={() => setIsMenuOpen((value) => !value)}
-            aria-expanded={isMenuOpen}
-            aria-label={t('common.openMenu')}
-          >
-            ☰
-          </button>
+          <div className={styles.headerLeftGroup}>
+            <button
+              type="button"
+              className={introDone ? styles.roundButton : styles.roundButtonHidden}
+              onClick={() => setIsMenuOpen((value) => !value)}
+              aria-expanded={isMenuOpen}
+              aria-label={t('common.openMenu')}
+            >
+              ☰
+            </button>
+            <button
+              type="button"
+              className={introDone ? styles.themeButton : styles.themeButtonHidden}
+              onClick={toggleTheme}
+              aria-label="Toggle theme"
+            >
+              {themeMode === 'light' ? '☀️' : '🌙'}
+            </button>
+          </div>
 
           <div
             className={

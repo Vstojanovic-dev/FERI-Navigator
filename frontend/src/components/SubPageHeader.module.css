@@ -3,7 +3,7 @@
   align-items: center;
   gap: 12px;
   padding: 18px 16px 22px;
-  background: linear-gradient(135deg, var(--color-brand-900) 0%, #26364f 58%, #445a7c 100%);
+  background: linear-gradient(135deg, var(--color-header-start) 0%, #26364f 58%, #445a7c 100%);
   color: #fff;
 }
 
@@ -87,4 +87,33 @@
   transform: scale(0.95);
   background: rgba(255, 255, 255, 0.25);
 }
+
+.themeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.themeButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.themeButton:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.25);
+}
+
 
