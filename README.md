@@ -13,7 +13,6 @@ Repozitorij vsebuje javno aplikacijo, backend, podatkovni in navigacijski model 
 - izbira uporabe dvigala;
 - iskanje najbližjega stranišča;
 - deljenje poti s povezavo ali QR-kodo;
-- izvoz navodil za pot v PDF.
 
 ## Hiter začetek
 
@@ -57,12 +56,12 @@ docker compose down
 
 Za celoten pregled začnite v [`docs/README.md`](docs/README.md), nato pa izberite dokument glede na svoje delo:
 
-- **uporaba aplikacije:** `docs/user-guide.md`;
-- **prvi pregled za razvijalce:** `docs/architecture.md`, nato `docs/repository-structure.md` in `docs/development.md`;
-- **javni ali administratorski frontend:** `docs/frontend.md`;
-- **backend ali API:** `docs/backend-and-api.md`;
-- **podatkovna baza, zemljevidi ali navigacijski graf:** `docs/data-and-navigation.md`;
-- **namestitev in vzdrževanje:** `docs/deployment-and-operations.md`.
+- **uporaba aplikacije:** [`docs/user-guide.md`](docs/user-guide.md);
+- **prvi pregled za razvijalce:** [`docs/architecture.md`](docs/architecture.md), nato [`docs/repository-structure.md`](docs/repository-structure.md) in [`docs/development.md`](docs/development.md);
+- **javni ali administratorski frontend:** [`docs/frontend.md`](docs/frontend.md);
+- **backend ali API:** [`docs/backend-and-api.md`](docs/backend-and-api.md);
+- **podatkovna baza, zemljevidi ali navigacijski graf:** [`docs/data-and-navigation.md`](docs/data-and-navigation.md);
+- **namestitev in vzdrževanje:** [`docs/deployment-and-operations.md`](docs/deployment-and-operations.md).
 
 ## Struktura repozitorija
 
