@@ -2,11 +2,8 @@ import type { AppLanguage } from '../../i18n/language';
 import type { Translator } from '../../i18n/translate';
 import type { NavigationLocation } from '../../types/navigation';
 import { localizeFloorLabel } from '../../utils/displayNames';
-import {
-  getNavigationLocationLabel,
-  getNearestWcSearchable,
-  navigationLocationToSearchable,
-} from '../../utils/search';
+import { getLocalizedNavigationLocationLabel } from '../../utils/navigationLocalization';
+import { getNearestWcSearchable, navigationLocationToSearchable } from '../../utils/search';
 
 type NearestTarget = {
   kind: 'nearest';
@@ -39,11 +36,15 @@ export function targetToSearchable(target: TargetSelection) {
   return navigationLocationToSearchable(target);
 }
 
-export function getTargetSelectionLabel(selection: TargetSelection): string {
+export function getTargetSelectionLabel(
+  selection: TargetSelection,
+  language: AppLanguage,
+  t: Translator
+): string {
   if (isNearestTarget(selection)) {
-    return selection.displayName;
+    return t('navigation.nearestWc');
   }
-  return getNavigationLocationLabel(selection);
+  return getLocalizedNavigationLocationLabel(selection, language);
 }
 
 export type LocationPickerSuggestion = {
@@ -55,19 +56,20 @@ export type LocationPickerSuggestion = {
 
 export function targetSelectionToSuggestion(
   selection: TargetSelection,
-  language: AppLanguage
+  language: AppLanguage,
+  t: Translator
 ): LocationPickerSuggestion {
   if (isNearestTarget(selection)) {
     return {
       key: selection.id,
-      label: selection.displayName,
-      meta: selection.meta,
+      label: t('navigation.nearestWc'),
+      meta: t('navigation.nearestWcMeta'),
       value: selection,
     };
   }
   return {
     key: `loc-${selection.id}`,
-    label: getTargetSelectionLabel(selection),
+    label: getTargetSelectionLabel(selection, language, t),
     meta: `${selection.buildingCode} - ${localizeFloorLabel(selection.floorLabel, language)}`,
     value: selection,
   };

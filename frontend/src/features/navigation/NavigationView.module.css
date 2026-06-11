@@ -121,8 +121,8 @@
   height: 36px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -254,7 +254,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  max-width: 52%;
+  flex: 0 1 auto;
+  max-width: calc(100% - 148px);
   min-width: 0;
   height: 32px;
   padding: 0 10px;
@@ -371,7 +372,9 @@
   align-items: center;
   gap: 6px;
   flex: 0 0 auto;
+  margin-left: auto;
   min-width: 0;
+  text-align: right;
   color: var(--color-brand-900);
   font-size: 11px;
   font-weight: 900;

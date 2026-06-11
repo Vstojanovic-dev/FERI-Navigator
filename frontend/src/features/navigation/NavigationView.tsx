@@ -2,11 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/useI18n';
 import { ApiError } from '../../services/api';
 import { createShare, fetchRoute } from '../../services/navigationService';
+import type { AppLanguage } from '../../i18n/language';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
 import { localizeFloorLabel } from '../../utils/displayNames';
 import { findLocationByQuery } from '../../utils/locationMatch';
 import {
-  getNavigationLocationLabel,
+  attachBilingualRouteSteps,
+  getLocalizedNavigationLocationLabel,
+} from '../../utils/navigationLocalization';
+import {
   getSearchResults,
   isQueryMatchingLabel,
   isUserDeletingInput,
@@ -26,7 +30,10 @@ import {
   type TargetSelection,
 } from './navigationTargets';
 import { useLocationSearch } from './useLocationSearch';
+import RouteLoadingOverlay from './RouteLoadingOverlay';
 import styles from './NavigationView.module.css';
+
+const ROUTE_LOADING_MIN_MS = 800;
 
 function isSameTarget(left: TargetSelection, right: TargetSelection): boolean {
   if (isNearestTarget(left) || isNearestTarget(right)) {
@@ -71,19 +78,15 @@ function NavigationView({
   const prevFromQueryRef = useRef('');
   const prevToQueryRef = useRef('');
   const userEditedTargetRef = useRef(false);
-
   const fromResults = useLocationSearch(fromQuery);
   const toResults = useLocationSearch(toQuery);
 
   const fromRanked = useMemo(
     () =>
-      getSearchResults(
-        fromResults,
-        fromQuery,
-        navigationLocationToSearchable,
-        getNavigationLocationLabel
+      getSearchResults(fromResults, fromQuery, navigationLocationToSearchable, (location) =>
+        getLocalizedNavigationLocationLabel(location, language)
       ),
-    [fromResults, fromQuery]
+    [fromResults, fromQuery, language]
   );
 
   const toRanked = useMemo(() => {
@@ -93,8 +96,10 @@ function NavigationView({
       ...toResults.filter((location) => location.locationType !== 'stairs' && location.locationType !== 'wc'),
     ];
 
-    return getSearchResults(candidates, toQuery, targetToSearchable, getTargetSelectionLabel);
-  }, [t, toQuery, toResults]);
+    return getSearchResults(candidates, toQuery, targetToSearchable, (selection) =>
+      getTargetSelectionLabel(selection, language, t)
+    );
+  }, [language, t, toQuery, toResults]);
 
   const fromSuggestions = useMemo(
     () =>
@@ -108,8 +113,8 @@ function NavigationView({
   );
 
   const toSuggestions = useMemo(
-    () => toRanked.map((result) => targetSelectionToSuggestion(result.item, language)),
-    [language, toRanked]
+    () => toRanked.map((result) => targetSelectionToSuggestion(result.item, language, t)),
+    [language, t, toRanked]
   );
 
   const requestRoute = async ({
@@ -135,24 +140,62 @@ function NavigationView({
       message
     );
 
-  const applyRoute = (nextRoute: NavigationRoute) => {
-    setRoute(nextRoute);
-    setActiveSegmentIndex(0);
-    setActiveStepIndex(0);
-    setTransitionNonce((value) => value + 1);
-
-    if (!isFormExpanded) {
-      setIsRouteVisible(true);
-      return;
+  const buildRouteRequest = () => {
+    if (!fromLocation || !toTarget) {
+      return null;
     }
 
+    return {
+      fromLocationId: fromLocation.id,
+      toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
+      targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
+      allowElevator,
+      message: t('navigation.routeCalculationError'),
+    };
+  };
+
+  const beginRouteSearch = () => {
     setIsRouteVisible(false);
     setIsFormCollapsing(true);
     window.setTimeout(() => {
       setIsFormExpanded(false);
       setIsFormCollapsing(false);
-      setIsRouteVisible(true);
-    }, 240);
+    }, 220);
+    setIsRouting(true);
+  };
+
+  const applyRoute = (
+    nextRoute: NavigationRoute,
+    options?: { preserveStep?: boolean; sourceLanguage?: AppLanguage }
+  ) => {
+    const sourceLanguage = options?.sourceLanguage ?? language;
+    const enrichedRoute = attachBilingualRouteSteps(nextRoute, sourceLanguage);
+    setRoute(enrichedRoute);
+    setFromLocation(enrichedRoute.from);
+    setFromQuery(getLocalizedNavigationLocationLabel(enrichedRoute.from, language));
+
+    if (toTarget && !isNearestTarget(toTarget)) {
+      setToTarget(enrichedRoute.to);
+      setToQuery(getLocalizedNavigationLocationLabel(enrichedRoute.to, language));
+    }
+
+    if (options?.preserveStep) {
+      setActiveSegmentIndex((prevSegment) => {
+        const segmentIndex = Math.min(prevSegment, Math.max(enrichedRoute.segments.length - 1, 0));
+        setActiveStepIndex((prevStep) => {
+          const segment = enrichedRoute.segments[segmentIndex];
+          const maxStep = Math.max((segment?.steps.length ?? 1) - 1, 0);
+          return Math.min(prevStep, maxStep);
+        });
+        return segmentIndex;
+      });
+    } else {
+      setActiveSegmentIndex(0);
+      setActiveStepIndex(0);
+    }
+
+    setTransitionNonce((value) => value + 1);
+    setIsRouteVisible(true);
   };
 
   useEffect(() => {
@@ -163,18 +206,21 @@ function NavigationView({
     setAllowElevator(sharedAllowElevator ?? true);
 
     const routeFromShare = async () => {
-      setIsRouting(true);
+      const sourceLanguage = language;
+      beginRouteSearch();
       setError('');
       try {
-        applyRoute(
-          await requestRoute({
+        const [nextRoute] = await Promise.all([
+          requestRoute({
             fromLocationId: sharedFromLocationId,
             toLocationId: sharedToLocationId,
             targetType: sharedTargetType,
             allowElevator: sharedAllowElevator ?? true,
             message: t('navigation.sharedRouteUnavailable'),
-          })
-        );
+          }),
+          new Promise<void>((resolve) => window.setTimeout(resolve, ROUTE_LOADING_MIN_MS)),
+        ]);
+        applyRoute(nextRoute, { sourceLanguage });
       } catch (routeError) {
         setError(
           routeError instanceof ApiError
@@ -210,6 +256,20 @@ function NavigationView({
     }
   }, [allowElevator]);
 
+  useEffect(() => {
+    if (fromLocation) {
+      const label = getLocalizedNavigationLocationLabel(fromLocation, language);
+      setFromQuery(label);
+      prevFromQueryRef.current = label;
+    }
+
+    if (toTarget) {
+      const label = getTargetSelectionLabel(toTarget, language, t);
+      setToQuery(label);
+      prevToQueryRef.current = label;
+    }
+  }, [language, fromLocation, toTarget, t]);
+
   const routeSegments = Array.isArray(route?.segments) ? route.segments : [];
   const activeSegment = routeSegments[activeSegmentIndex] ?? routeSegments[0] ?? null;
   const hasSameLocations = isSameStartAndEnd(fromLocation, toTarget);
@@ -225,11 +285,11 @@ function NavigationView({
       return;
     }
 
-    const label = getNavigationLocationLabel(match);
+    const label = getLocalizedNavigationLocationLabel(match, language);
     setToTarget(match);
     setToQuery(label);
     prevToQueryRef.current = label;
-  }, [initialTarget, toResults, toTarget]);
+  }, [initialTarget, language, toResults, toTarget]);
 
   useEffect(() => {
     const previousValue = prevFromQueryRef.current;
@@ -242,7 +302,7 @@ function NavigationView({
     );
 
     if (autofillItem) {
-      const label = getNavigationLocationLabel(autofillItem);
+      const label = getLocalizedNavigationLocationLabel(autofillItem, language);
       setFromLocation(autofillItem);
       setFromQuery(label);
       prevFromQueryRef.current = label;
@@ -250,14 +310,14 @@ function NavigationView({
     }
 
     prevFromQueryRef.current = fromQuery;
-  }, [fromLocation, fromQuery, fromRanked]);
+  }, [fromLocation, fromQuery, fromRanked, language]);
 
   useEffect(() => {
     const previousValue = prevToQueryRef.current;
     const autofillItem = shouldAutofill(previousValue, toQuery, toRanked, toTarget, isSameTarget);
 
     if (autofillItem) {
-      const label = getTargetSelectionLabel(autofillItem);
+      const label = getTargetSelectionLabel(autofillItem, language, t);
       setToTarget(autofillItem);
       setToQuery(label);
       prevToQueryRef.current = label;
@@ -265,14 +325,14 @@ function NavigationView({
     }
 
     prevToQueryRef.current = toQuery;
-  }, [toQuery, toRanked, toTarget]);
+  }, [language, t, toQuery, toRanked, toTarget]);
 
   const handleFromQueryChange = (value: string) => {
     const previousValue = fromQuery;
     prevFromQueryRef.current = previousValue;
 
     if (fromLocation) {
-      const label = getNavigationLocationLabel(fromLocation);
+      const label = getLocalizedNavigationLocationLabel(fromLocation, language);
       if (isUserDeletingInput(previousValue, value) && !isQueryMatchingLabel(value, label)) {
         setFromLocation(null);
       } else if (!isQueryMatchingLabel(value, label)) {
@@ -291,7 +351,7 @@ function NavigationView({
     prevToQueryRef.current = previousValue;
 
     if (toTarget) {
-      const label = getTargetSelectionLabel(toTarget);
+      const label = getTargetSelectionLabel(toTarget, language, t);
       if (isUserDeletingInput(previousValue, value) && !isQueryMatchingLabel(value, label)) {
         setToTarget(null);
       } else if (!isQueryMatchingLabel(value, label)) {
@@ -314,20 +374,23 @@ function NavigationView({
       return;
     }
 
-    setIsRouting(true);
+    const sourceLanguage = language;
+    beginRouteSearch();
     setError('');
     setShareUrl(null);
     setShareError('');
+    const request = buildRouteRequest();
+    if (!request) {
+      setIsRouting(false);
+      return;
+    }
+
     try {
-      applyRoute(
-        await requestRoute({
-          fromLocationId: fromLocation.id,
-          toLocationId: isNearestTarget(toTarget) ? undefined : toTarget.id,
-          targetType: isNearestTarget(toTarget) ? toTarget.targetType : undefined,
-          allowElevator,
-          message: t('navigation.routeCalculationError'),
-        })
-      );
+      const [nextRoute] = await Promise.all([
+        requestRoute(request),
+        new Promise<void>((resolve) => window.setTimeout(resolve, ROUTE_LOADING_MIN_MS)),
+      ]);
+      applyRoute(nextRoute, { sourceLanguage });
     } catch (routeError) {
       setRoute(null);
       setError(
@@ -401,10 +464,10 @@ function NavigationView({
   };
 
   const compactFromLabel = fromLocation
-    ? getNavigationLocationLabel(fromLocation)
+    ? getLocalizedNavigationLocationLabel(fromLocation, language)
     : fromQuery || t('navigation.startFallback');
   const compactToLabel = toTarget
-    ? getTargetSelectionLabel(toTarget)
+    ? getTargetSelectionLabel(toTarget, language, t)
     : toQuery || t('navigation.targetFallback');
   const showRouteLayout = Boolean(route && activeSegment && !isFormExpanded);
   const hasMultipleSegments = routeSegments.length > 1;
@@ -427,9 +490,12 @@ function NavigationView({
     : 0;
   const segmentLabel = activeSegment ? localizeFloorLabel(activeSegment.floorLabel, language) : '';
 
+  const showFormPanel = !isRouting && (isFormExpanded || isFormCollapsing);
+  const showCompactRouteBar = !isRouting && !isFormExpanded && !isFormCollapsing;
+
   return (
     <section className={`${styles.content} ${showRouteLayout ? styles.contentRoute : ''}`}>
-      {isFormExpanded || isFormCollapsing ? (
+      {showFormPanel ? (
         <div className={`${styles.formPanel} ${isFormCollapsing ? styles.formPanelCollapsing : ''}`}>
           <LocationPicker
             id="start-location"
@@ -443,7 +509,7 @@ function NavigationView({
               if (isNearestTarget(location)) {
                 return;
               }
-              const label = getNavigationLocationLabel(location);
+              const label = getLocalizedNavigationLocationLabel(location, language);
               setFromLocation(location);
               setFromQuery(label);
               prevFromQueryRef.current = label;
@@ -460,7 +526,7 @@ function NavigationView({
             suggestions={toSuggestions}
             onQueryChange={handleToQueryChange}
             onSelect={(target) => {
-              const label = getTargetSelectionLabel(target);
+              const label = getTargetSelectionLabel(target, language, t);
               setToTarget(target);
               setToQuery(label);
               prevToQueryRef.current = label;
@@ -500,7 +566,7 @@ function NavigationView({
             {isRouting ? t('navigation.calculatingRoute') : t('navigation.showRoute')}
           </button>
         </div>
-      ) : (
+      ) : showCompactRouteBar ? (
         <div className={`${styles.compactRouteBar} ${styles.compactRouteRowVisible}`}>
           <button
             type="button"
@@ -529,12 +595,14 @@ function NavigationView({
             </button>
           )}
         </div>
-      )}
+      ) : null}
+
+      {isRouting ? <RouteLoadingOverlay label={t('navigation.searchingRoute')} /> : null}
 
       {hasSameLocations && <p className={styles.errorText}>{t('navigation.sameLocationsError')}</p>}
       {error && !hasSameLocations && <p className={styles.errorText}>{error}</p>}
 
-      {showRouteLayout && route && activeSegment && (
+      {showRouteLayout && route && activeSegment && !isRouting && (
         <div className={`${styles.routeLayout} ${isRouteVisible ? styles.routeLayoutVisible : ''}`}>
           <div className={styles.routeControlsRow}>
             <button
@@ -581,7 +649,10 @@ function NavigationView({
               </div>
             </div>
             <div className={styles.stepsSection}>
-              <div className={styles.stepsWrap} key={`steps-${activeSegmentIndex}-${transitionNonce}`}>
+              <div
+                className={styles.stepsWrap}
+                key={`steps-${activeSegmentIndex}-${transitionNonce}-${language}`}
+              >
                 <div className={styles.stepsAnimated}>
                   <StepList
                     segment={activeSegment}

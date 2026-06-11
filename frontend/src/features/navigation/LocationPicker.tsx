@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { useI18n } from '../../i18n/useI18n';
+import { localizeFloorLabel } from '../../utils/displayNames';
 import { shouldShowSuggestions } from '../../utils/search';
 import { getTargetSelectionLabel, isQueryMatchingSelection } from './locationSelection';
 import { isNearestTarget, type LocationPickerSuggestion, type TargetSelection } from './navigationTargets';
@@ -25,10 +27,13 @@ function LocationPicker({
   onQueryChange,
   onSelect,
 }: LocationPickerProps) {
+  const { language, t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const committedLabel =
-    selected && isQueryMatchingSelection(query, selected) ? getTargetSelectionLabel(selected) : null;
+    selected && isQueryMatchingSelection(query, selected, language, t)
+      ? getTargetSelectionLabel(selected, language, t)
+      : null;
   const showResults = shouldShowSuggestions(query, committedLabel, suggestions.length, isFocused);
 
   const commitSelection = (value: TargetSelection) => {
@@ -59,8 +64,8 @@ function LocationPicker({
       {selected && committedLabel && (
         <p className={styles.selectionText}>
           {isNearestTarget(selected)
-            ? selected.meta
-            : `${selected.buildingCode} - ${selected.floorLabel}`}
+            ? t('navigation.nearestWcMeta')
+            : `${selected.buildingCode} - ${localizeFloorLabel(selected.floorLabel, language)}`}
         </p>
       )}
       {showResults && (

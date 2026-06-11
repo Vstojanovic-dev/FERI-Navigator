@@ -27,9 +27,17 @@ export type RoutePoint = {
   z: number;
 };
 
+export type BilingualText = {
+  sl: string;
+  en: string;
+};
+
 export type RouteStep = {
   index: number;
   text: string;
+  texts?: BilingualText;
+  textSl?: string;
+  textEn?: string;
   fromNodeId: number;
   toNodeId: number;
   type: string;

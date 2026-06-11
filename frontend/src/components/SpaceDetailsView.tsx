@@ -36,7 +36,7 @@ function SpaceDetailsView({
   return (
     <PageShell>
       <SubPageHeader
-        title={displayName}
+        title={t('share.nativeTitle')}
         fallbackTo="/"
         onBack={onBack}
         showAllMenuItems={showAllMenuItems}
