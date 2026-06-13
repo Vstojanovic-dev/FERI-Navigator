@@ -1,0 +1,29 @@
+FERI Navigator
+
+Pametna spletna navigacija po stavbi FERI, ki uporabniku hitro poišče prostor in ga z jasnimi navodili vodi do cilja.
+
+Leto izdelave: 2026
+
+Veljko Stojanović
+Lola Novaković
+Petar Kojadinović
+
+Domača stran: https://ferinav.app
+Vir podatkov: Tlorisi in prostori FERI, Univerza v Mariboru
+Koda: https://github.com/Vstojanovic-dev/FERI-Navigator
+
+Kategorizacija: celovita informacijska rešitev, spletna aplikacija
+
+Oznake: React, TypeScript, SpringBoot, Java, PostgreSQL, PostGIS, Docker, Nginx, REST, GitHub, FERI
+
+Opis projekta:
+
+Se izgubiš med hodniki, nadstropji in učilnicami FERI? FERI Navigator je interaktivna spletna aplikacija, ki iskanje prostorov na Fakulteti za elektrotehniko, računalništvo in informatiko v Mariboru spremeni v hiter, pregleden in uporabniku prijazen proces.
+
+Aplikacija je namenjena študentom, zaposlenim, gostom fakultete in obiskovalcem dogodkov. Uporabnik preprosto izbere začetno točko in cilj, sistem pa izračuna najprimernejšo pot skozi stavbo ter jo prikaže na tlorisu aktivnega nadstropja. Navigacija vključuje jasna navodila po korakih, prehode med nadstropji in možnost izbire poti z dvigalom, kar rešitev naredi uporabno tudi za osebe z omejeno mobilnostjo.
+
+FERI Navigator omogoča iskanje predavalnic, kabinetov, pisarn, laboratorijev in drugih pomembnih točk v stavbi. Posebna funkcionalnost je iskanje najbližjega stranišča, uporabnik pa lahko pot deli tudi prek povezave ali QR-kode. To je posebej uporabno pri dogodkih, sprejemih brucev, govorilnih urah in obiskih zunanjih gostov.
+
+Rešitev je zgrajena kot sodobna spletna aplikacija. Uporabniški vmesnik je razvit v Reactu, zaledni del pa uporablja Spring Boot in REST API. Podatki o prostorih, povezavah in navigacijskem grafu so shranjeni v PostgreSQL/PostGIS bazi, ki omogoča delo s prostorskimi podatki. Za izračun najkrajše poti se uporablja Dijkstrov algoritem, celotno okolje pa je kontejnerizirano z Dockerjem in pripravljeno za produkcijsko uporabo z Nginx strežnikom.
+
+Cilj projekta je zmanjšati zmedo pri orientaciji po fakulteti, pospešiti iskanje prostorov in obiskovalcem omogočiti bolj samostojno gibanje po stavbi. FERI Navigator tako deluje kot digitalni pomočnik za navigacijo po fakulteti – vedno dostopen, pregleden in prilagojen dejanskim potrebam uporabnikov.

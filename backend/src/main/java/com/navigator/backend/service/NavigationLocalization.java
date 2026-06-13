@@ -30,6 +30,8 @@ final class NavigationLocalization {
   private static final Pattern EXIT_TO_BUILDING_PATTERN =
       Pattern.compile("(?i)^izhod\\s+za\\s+objekt\\s+(.+)$");
   private static final Pattern EXIT_PATTERN = Pattern.compile("(?i)^izhod\\s+(.+)$");
+  private static final Pattern COFFEE_VENDING_PATTERN =
+      Pattern.compile("(?i)^avtomat\\s+za\\s+kavo$");
 
   private static final Map<String, String> EN_INSTRUCTION_MAP = buildEnglishInstructionMap();
 
@@ -173,6 +175,10 @@ final class NavigationLocalization {
     Matcher exit = EXIT_PATTERN.matcher(normalized);
     if (exit.matches()) {
       return "Exit " + exit.group(1).trim();
+    }
+
+    if (COFFEE_VENDING_PATTERN.matcher(normalized).matches()) {
+      return "Coffee vending machine";
     }
 
     if ("vhod".equalsIgnoreCase(normalized)) {

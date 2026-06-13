@@ -45,4 +45,31 @@ class AdminNavigationGraphSqlTest {
     assertFalse(sql.contains("E_pritlicje_e_1111"));
     assertFalse(sql.contains("E-1111"));
   }
+
+  @Test
+  void exportedNavigationLocationsIncludeG3WcsAsNearestTargets() throws IOException {
+    String sql = Files.readString(Path.of("..", "database", "init", "006_admin_navigation_graph.sql"));
+
+    assertTrue(
+        sql.contains(
+            "('G3_klet_wc_enski', 'WC_ženski', 'wc', 'G3', 'klet'"));
+    assertTrue(
+        sql.contains(
+            "('Ženski WC - G3, Klet', 'zenski wc women toilet g3 klet', 'wc', 'G3', 'klet', 'G3_klet_wc_enski'"));
+    assertTrue(
+        sql.contains(
+            "('Moški WC - G3, Mansarda', 'moski wc men toilet g3 mansarda', 'wc', 'G3', 'mansarda', 'G3_mansarda_wc_mo_ki'"));
+  }
+
+  @Test
+  void exportedNavigationLocationsIncludeCoffeeVendingMachine() throws IOException {
+    String sql = Files.readString(Path.of("..", "database", "init", "006_admin_navigation_graph.sql"));
+
+    assertTrue(
+        sql.contains(
+            "('E_pritlicje_masina_za_sokove', 'masina_za_sokove', 'service', 'E', 'pritlicje'"));
+    assertTrue(
+        sql.contains(
+            "('Avtomat za kavo - E, Pritličje', 'avtomat za kavo aparat za kafu coffee vending machine masina za sokove', 'service', 'E', 'pritlicje', 'E_pritlicje_masina_za_sokove'"));
+  }
 }

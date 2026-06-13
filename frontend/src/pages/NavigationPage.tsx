@@ -10,6 +10,7 @@ import styles from './NavigationPage.module.css';
 
 type NavigationPageState = {
   initialTarget?: string;
+  initialFromLocationId?: number;
 };
 
 type SharedRouteState = {
@@ -85,6 +86,7 @@ function NavigationPage() {
         {!isResolvingShare && (
           <NavigationView
             initialTarget={sharedRoute ? sharedInitialTarget : (state?.initialTarget ?? '')}
+            initialFromLocationId={sharedRoute ? undefined : state?.initialFromLocationId}
             sharedFromLocationId={sharedRoute?.fromLocationId}
             sharedToLocationId={sharedRoute?.toLocationId}
             sharedTargetType={sharedRoute?.targetType}

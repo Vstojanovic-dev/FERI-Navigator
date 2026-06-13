@@ -30,6 +30,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class NavigationRouteService {
 
+  private static final String PRESENTATION_START_NODE = "G2_pritlicje_g2_p01";
+  private static final String PRESENTATION_CAFE_NODE = "G2_3_nadstropje_kavarna";
+
   private final NavigationLocationRepository locationRepository;
   private final AStarService aStarService;
   private final VerticalPreferenceResolver verticalPreferenceResolver;
@@ -125,16 +128,83 @@ public class NavigationRouteService {
             NavigationTexts.noRouteForSelectedLocations(language));
       }
 
-      return RouteResponseDto.builder()
-          .routeId("route-" + from.getId() + "-" + to.getId())
-          .from(toLocationDto(from, language))
-          .to(toLocationDto(to, language))
-          .totalCost(searchResult.getTotalCost())
-          .segments(buildSegments(searchResult, to, language))
-          .build();
+      RouteResponseDto response =
+          RouteResponseDto.builder()
+              .routeId("route-" + from.getId() + "-" + to.getId())
+              .from(toLocationDto(from, language))
+              .to(toLocationDto(to, language))
+              .totalCost(searchResult.getTotalCost())
+              .segments(buildSegments(searchResult, to, language))
+              .build();
+      return applyPresentationInstructions(response, from, to, allowElevator, language);
     } catch (IllegalStateException ex) {
       throw invalidRouteData(language);
     }
+  }
+
+  private RouteResponseDto applyPresentationInstructions(
+      RouteResponseDto response,
+      NavigationLocation from,
+      NavigationLocation to,
+      boolean allowElevator,
+      NavigationLanguage language) {
+    if (!allowElevator
+        || !PRESENTATION_START_NODE.equals(from.getNode().getExternalId())
+        || !PRESENTATION_CAFE_NODE.equals(to.getNode().getExternalId())) {
+      return response;
+    }
+
+    List<RouteStepDto> steps =
+        response.getSegments().stream().flatMap(segment -> segment.getSteps().stream()).toList();
+    int elevatorStepIndex = -1;
+    for (int i = 0; i < steps.size(); i++) {
+      if ("elevator".equals(steps.get(i).getType())) {
+        elevatorStepIndex = i;
+        break;
+      }
+    }
+    if (elevatorStepIndex < 0) {
+      return response;
+    }
+
+    if (elevatorStepIndex < 4) {
+      return response;
+    }
+
+    for (int i = 0; i < elevatorStepIndex; i++) {
+      String instruction = presentationInstruction(i, elevatorStepIndex, language);
+      if (instruction != null) {
+        steps.get(i).setText(instruction);
+      }
+    }
+    return response;
+  }
+
+  private String presentationInstruction(
+      int stepIndex, int elevatorStepIndex, NavigationLanguage language) {
+    boolean english = language == NavigationLanguage.EN;
+
+    if (stepIndex == 0) {
+      return english
+          ? "Exit P01 and turn right."
+          : "Izstopite iz P01 in zavijte desno.";
+    }
+    if (stepIndex == elevatorStepIndex - 3) {
+      return english
+          ? "Continue straight to the stairs and go up."
+          : "Nadaljujte naravnost do stopnic in se povzpnite.";
+    }
+    if (stepIndex == elevatorStepIndex - 2) {
+      return english
+          ? "Turn left and continue to the elevator."
+          : "Zavijte levo in nadaljujte do dvigala.";
+    }
+    if (stepIndex == elevatorStepIndex - 1) {
+      return english
+          ? "Call the elevator."
+          : "Pokličite dvigalo.";
+    }
+    return null;
   }
 
   private RouteResponseDto routeToNearestTarget(
@@ -861,6 +931,7 @@ public class NavigationRouteService {
     return NavigationLocationDto.builder()
         .id(location.getId())
         .displayName(NavigationLocalization.localizeDisplayName(location.getDisplayName(), language))
+        .searchableName(location.getSearchableName())
         .locationType(location.getLocationType())
         .buildingId(location.getBuilding().getId())
         .buildingCode(location.getBuilding().getCode())

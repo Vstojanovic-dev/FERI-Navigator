@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../i18n/useI18n';
 import { ApiError } from '../../services/api';
-import { createShare, fetchRoute } from '../../services/navigationService';
+import { createShare, fetchLocation, fetchRoute } from '../../services/navigationService';
 import type { AppLanguage } from '../../i18n/language';
 import type { NavigationLocation, NavigationRoute } from '../../types/navigation';
 import { localizeFloorLabel } from '../../utils/displayNames';
@@ -44,6 +44,7 @@ function isSameTarget(left: TargetSelection, right: TargetSelection): boolean {
 
 type NavigationViewProps = {
   initialTarget: string;
+  initialFromLocationId?: number;
   sharedFromLocationId?: number;
   sharedToLocationId?: number;
   sharedTargetType?: string;
@@ -52,6 +53,7 @@ type NavigationViewProps = {
 
 function NavigationView({
   initialTarget,
+  initialFromLocationId,
   sharedFromLocationId,
   sharedToLocationId,
   sharedTargetType,
@@ -197,6 +199,40 @@ function NavigationView({
     setTransitionNonce((value) => value + 1);
     setIsRouteVisible(true);
   };
+
+  useEffect(() => {
+    if (!initialFromLocationId || sharedFromLocationId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const resolveInitialFromLocation = async () => {
+      try {
+        const location = await fetchLocation(initialFromLocationId);
+        if (cancelled) {
+          return;
+        }
+
+        const label = getLocalizedNavigationLocationLabel(location, language);
+        setFromLocation(location);
+        setFromQuery(label);
+        prevFromQueryRef.current = label;
+      } catch {
+        if (!cancelled) {
+          setFromLocation(null);
+          setFromQuery('');
+          prevFromQueryRef.current = '';
+        }
+      }
+    };
+
+    void resolveInitialFromLocation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialFromLocationId, language, sharedFromLocationId]);
 
   useEffect(() => {
     if (!sharedFromLocationId) {

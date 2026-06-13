@@ -117,6 +117,7 @@ public class NavigationShareService {
                   .displayName(
                       NavigationLocalization.localizeDisplayName(
                           location.getDisplayName(), language))
+                  .searchableName(location.getSearchableName())
                   .locationType(location.getLocationType())
                   .buildingId(location.getBuilding().getId())
                   .buildingCode(location.getBuilding().getCode())

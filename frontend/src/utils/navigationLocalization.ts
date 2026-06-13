@@ -312,6 +312,10 @@ export function localizeNavigationDisplayName(
     return `Exit ${exit[1].trim()}`;
   }
 
+  if (/^avtomat\s+za\s+kavo$/i.test(normalized)) {
+    return 'Coffee vending machine';
+  }
+
   if (/^vhod$/i.test(normalized)) {
     return 'Entrance';
   }

@@ -2,10 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { resolveAssetUrl } from '../../services/api';
 import type { RouteSegment } from '../../types/navigation';
 import { getSegmentViewport } from './mapViewport';
-import {
-  resolveActiveStepGeometry,
-  resolveStepPathBounds,
-} from './routeGeometry';
+import { resolveActiveStepGeometry, resolveStepPathBounds } from './routeGeometry';
 import styles from './NavigationView.module.css';
 
 type RouteMapProps = {
@@ -101,7 +98,7 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
         <p className={styles.mapTitle}>{segment.buildingName}</p>
         <p className={styles.mapMeta}>{segment.floorLabel}</p>
       </div>
-      <div className={styles.mapViewport}>
+      <div className={styles.mapViewport} style={{ aspectRatio: viewport.aspectRatio }}>
         {imageUrl && (
           <img
             src={imageUrl}
@@ -110,8 +107,8 @@ function RouteMap({ segment, activeStepIndex }: RouteMapProps) {
             style={{
               width: `${viewport.imageScaleX * 100}%`,
               height: `${viewport.imageScaleY * 100}%`,
-              transform: `translate(${viewport.imageTranslateXPercent}%, ${viewport.imageTranslateYPercent}%)`,
-              transformOrigin: 'top left',
+              left: `${viewport.imageTranslateXPercent}%`,
+              top: `${viewport.imageTranslateYPercent}%`,
               maxWidth: 'none',
             }}
           />

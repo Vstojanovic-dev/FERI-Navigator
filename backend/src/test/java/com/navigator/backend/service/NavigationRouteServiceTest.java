@@ -107,8 +107,36 @@ class NavigationRouteServiceTest {
 
     assertEquals(1, result.size());
     assertEquals("Gauss Classroom (G3-K1-01) - G3, Basement", result.get(0).getDisplayName());
+    assertEquals(
+        "amfiteater gauss (g3-k1-01) - g3, klet", result.get(0).getSearchableName());
     assertEquals("Building G3", result.get(0).getBuildingName());
     assertEquals("Basement", result.get(0).getFloorLabel());
+  }
+
+  @Test
+  void searchLocationsLocalizesCoffeeVendingMachineInSlovenianAndEnglish() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+    NavigationLocation location =
+        buildLocation(
+            2L, "Avtomat za kavo - E, Pritličje", "service", true, 12L, "Pritličje");
+    location.setSearchableName(
+        "avtomat za kavo aparat za kafu coffee vending machine masina za sokove");
+    location.getBuilding().setCode("E");
+    location.getBuilding().setName("Objekt E");
+
+    when(locationRepository.searchEnabled(eq("coffee"), eq(PageRequest.of(0, 20))))
+        .thenReturn(List.of(location));
+
+    var slResult = service.searchLocations("coffee", 20, "sl-SI");
+    var enResult = service.searchLocations("coffee", 20, "en-US");
+
+    assertEquals("Avtomat za kavo - E, Pritličje", slResult.get(0).getDisplayName());
+    assertEquals(
+        "Coffee vending machine - E, Ground Floor", enResult.get(0).getDisplayName());
+    assertEquals(
+        "avtomat za kavo aparat za kafu coffee vending machine masina za sokove",
+        enResult.get(0).getSearchableName());
   }
 
   @Test
@@ -158,6 +186,184 @@ class NavigationRouteServiceTest {
     assertEquals(
         "Weber Laboratory is next to the corridor.",
         result.getSegments().get(0).getSteps().get(0).getText());
+  }
+
+  @Test
+  void routeUsesHardcodedPresentationInstructionsFromG2P01ToCafeWithElevator() {
+    NavigationRouteService service =
+        new NavigationRouteService(locationRepository, aStarService, verticalPreferenceResolver);
+
+    Building g2 = Building.builder().id(1L).code("G2").name("Objekt G2").description("G2").build();
+    Floor groundFloor =
+        buildFloor(101L, g2, "pritlicje", "Pritličje", "/maps/g2-pritlicje.png");
+    Floor thirdFloor =
+        buildFloor(103L, g2, "3_nadstropje", "3. nadstropje", "/maps/g2-3.png");
+    thirdFloor.setLevelNumber(BigDecimal.valueOf(3));
+    thirdFloor.setZ(BigDecimal.valueOf(3));
+
+    NavNode start =
+        buildNode(
+            11L,
+            "G2_pritlicje_g2_p01",
+            "G2 P01",
+            "room",
+            groundFloor,
+            100,
+            100,
+            false);
+    NavNode corridor =
+        buildNode(
+            12L,
+            "G2_pritlicje_wp6",
+            "wp6",
+            "waypoint",
+            groundFloor,
+            200,
+            100,
+            true);
+    NavNode stairs =
+        buildNode(
+            13L,
+            "G2_pritlicje_stepenice",
+            "Stopnice",
+            "stairs",
+            groundFloor,
+            200,
+            200,
+            false);
+    NavNode upperCorridor =
+        buildNode(
+            14L,
+            "G2_pritlicje_wp17",
+            "wp17",
+            "waypoint",
+            groundFloor,
+            300,
+            200,
+            true);
+    NavNode groundElevator =
+        buildNode(
+            15L,
+            "G2_pritlicje_lift",
+            "Lift",
+            "elevator",
+            groundFloor,
+            300,
+            300,
+            false);
+    NavNode thirdElevator =
+        buildNode(
+            21L,
+            "G2_3_nadstropje_lift",
+            "Lift",
+            "elevator",
+            thirdFloor,
+            300,
+            300,
+            false);
+    NavNode cafe =
+        buildNode(
+            22L,
+            "G2_3_nadstropje_kavarna",
+            "Kavarna",
+            "room",
+            thirdFloor,
+            400,
+            300,
+            false);
+
+    NavigationLocation from = buildLocation(1L, "G2 P01", "classroom", start, g2);
+    NavigationLocation to = buildLocation(2L, "Kavarna", "service", cafe, g2);
+    RouteSearchResult route =
+        RouteSearchResult.builder()
+            .nodes(
+                List.of(
+                    start,
+                    corridor,
+                    stairs,
+                    upperCorridor,
+                    groundElevator,
+                    thirdElevator,
+                    cafe))
+            .edges(
+                List.of(
+                    routeEdge(501L, start, corridor, "corridor"),
+                    routeEdge(502L, corridor, stairs, "corridor"),
+                    routeEdge(503L, stairs, upperCorridor, "corridor"),
+                    routeEdge(504L, upperCorridor, groundElevator, "corridor"),
+                    routeEdge(505L, groundElevator, thirdElevator, "elevator"),
+                    routeEdge(506L, thirdElevator, cafe, "corridor")))
+            .totalCost(12)
+            .build();
+
+    when(locationRepository.findEnabledById(1L)).thenReturn(Optional.of(from));
+    when(locationRepository.findEnabledById(2L)).thenReturn(Optional.of(to));
+    when(locationRepository.findEnabledByNodeIdIn(
+            List.of(11L, 12L, 13L, 14L, 15L, 21L, 22L)))
+        .thenReturn(List.of(to));
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, cafe, true))
+        .thenReturn(List.of(VerticalTraversalMode.ELEVATOR_ONLY));
+    when(verticalPreferenceResolver.resolveAttemptOrder(start, cafe, false))
+        .thenReturn(List.of(VerticalTraversalMode.STAIRS_ONLY));
+    when(aStarService.findPath(start, cafe, true, VerticalTraversalMode.ELEVATOR_ONLY))
+        .thenReturn(route);
+    when(aStarService.findPath(start, cafe, false, VerticalTraversalMode.STAIRS_ONLY))
+        .thenReturn(route);
+
+    RouteResponseDto slResult = service.route(1L, 2L, null, true, "sl-SI");
+    RouteResponseDto enResult = service.route(1L, 2L, null, true, "en-US");
+    RouteResponseDto elevatorDisabledResult = service.route(1L, 2L, null, false, "sl-SI");
+
+    assertEquals(
+        List.of(
+            "Izstopite iz P01 in zavijte desno.",
+            "Nadaljujte naravnost do stopnic in se povzpnite.",
+            "Zavijte levo in nadaljujte do dvigala.",
+            "Pokličite dvigalo.",
+            "Izstopite iz dvigala in nadaljujte po prikazani poti.",
+            "Prispeli ste do lokacije Kavarna."),
+        stepTexts(slResult));
+    assertEquals(
+        List.of(
+            "Exit P01 and turn right.",
+            "Continue straight to the stairs and go up.",
+            "Turn left and continue to the elevator.",
+            "Call the elevator.",
+            "Exit the elevator and continue along the displayed route.",
+            "You have arrived at Kavarna."),
+        stepTexts(enResult));
+    assertTrue(
+        elevatorDisabledResult.getSegments().stream()
+            .flatMap(segment -> segment.getSteps().stream())
+            .noneMatch(
+                step ->
+                    step.getText()
+                        .contains("Izstopite iz P01 in zavijte desno.")));
+    assertEquals(
+        elevatorDisabledResult.getSegments().stream()
+            .flatMap(segment -> segment.getSteps().stream())
+            .map(
+                step ->
+                    List.of(
+                        step.getIndex(),
+                        step.getFromNodeId(),
+                        step.getToNodeId(),
+                        step.getType(),
+                        step.getIcon(),
+                        step.getManeuverType()))
+            .toList(),
+        slResult.getSegments().stream()
+            .flatMap(segment -> segment.getSteps().stream())
+            .map(
+                step ->
+                    List.of(
+                        step.getIndex(),
+                        step.getFromNodeId(),
+                        step.getToNodeId(),
+                        step.getType(),
+                        step.getIcon(),
+                        step.getManeuverType()))
+            .toList());
   }
 
   @Test
@@ -783,5 +989,12 @@ class NavigationRouteServiceTest {
         .weight(BigDecimal.ONE)
         .edgeType(EdgeType.builder().id(1L).code(edgeTypeCode).name(edgeTypeCode).build())
         .build();
+  }
+
+  private List<String> stepTexts(RouteResponseDto route) {
+    return route.getSegments().stream()
+        .flatMap(segment -> segment.getSteps().stream())
+        .map(RouteResponseDto.RouteStepDto::getText)
+        .toList();
   }
 }

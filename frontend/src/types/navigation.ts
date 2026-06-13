@@ -1,6 +1,7 @@
 export type NavigationLocation = {
   id: number;
   displayName: string;
+  searchableName?: string;
   locationType: string;
   buildingId: number;
   buildingCode: string;

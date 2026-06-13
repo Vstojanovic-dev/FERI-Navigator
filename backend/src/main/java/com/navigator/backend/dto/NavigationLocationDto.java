@@ -8,6 +8,7 @@ import lombok.Data;
 public class NavigationLocationDto {
   private Long id;
   private String displayName;
+  private String searchableName;
   private String locationType;
   private Long buildingId;
   private String buildingCode;

@@ -11,7 +11,7 @@
 
 .contentRoute {
   gap: 4px;
-  padding: 4px 12px 10px;
+  padding: 4px 12px max(8px, env(safe-area-inset-bottom));
 }
 
 .formPanel {
@@ -135,13 +135,14 @@
 }
 
 .mapWrap {
-  flex: 1 1 auto;
-  min-height: clamp(200px, 30dvh, 260px);
+  flex: 0 0 auto;
+  min-height: 0;
   overflow: hidden;
 }
 
 .stepsSection {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -201,6 +202,7 @@
 .bottomNav {
   flex: 0 0 48px;
   height: 48px;
+  margin-top: auto;
   padding-top: 0;
 }
 
@@ -306,7 +308,7 @@
 }
 
 .mapAnimated {
-  height: 100%;
+  height: auto;
   animation: contentSwap 140ms ease-out;
 }
 
@@ -494,7 +496,7 @@
   background: var(--color-surface-white);
   border: 1px solid var(--color-border-input);
   border-radius: 14px;
-  height: 100%;
+  height: auto;
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
@@ -527,7 +529,7 @@
 .mapViewport {
   position: relative;
   width: 100%;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   overflow: hidden;
   background: var(--color-surface-tint);
@@ -540,6 +542,7 @@
 }
 
 .mapImage {
+  position: absolute;
   display: block;
   object-fit: contain;
 }
@@ -653,11 +656,11 @@
   }
 
   .mapWrap {
-    min-height: clamp(210px, 34dvh, 300px);
+    min-height: 0;
   }
 
   .contentRoute {
-    padding-bottom: 8px;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
 
@@ -720,5 +723,3 @@
 :global([data-theme='dark']) .resultButton {
   border-bottom-color: rgba(255, 255, 255, 0.15);
 }
-
-

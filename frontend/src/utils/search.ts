@@ -244,6 +244,7 @@ export function navigationLocationToSearchable(location: NavigationLocation): Se
     displayName: getLocationDisplayName(location),
     name: location.spaceName ?? undefined,
     fullName: location.displayName,
+    keywords: location.searchableName ? [location.searchableName] : undefined,
     type: location.spaceTypeName ?? location.locationType,
     building: location.buildingName,
     objectName: location.buildingCode,

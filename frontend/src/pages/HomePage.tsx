@@ -28,6 +28,7 @@ import styles from './HomePage.module.css';
 
 type HomePageState = {
   selectedSpace?: CatalogSpace;
+  fromLocationId?: number;
 };
 
 let introCompletedOnce = false;
@@ -37,6 +38,14 @@ function HomePage() {
   const navigate = useNavigate();
   const state = (location.state as HomePageState | null) ?? null;
   const selectedSpace = state?.selectedSpace ?? null;
+  const fromLocationIdParam = new URLSearchParams(location.search).get('fromLocationId');
+  const parsedFromLocationId =
+    fromLocationIdParam && /^\d+$/.test(fromLocationIdParam)
+      ? Number(fromLocationIdParam)
+      : undefined;
+  const fromLocationId =
+    state?.fromLocationId ??
+    (parsedFromLocationId && parsedFromLocationId > 0 ? parsedFromLocationId : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -135,12 +144,22 @@ function HomePage() {
   };
 
   const openSpace = (space: CatalogSpace) => {
-    navigate('/', { state: { selectedSpace: space } satisfies HomePageState });
+    navigate('/', {
+      state: {
+        selectedSpace: space,
+        fromLocationId,
+      } satisfies HomePageState,
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const openNavigation = (space: CatalogSpace) => {
-    navigate('/navigacija', { state: { initialTarget: getCatalogSpaceLabel(space) } });
+    navigate('/navigacija', {
+      state: {
+        initialTarget: getCatalogSpaceLabel(space),
+        initialFromLocationId: fromLocationId,
+      },
+    });
   };
 
   if (selectedSpace) {

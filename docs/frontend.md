@@ -13,10 +13,12 @@ Javni frontend je mobilno usmerjena SPA aplikacija. Glavne poti so določene v `
 
 | Pot | Stran | Namen |
 |---|---|---|
-| `/` | `HomePage` | Iskanje prostorov in prikaz podrobnosti |
+| `/` | `HomePage` | Iskanje prostorov in prikaz podrobnosti; opcijski `fromLocationId` ohrani začetno lokacijo za navigacijo |
 | `/objekti` | `BuildingsPage` | Pregled objektov in prostorov v objektu |
 | `/navigacija` | `NavigationPage` | Izbor lokacij in prikaz poti |
 | `/share/:shareCode` | `NavigationPage` | Nalaganje deljene izbire poti |
+
+Povezava `/?fromLocationId=<id>` uporablja obstoječi javni endpoint za podrobnosti navigacijske lokacije. Parameter se prenese samo do strani navigacije; ne ustvarja zapisa za deljenje poti in ne spreminja vedenja `/share/:shareCode`.
 
 ## Struktura javnega frontenda
 

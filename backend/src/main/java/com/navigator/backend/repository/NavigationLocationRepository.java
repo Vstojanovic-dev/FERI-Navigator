@@ -33,7 +33,7 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
           SELECT l FROM NavigationLocation l
           WHERE l.isEnabled = true
           AND l.space IS NOT NULL
-          AND l.locationType IN ('classroom', 'laboratory', 'office')
+          AND l.locationType IN ('classroom', 'laboratory', 'office', 'public_area', 'service')
           AND (
             :query = ''
             OR LOWER(l.searchableName) LIKE LOWER(CONCAT('%', :query, '%'))
@@ -56,7 +56,7 @@ public interface NavigationLocationRepository extends JpaRepository<NavigationLo
           WHERE l.isEnabled = true
             AND l.space IS NOT NULL
             AND l.building.id = :buildingId
-            AND l.locationType IN ('classroom', 'laboratory', 'office')
+            AND l.locationType IN ('classroom', 'laboratory', 'office', 'public_area', 'service')
           ORDER BY l.floor.z, l.displayName
           """)
   List<NavigationLocation> findEnabledCatalogSpacesByBuildingId(

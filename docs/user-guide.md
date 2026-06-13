@@ -80,6 +80,12 @@ Med koraki se premikate s puščicama za prejšnji in naslednji korak. Izberete 
 
 Za spremembo začetne lokacije, cilja ali uporabe dvigala izberite vrstico z izbranima lokacijama nad prikazom poti.
 
+## Povezava z določeno začetno lokacijo
+
+Povezava v obliki `/?fromLocationId=11` odpre začetno stran in si zapomni določeno začetno navigacijsko lokacijo. Uporabnik nato poišče ciljni prostor in izbere **Poišči učilnico**. Na strani navigacije je začetna lokacija že izbrana, cilj pa je prostor, ki ga je uporabnik izbral na začetni strani.
+
+Takšno povezavo je mogoče zapisati tudi v zunanjo QR-kodo. Če identifikator ni veljaven ali lokacija ne obstaja, aplikacija odpre običajen navigacijski obrazec brez izbrane začetne lokacije.
+
 ## Deljenje poti
 
 Ko je pot izračunana, jo lahko delite:

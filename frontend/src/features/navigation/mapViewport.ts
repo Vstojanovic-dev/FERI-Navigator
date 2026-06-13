@@ -10,6 +10,7 @@ type ImageViewport = {
 };
 
 type ResolvedViewport = {
+  aspectRatio: number;
   imageScaleX: number;
   imageScaleY: number;
   imageTranslateXPercent: number;
@@ -42,6 +43,7 @@ export function getSegmentViewport(segment: RouteSegment): ResolvedViewport {
 
   if (!viewport) {
     return {
+      aspectRatio: coordinateWidth / coordinateHeight,
       imageScaleX: 1,
       imageScaleY: 1,
       imageTranslateXPercent: 0,
@@ -54,6 +56,7 @@ export function getSegmentViewport(segment: RouteSegment): ResolvedViewport {
   }
 
   return {
+    aspectRatio: viewport.cropWidth / viewport.cropHeight,
     imageScaleX: viewport.imageWidth / viewport.cropWidth,
     imageScaleY: viewport.imageHeight / viewport.cropHeight,
     imageTranslateXPercent: -(viewport.cropLeft / viewport.cropWidth) * 100,

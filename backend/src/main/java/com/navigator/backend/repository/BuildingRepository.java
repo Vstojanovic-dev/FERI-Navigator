@@ -24,7 +24,7 @@ public interface BuildingRepository extends JpaRepository<Building, Long> {
             ON l.building.id = b.id
             AND l.isEnabled = true
             AND l.space IS NOT NULL
-            AND l.locationType IN ('classroom', 'laboratory', 'office')
+            AND l.locationType IN ('classroom', 'laboratory', 'office', 'public_area', 'service')
           GROUP BY b.id, b.name, b.description, b.imageUrl
           ORDER BY b.name
           """)
