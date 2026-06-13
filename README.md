@@ -4,6 +4,8 @@ FERI Navigator je namenjen študentom, zaposlenim in obiskovalcem FERI. Omogoča
 
 Repozitorij vsebuje javno aplikacijo, backend, podatkovni in navigacijski model ter lokalno administratorsko orodje za urejanje navigacijskega grafa.
 
+Link do resitve : https://ferinav.app/
+
 ## Ključne zmožnosti
 
 - iskanje objektov in prostorov FERI;
